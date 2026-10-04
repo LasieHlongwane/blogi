@@ -1,0 +1,404 @@
+{% extends "admin/base.html" %}
+
+
+{% block title %}
+    Subscribers | Creator Studio
+{% endblock %}
+
+
+{% block content %}
+
+
+<div class="page-heading">
+
+    <span class="eyebrow">
+        AUDIENCE
+    </span>
+
+    <h1>
+        Subscribers.
+    </h1>
+
+    <p>
+        See who subscribed and monitor
+        newsletter delivery.
+    </p>
+
+</div>
+
+
+
+<!-- =========================================================
+     STATS
+========================================================== -->
+
+<div class="subscriber-stats">
+
+    <div>
+        <strong>
+            {{ total_count }}
+        </strong>
+
+        <span>
+            Total
+        </span>
+    </div>
+
+
+    <div>
+        <strong>
+            {{ active_count }}
+        </strong>
+
+        <span>
+            Active
+        </span>
+    </div>
+
+
+    <div>
+        <strong>
+            {{ pending_count }}
+        </strong>
+
+        <span>
+            Pending
+        </span>
+    </div>
+
+
+    <div>
+        <strong>
+            {{ unsubscribed_count }}
+        </strong>
+
+        <span>
+            Unsubscribed
+        </span>
+    </div>
+
+</div>
+
+
+
+<!-- =========================================================
+     FILTERS
+========================================================== -->
+
+<div class="content-filters">
+
+    <a
+        href="{{ url_for(
+            'admin.subscribers'
+        ) }}"
+        class="
+            {% if not selected_status %}
+                active
+            {% endif %}
+        "
+    >
+        All
+    </a>
+
+
+    <a
+        href="{{ url_for(
+            'admin.subscribers',
+            status='active'
+        ) }}"
+        class="
+            {% if selected_status == 'active' %}
+                active
+            {% endif %}
+        "
+    >
+        Active
+    </a>
+
+
+    <a
+        href="{{ url_for(
+            'admin.subscribers',
+            status='pending'
+        ) }}"
+        class="
+            {% if selected_status == 'pending' %}
+                active
+            {% endif %}
+        "
+    >
+        Pending
+    </a>
+
+
+    <a
+        href="{{ url_for(
+            'admin.subscribers',
+            status='unsubscribed'
+        ) }}"
+        class="
+            {% if selected_status == 'unsubscribed' %}
+                active
+            {% endif %}
+        "
+    >
+        Unsubscribed
+    </a>
+
+</div>
+
+
+
+<!-- =========================================================
+     SUBSCRIBERS
+========================================================== -->
+
+<section class="admin-table-card">
+
+    <div class="admin-table-heading">
+
+        <h2>
+            Email audience
+        </h2>
+
+    </div>
+
+
+    <div class="admin-table-scroll">
+
+        <table class="subscriber-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>
+                        Email
+                    </th>
+
+                    <th>
+                        Status
+                    </th>
+
+                    <th>
+                        Joined
+                    </th>
+
+                    <th>
+                        Verified
+                    </th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody>
+
+
+                {% for subscriber in subscribers %}
+
+                    <tr>
+
+                        <td>
+                            {{ subscriber.email }}
+                        </td>
+
+
+                        <td>
+
+                            <span
+                                class="
+                                    subscriber-status
+                                    {{ subscriber.status }}
+                                "
+                            >
+                                {{ subscriber.status }}
+                            </span>
+
+                        </td>
+
+
+                        <td>
+
+                            {{ subscriber.created_at.strftime(
+                                "%d %b %Y"
+                            ) }}
+
+                        </td>
+
+
+                        <td>
+
+                            {% if subscriber.verified_at %}
+
+                                {{ subscriber.verified_at.strftime(
+                                    "%d %b %Y"
+                                ) }}
+
+                            {% else %}
+
+                                —
+
+                            {% endif %}
+
+                        </td>
+
+                    </tr>
+
+
+                {% else %}
+
+                    <tr>
+
+                        <td
+                            colspan="4"
+                            class="empty-table-cell"
+                        >
+                            No subscribers found.
+                        </td>
+
+                    </tr>
+
+                {% endfor %}
+
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+
+
+<!-- =========================================================
+     EMAIL DELIVERY
+========================================================== -->
+
+<section class="admin-table-card email-delivery-section">
+
+    <div class="admin-table-heading">
+
+        <div>
+
+            <span class="eyebrow">
+                DELIVERY LOG
+            </span>
+
+            <h2>
+                Recent emails
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <div class="admin-table-scroll">
+
+        <table class="subscriber-table">
+
+            <thead>
+
+                <tr>
+
+                    <th>
+                        Recipient
+                    </th>
+
+                    <th>
+                        Type
+                    </th>
+
+                    <th>
+                        Subject
+                    </th>
+
+                    <th>
+                        Status
+                    </th>
+
+                    <th>
+                        Date
+                    </th>
+
+                </tr>
+
+            </thead>
+
+
+            <tbody>
+
+
+                {% for delivery in recent_deliveries %}
+
+                    <tr>
+
+                        <td>
+                            {{ delivery.recipient_email }}
+                        </td>
+
+
+                        <td>
+                            {{ delivery.email_type }}
+                        </td>
+
+
+                        <td>
+                            {{ delivery.subject }}
+                        </td>
+
+
+                        <td>
+
+                            <span
+                                class="
+                                    delivery-status
+                                    {{ delivery.status }}
+                                "
+                            >
+                                {{ delivery.status }}
+                            </span>
+
+                        </td>
+
+
+                        <td>
+
+                            {{ delivery.created_at.strftime(
+                                "%d %b %Y %H:%M"
+                            ) }}
+
+                        </td>
+
+                    </tr>
+
+
+                {% else %}
+
+                    <tr>
+
+                        <td
+                            colspan="5"
+                            class="empty-table-cell"
+                        >
+                            No emails have been sent yet.
+                        </td>
+
+                    </tr>
+
+                {% endfor %}
+
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</section>
+
+
+{% endblock %}

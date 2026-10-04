@@ -1,0 +1,1089 @@
+{% extends "admin/base.html" %}
+
+
+{% block title %}
+
+    {% if post %}
+        Edit {{ post.title }}
+    {% else %}
+        New Content
+    {% endif %}
+
+    | Creator Studio
+
+{% endblock %}
+
+
+{% block content %}
+
+
+<!-- =========================================================
+     HEADING
+========================================================== -->
+
+<div class="page-heading">
+
+    <span class="eyebrow">
+
+        {% if post %}
+            EDIT
+        {% else %}
+            CREATE
+        {% endif %}
+
+    </span>
+
+
+    <h1>
+
+        {% if post %}
+            {{ post.title }}
+        {% else %}
+            Tell your story.
+        {% endif %}
+
+    </h1>
+
+
+    <p>
+        Create a story, reel or vlog and decide
+        who gets to see it.
+    </p>
+
+</div>
+
+
+
+<!-- =========================================================
+     EDITOR
+========================================================== -->
+
+<form
+    method="POST"
+    enctype="multipart/form-data"
+    class="editor-layout"
+    id="content-editor-form"
+>
+
+
+    <!-- =====================================================
+         MAIN EDITOR
+    ====================================================== -->
+
+    <div class="editor-main">
+
+
+        <!-- =================================================
+             CONTENT
+        ================================================== -->
+
+        <div class="form-card">
+
+
+            <label class="field-label">
+
+                Title
+
+                <input
+                    type="text"
+                    name="title"
+                    maxlength="200"
+                    required
+                    value="{{ post.title if post else '' }}"
+                    placeholder="Give this post a title"
+                >
+
+            </label>
+
+
+            <label class="field-label">
+
+                Short description
+
+                <textarea
+                    name="excerpt"
+                    rows="3"
+                    placeholder="What is this about?"
+                >{{ post.excerpt if post and post.excerpt else '' }}</textarea>
+
+            </label>
+
+
+            <label class="field-label">
+
+                Story / Description
+
+                <textarea
+                    name="body"
+                    rows="18"
+                    placeholder="Start writing..."
+                >{{ post.body if post and post.body else '' }}</textarea>
+
+            </label>
+
+
+        </div>
+
+
+
+        <!-- =================================================
+             COVER IMAGE
+        ================================================== -->
+
+        <section class="form-card">
+
+            <div class="form-card-heading">
+
+                <div>
+
+                    <span class="eyebrow">
+                        COVER
+                    </span>
+
+                    <h2>
+                        Cover image
+                    </h2>
+
+                </div>
+
+            </div>
+
+
+            <p class="media-section-description">
+                This image represents your content
+                on the homepage and content feeds.
+            </p>
+
+
+            {% if post and post.cover_image_url %}
+
+                <div class="post-cover-preview">
+
+                    <img
+                        src="{{ post.cover_image_url }}"
+                        alt="{{ post.title }}"
+                    >
+
+                </div>
+
+                <p class="media-help">
+                    Choose another image below
+                    to replace the current cover.
+                </p>
+
+            {% else %}
+
+                <div class="cover-upload-placeholder">
+
+                    <span>
+                        +
+                    </span>
+
+                    <strong>
+                        Add a cover
+                    </strong>
+
+                    <small>
+                        JPG, PNG or WebP
+                    </small>
+
+                </div>
+
+            {% endif %}
+
+
+            <label class="upload-field">
+
+                <span>
+                    Choose cover image
+                </span>
+
+                <input
+                    type="file"
+                    name="cover_image"
+                    accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                >
+
+            </label>
+
+
+        </section>
+
+
+
+        <!-- =================================================
+             VIDEO
+        ================================================== -->
+
+        <section
+            class="form-card"
+            id="video-media-section"
+        >
+
+            <div class="form-card-heading">
+
+                <div>
+
+                    <span class="eyebrow">
+                        VIDEO
+                    </span>
+
+                    <h2 id="video-section-title">
+                        Reel / Vlog video
+                    </h2>
+
+                </div>
+
+            </div>
+
+
+            <p class="media-section-description">
+                Upload the main video for this
+                Reel or Vlog.
+            </p>
+
+
+            {% if post %}
+
+                {% set existing_video = namespace(item=None) %}
+
+                {% for media in post.media %}
+
+                    {% if media.media_type == "video" %}
+
+                        {% set existing_video.item = media %}
+
+                    {% endif %}
+
+                {% endfor %}
+
+
+                {% if existing_video.item %}
+
+                    <div class="post-video-preview">
+
+                        <video
+                            controls
+                            playsinline
+                            preload="metadata"
+                            {% if existing_video.item.thumbnail_url %}
+                                poster="{{ existing_video.item.thumbnail_url }}"
+                            {% endif %}
+                        >
+
+                            <source
+                                src="{{ existing_video.item.media_url }}"
+                            >
+
+                        </video>
+
+                    </div>
+
+
+                    {% if existing_video.item.duration_seconds %}
+
+                        <p class="media-details">
+
+                            Duration:
+                            {{ "%.1f"|format(
+                                existing_video.item.duration_seconds
+                            ) }}
+                            seconds
+
+                        </p>
+
+                    {% endif %}
+
+
+                    <p class="media-help">
+                        Choose another video below
+                        to replace this one.
+                    </p>
+
+                {% else %}
+
+                    <div class="video-upload-placeholder">
+
+                        <span>
+                            ▶
+                        </span>
+
+                        <strong>
+                            Add your video
+                        </strong>
+
+                        <small>
+                            MP4, MOV, M4V or WebM
+                        </small>
+
+                    </div>
+
+                {% endif %}
+
+            {% else %}
+
+                <div class="video-upload-placeholder">
+
+                    <span>
+                        ▶
+                    </span>
+
+                    <strong>
+                        Add your video
+                    </strong>
+
+                    <small>
+                        MP4, MOV, M4V or WebM
+                    </small>
+
+                </div>
+
+            {% endif %}
+
+
+            <label class="upload-field">
+
+                <span id="video-upload-label">
+                    Choose video
+                </span>
+
+                <input
+                    type="file"
+                    name="video_file"
+                    accept=".mp4,.mov,.m4v,.webm,video/mp4,video/quicktime,video/webm"
+                >
+
+            </label>
+
+
+        </section>
+
+
+
+        <!-- =================================================
+             STORY GALLERY
+        ================================================== -->
+
+        <section
+            class="form-card"
+            id="story-gallery-section"
+        >
+
+            <div class="form-card-heading">
+
+                <div>
+
+                    <span class="eyebrow">
+                        GALLERY
+                    </span>
+
+                    <h2>
+                        Story images
+                    </h2>
+
+                </div>
+
+            </div>
+
+
+            <p class="media-section-description">
+                Add multiple images to accompany
+                your story.
+            </p>
+
+
+            {% if post %}
+
+                {% set gallery = namespace(count=0) %}
+
+                <div class="story-gallery-admin">
+
+                    {% for media in post.media %}
+
+                        {% if media.media_type == "gallery_image" %}
+
+                            {% set gallery.count = gallery.count + 1 %}
+
+                            <div class="story-gallery-item">
+
+                                <img
+                                    src="{{ media.media_url }}"
+                                    alt="{{ post.title }}"
+                                >
+
+                            </div>
+
+                        {% endif %}
+
+                    {% endfor %}
+
+                </div>
+
+
+                {% if gallery.count == 0 %}
+
+                    <div class="gallery-empty">
+
+                        <span>
+                            ▦
+                        </span>
+
+                        <strong>
+                            No story images yet
+                        </strong>
+
+                    </div>
+
+                {% endif %}
+
+            {% else %}
+
+                <div class="gallery-empty">
+
+                    <span>
+                        ▦
+                    </span>
+
+                    <strong>
+                        Add photos to your story
+                    </strong>
+
+                </div>
+
+            {% endif %}
+
+
+            <label class="upload-field">
+
+                <span>
+                    Choose story images
+                </span>
+
+                <input
+                    type="file"
+                    name="gallery_images"
+                    multiple
+                    accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+                >
+
+            </label>
+
+
+            <small class="media-help">
+                You can select multiple images.
+                Maximum 10 new images per upload.
+            </small>
+
+
+        </section>
+
+
+    </div>
+
+
+
+    <!-- =====================================================
+         SETTINGS
+    ====================================================== -->
+
+    <aside class="editor-settings">
+
+
+        <div class="form-card">
+
+            <h3>
+                Publish settings
+            </h3>
+
+
+            <label class="field-label">
+
+                Content type
+
+
+                {% set selected_type =
+                    post.content_type
+                    if post
+                    else request.args.get(
+                        'type',
+                        'story'
+                    )
+                %}
+
+
+                <select
+                    name="content_type"
+                    id="content-type-select"
+                >
+
+                    <option
+                        value="story"
+                        {% if selected_type == "story" %}
+                            selected
+                        {% endif %}
+                    >
+                        Story
+                    </option>
+
+                    <option
+                        value="reel"
+                        {% if selected_type == "reel" %}
+                            selected
+                        {% endif %}
+                    >
+                        Reel
+                    </option>
+
+                    <option
+                        value="vlog"
+                        {% if selected_type == "vlog" %}
+                            selected
+                        {% endif %}
+                    >
+                        Vlog
+                    </option>
+
+                </select>
+
+            </label>
+
+
+            <label class="field-label">
+
+                Folder
+
+                <select name="category_id">
+
+                    <option value="">
+                        No folder
+                    </option>
+
+                    {% for category in categories %}
+
+                        <option
+                            value="{{ category.id }}"
+
+                            {% if
+                                post
+                                and post.category_id
+                                == category.id
+                            %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ category.name }}
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+
+            </label>
+
+
+            <label class="field-label">
+
+                Who can see this?
+
+                <select name="access_level">
+
+                    <option
+                        value="public"
+
+                        {% if
+                            not post
+                            or post.access_level
+                            == "public"
+                        %}
+                            selected
+                        {% endif %}
+                    >
+                        Everyone — Public
+                    </option>
+
+
+                    <option
+                        value="subscriber"
+
+                        {% if
+                            post
+                            and post.access_level
+                            == "subscriber"
+                        %}
+                            selected
+                        {% endif %}
+                    >
+                        🔒 Members only
+                    </option>
+
+                </select>
+
+            </label>
+
+
+            <label class="field-label">
+
+                Status
+
+                <select name="status">
+
+                    <option
+                        value="draft"
+
+                        {% if
+                            not post
+                            or post.status
+                            == "draft"
+                        %}
+                            selected
+                        {% endif %}
+                    >
+                        Draft
+                    </option>
+
+
+                    <option
+                        value="published"
+
+                        {% if
+                            post
+                            and post.status
+                            == "published"
+                        %}
+                            selected
+                        {% endif %}
+                    >
+                        Published
+                    </option>
+
+
+                    <option
+                        value="archived"
+
+                        {% if
+                            post
+                            and post.status
+                            == "archived"
+                        %}
+                            selected
+                        {% endif %}
+                    >
+                        Archived
+                    </option>
+
+                </select>
+
+            </label>
+
+
+            <label class="checkbox-field">
+
+                <input
+                    type="checkbox"
+                    name="is_featured"
+
+                    {% if
+                        post
+                        and post.is_featured
+                    %}
+                        checked
+                    {% endif %}
+                >
+
+                <span>
+
+                    <strong>
+                        Feature this content
+                    </strong>
+
+                    <small>
+                        Give it more visibility
+                        on the homepage.
+                    </small>
+
+                </span>
+
+            </label>
+
+
+            <button
+                type="submit"
+                class="save-button"
+            >
+
+                {% if post %}
+                    Save changes
+                {% else %}
+                    Create content
+                {% endif %}
+
+            </button>
+
+
+            <small class="save-media-note">
+                Large videos can take a little
+                longer to upload.
+            </small>
+
+
+        </div>
+
+
+
+        {% if post %}
+
+            <div class="form-card subtle">
+
+                <span class="meta-label">
+                    URL
+                </span>
+
+                <code>
+                    /stories/{{ post.slug }}
+                </code>
+
+
+                <span class="meta-label">
+                    Created
+                </span>
+
+                <span>
+
+                    {{ post.created_at.strftime(
+                        "%d %b %Y"
+                    ) }}
+
+                </span>
+
+            </div>
+
+        {% endif %}
+
+
+    </aside>
+
+
+</form>
+
+
+
+<!-- =========================================================
+     EXISTING MEDIA MANAGEMENT
+========================================================== -->
+
+{% if post %}
+
+<section class="media-management-section">
+
+
+    <div class="section-title">
+
+        <div>
+
+            <span class="eyebrow">
+                MEDIA LIBRARY
+            </span>
+
+            <h2>
+                Attached media
+            </h2>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="media-management-grid">
+
+
+        <!-- =================================================
+             COVER
+        ================================================== -->
+
+        {% if post.cover_image_url %}
+
+            <article class="media-management-card">
+
+                <div class="media-management-preview">
+
+                    <img
+                        src="{{ post.cover_image_url }}"
+                        alt="{{ post.title }}"
+                    >
+
+                </div>
+
+
+                <div class="media-management-info">
+
+                    <strong>
+                        Cover image
+                    </strong>
+
+                    <form
+                        method="POST"
+                        action="{{ url_for(
+                            'admin.content_remove_cover',
+                            post_id=post.id
+                        ) }}"
+                        onsubmit="
+                            return confirm(
+                                'Remove this cover image?'
+                            );
+                        "
+                    >
+
+                        <button type="submit">
+                            Remove
+                        </button>
+
+                    </form>
+
+                </div>
+
+            </article>
+
+        {% endif %}
+
+
+
+        <!-- =================================================
+             CONTENT MEDIA
+        ================================================== -->
+
+        {% for media in post.media %}
+
+
+            {% if media.media_type == "video" %}
+
+                <article class="media-management-card">
+
+                    <div class="media-management-preview video">
+
+                        {% if media.thumbnail_url %}
+
+                            <img
+                                src="{{ media.thumbnail_url }}"
+                                alt="{{ post.title }}"
+                            >
+
+                        {% else %}
+
+                            <div class="video-thumbnail-placeholder">
+                                ▶
+                            </div>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <div class="media-management-info">
+
+                        <strong>
+                            {{ post.content_type|capitalize }}
+                            video
+                        </strong>
+
+
+                        <form
+                            method="POST"
+                            action="{{ url_for(
+                                'admin.content_remove_video',
+                                post_id=post.id
+                            ) }}"
+                            onsubmit="
+                                return confirm(
+                                    'Remove this video?'
+                                );
+                            "
+                        >
+
+                            <button type="submit">
+                                Remove
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                </article>
+
+
+            {% elif media.media_type == "gallery_image" %}
+
+                <article class="media-management-card">
+
+                    <div class="media-management-preview">
+
+                        <img
+                            src="{{ media.media_url }}"
+                            alt="{{ post.title }}"
+                        >
+
+                    </div>
+
+
+                    <div class="media-management-info">
+
+                        <strong>
+                            Story image
+                        </strong>
+
+
+                        <form
+                            method="POST"
+                            action="{{ url_for(
+                                'admin.content_remove_gallery_image',
+                                post_id=post.id,
+                                media_id=media.id
+                            ) }}"
+                            onsubmit="
+                                return confirm(
+                                    'Remove this image?'
+                                );
+                            "
+                        >
+
+                            <button type="submit">
+                                Remove
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                </article>
+
+            {% endif %}
+
+
+        {% endfor %}
+
+
+    </div>
+
+
+</section>
+
+{% endif %}
+
+
+
+<!-- =========================================================
+     CONTENT TYPE UI
+========================================================== -->
+
+<script>
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function () {
+
+        const typeSelect =
+            document.getElementById(
+                "content-type-select"
+            );
+
+        const videoSection =
+            document.getElementById(
+                "video-media-section"
+            );
+
+        const gallerySection =
+            document.getElementById(
+                "story-gallery-section"
+            );
+
+        const videoTitle =
+            document.getElementById(
+                "video-section-title"
+            );
+
+        const videoLabel =
+            document.getElementById(
+                "video-upload-label"
+            );
+
+
+        function updateMediaFields() {
+
+            const type =
+                typeSelect.value;
+
+
+            // ================================================
+            // STORY
+            // ================================================
+
+            if (type === "story") {
+
+                videoSection.style.display =
+                    "none";
+
+                gallerySection.style.display =
+                    "block";
+
+            }
+
+
+            // ================================================
+            // REEL
+            // ================================================
+
+            else if (type === "reel") {
+
+                videoSection.style.display =
+                    "block";
+
+                gallerySection.style.display =
+                    "none";
+
+                videoTitle.textContent =
+                    "Reel video";
+
+                videoLabel.textContent =
+                    "Choose reel video";
+
+            }
+
+
+            // ================================================
+            // VLOG
+            // ================================================
+
+            else if (type === "vlog") {
+
+                videoSection.style.display =
+                    "block";
+
+                gallerySection.style.display =
+                    "none";
+
+                videoTitle.textContent =
+                    "Vlog video";
+
+                videoLabel.textContent =
+                    "Choose vlog video";
+
+            }
+
+        }
+
+
+        typeSelect.addEventListener(
+            "change",
+            updateMediaFields
+        );
+
+
+        updateMediaFields();
+
+    }
+);
+
+</script>
+
+
+{% endblock %}

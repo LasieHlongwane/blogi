@@ -1,0 +1,255 @@
+{% extends "admin/base.html" %}
+
+
+{% block title %}
+    Content | Creator Studio
+{% endblock %}
+
+
+{% block content %}
+
+
+<div class="page-heading split">
+
+    <div>
+
+        <span class="eyebrow">
+            CONTENT
+        </span>
+
+        <h1>
+            Your stories.
+        </h1>
+
+        <p>
+            Manage everything you've shared.
+        </p>
+
+    </div>
+
+
+    <a
+        href="{{ url_for('admin.content_new') }}"
+        class="primary-action"
+    >
+        + Create content
+    </a>
+
+</div>
+
+
+
+<!-- =========================================================
+     FILTERS
+========================================================== -->
+
+<div class="filter-bar">
+
+    <a
+        href="{{ url_for('admin.content_list') }}"
+        class="{% if not selected_status and not selected_type %}active{% endif %}"
+    >
+        All
+    </a>
+
+    <a
+        href="{{ url_for(
+            'admin.content_list',
+            status='published'
+        ) }}"
+        class="{% if selected_status == 'published' %}active{% endif %}"
+    >
+        Published
+    </a>
+
+    <a
+        href="{{ url_for(
+            'admin.content_list',
+            status='draft'
+        ) }}"
+        class="{% if selected_status == 'draft' %}active{% endif %}"
+    >
+        Drafts
+    </a>
+
+    <a
+        href="{{ url_for(
+            'admin.content_list',
+            type='story'
+        ) }}"
+        class="{% if selected_type == 'story' %}active{% endif %}"
+    >
+        Stories
+    </a>
+
+    <a
+        href="{{ url_for(
+            'admin.content_list',
+            type='reel'
+        ) }}"
+        class="{% if selected_type == 'reel' %}active{% endif %}"
+    >
+        Reels
+    </a>
+
+    <a
+        href="{{ url_for(
+            'admin.content_list',
+            type='vlog'
+        ) }}"
+        class="{% if selected_type == 'vlog' %}active{% endif %}"
+    >
+        Vlogs
+    </a>
+
+</div>
+
+
+
+{% if posts %}
+
+<div class="content-management-list">
+
+    {% for post in posts %}
+
+        <article class="management-card">
+
+
+            <div class="management-main">
+
+                <div class="management-labels">
+
+                    <span class="content-type">
+                        {{ post.content_type }}
+                    </span>
+
+                    {% if post.access_level == "subscriber" %}
+
+                        <span class="badge exclusive">
+                            🔒 Exclusive
+                        </span>
+
+                    {% endif %}
+
+                    <span class="badge {{ post.status }}">
+                        {{ post.status }}
+                    </span>
+
+                </div>
+
+
+                <h2>
+                    {{ post.title }}
+                </h2>
+
+
+                {% if post.category %}
+
+                    <p>
+                        {{ post.category.name }}
+                    </p>
+
+                {% endif %}
+
+            </div>
+
+
+            <div class="management-actions">
+
+                <a
+                    href="{{ url_for(
+                        'admin.content_edit',
+                        post_id=post.id
+                    ) }}"
+                >
+                    Edit
+                </a>
+
+
+                {% if post.status != "published" %}
+
+                    <form
+                        method="POST"
+                        action="{{ url_for(
+                            'admin.content_publish',
+                            post_id=post.id
+                        ) }}"
+                    >
+
+                        <button type="submit">
+                            Publish
+                        </button>
+
+                    </form>
+
+                {% endif %}
+
+
+                {% if post.status != "archived" %}
+
+                    <form
+                        method="POST"
+                        action="{{ url_for(
+                            'admin.content_archive',
+                            post_id=post.id
+                        ) }}"
+                    >
+
+                        <button type="submit">
+                            Archive
+                        </button>
+
+                    </form>
+
+                {% endif %}
+
+
+                <form
+                    method="POST"
+                    action="{{ url_for(
+                        'admin.content_delete',
+                        post_id=post.id
+                    ) }}"
+                    onsubmit="
+                        return confirm(
+                            'Delete this content permanently?'
+                        );
+                    "
+                >
+
+                    <button
+                        type="submit"
+                        class="danger-action"
+                    >
+                        Delete
+                    </button>
+
+                </form>
+
+            </div>
+
+        </article>
+
+    {% endfor %}
+
+</div>
+
+
+{% else %}
+
+<div class="empty-state">
+
+    <h2>
+        No content found.
+    </h2>
+
+    <p>
+        Try another filter or create something new.
+    </p>
+
+</div>
+
+{% endif %}
+
+
+{% endblock %}

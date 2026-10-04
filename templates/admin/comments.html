@@ -1,0 +1,402 @@
+{% extends "admin/base.html" %}
+
+
+{% block title %}
+    Comments | Creator Studio
+{% endblock %}
+
+
+{% block content %}
+
+
+<!-- =========================================================
+     HEADING
+========================================================== -->
+
+<div class="page-heading">
+
+    <span class="eyebrow">
+        COMMUNITY
+    </span>
+
+    <h1>
+        Comments.
+    </h1>
+
+    <p>
+        Read conversations, reply to your audience
+        and moderate what appears publicly.
+    </p>
+
+</div>
+
+
+
+<!-- =========================================================
+     STATS
+========================================================== -->
+
+<div class="comment-admin-stats">
+
+    <div>
+
+        <strong>
+            {{ approved_count }}
+        </strong>
+
+        <span>
+            Approved
+        </span>
+
+    </div>
+
+
+    <div>
+
+        <strong>
+            {{ pending_count }}
+        </strong>
+
+        <span>
+            Pending
+        </span>
+
+    </div>
+
+
+    <div>
+
+        <strong>
+            {{ hidden_count }}
+        </strong>
+
+        <span>
+            Hidden
+        </span>
+
+    </div>
+
+</div>
+
+
+
+<!-- =========================================================
+     FILTERS
+========================================================== -->
+
+<div class="content-filters">
+
+    <a
+        href="{{ url_for('admin.comments') }}"
+        class="
+            {% if not selected_status %}
+                active
+            {% endif %}
+        "
+    >
+        All
+    </a>
+
+
+    <a
+        href="{{ url_for(
+            'admin.comments',
+            status='approved'
+        ) }}"
+        class="
+            {% if selected_status == 'approved' %}
+                active
+            {% endif %}
+        "
+    >
+        Approved
+    </a>
+
+
+    <a
+        href="{{ url_for(
+            'admin.comments',
+            status='pending'
+        ) }}"
+        class="
+            {% if selected_status == 'pending' %}
+                active
+            {% endif %}
+        "
+    >
+        Pending
+    </a>
+
+
+    <a
+        href="{{ url_for(
+            'admin.comments',
+            status='hidden'
+        ) }}"
+        class="
+            {% if selected_status == 'hidden' %}
+                active
+            {% endif %}
+        "
+    >
+        Hidden
+    </a>
+
+</div>
+
+
+
+<!-- =========================================================
+     COMMENTS
+========================================================== -->
+
+<div class="admin-comments-list">
+
+
+    {% for comment in comments %}
+
+        <article class="admin-comment-card">
+
+
+            <!-- =============================================
+                 HEADER
+            ============================================== -->
+
+            <div class="admin-comment-header">
+
+
+                <div class="admin-comment-avatar">
+
+                    {{ comment.author_name[:1]|upper }}
+
+                </div>
+
+
+                <div class="admin-comment-person">
+
+                    <div>
+
+                        <strong>
+                            {{ comment.author_name }}
+                        </strong>
+
+
+                        {% if comment.is_creator %}
+
+                            <span class="admin-creator-badge">
+                                CREATOR
+                            </span>
+
+                        {% endif %}
+
+
+                        {% if comment.parent_id %}
+
+                            <span class="admin-reply-badge">
+                                REPLY
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+
+                    <small>
+
+                        {{ comment.created_at.strftime(
+                            "%d %b %Y · %H:%M"
+                        ) }}
+
+                    </small>
+
+                </div>
+
+
+                <span
+                    class="
+                        admin-comment-status
+                        {{ comment.status }}
+                    "
+                >
+                    {{ comment.status }}
+                </span>
+
+
+            </div>
+
+
+
+            <!-- =============================================
+                 POST
+            ============================================== -->
+
+            <div class="admin-comment-post">
+
+                On:
+
+                <a
+                    href="{{ url_for(
+                        'public.content_detail',
+                        slug=comment.post.slug
+                    ) }}"
+                    target="_blank"
+                >
+                    {{ comment.post.title }}
+                </a>
+
+            </div>
+
+
+
+            <!-- =============================================
+                 BODY
+            ============================================== -->
+
+            <div class="admin-comment-body">
+
+                {{ comment.body }}
+
+            </div>
+
+
+
+            <!-- =============================================
+                 ACTIONS
+            ============================================== -->
+
+            <div class="admin-comment-actions">
+
+
+                {% if comment.status != "approved" %}
+
+                    <form
+                        method="POST"
+                        action="{{ url_for(
+                            'admin.comment_approve',
+                            comment_id=comment.id
+                        ) }}"
+                    >
+
+                        <button
+                            type="submit"
+                            class="approve"
+                        >
+                            Approve
+                        </button>
+
+                    </form>
+
+                {% endif %}
+
+
+
+                {% if comment.status != "hidden" %}
+
+                    <form
+                        method="POST"
+                        action="{{ url_for(
+                            'admin.comment_hide',
+                            comment_id=comment.id
+                        ) }}"
+                    >
+
+                        <button type="submit">
+                            Hide
+                        </button>
+
+                    </form>
+
+                {% endif %}
+
+
+
+                <form
+                    method="POST"
+                    action="{{ url_for(
+                        'admin.comment_delete',
+                        comment_id=comment.id
+                    ) }}"
+                    onsubmit="
+                        return confirm(
+                            'Permanently delete this comment?'
+                        );
+                    "
+                >
+
+                    <button
+                        type="submit"
+                        class="delete"
+                    >
+                        Delete
+                    </button>
+
+                </form>
+
+
+            </div>
+
+
+
+            <!-- =============================================
+                 CREATOR REPLY
+            ============================================== -->
+
+            {% if
+                not comment.parent_id
+                and comment.status == "approved"
+            %}
+
+                <form
+                    method="POST"
+                    action="{{ url_for(
+                        'admin.comment_creator_reply',
+                        comment_id=comment.id
+                    ) }}"
+                    class="admin-creator-reply"
+                >
+
+                    <textarea
+                        name="body"
+                        maxlength="1500"
+                        rows="3"
+                        required
+                        placeholder="Reply as creator..."
+                    ></textarea>
+
+
+                    <button type="submit">
+                        Reply
+                    </button>
+
+                </form>
+
+            {% endif %}
+
+
+        </article>
+
+
+    {% else %}
+
+
+        <div class="admin-comments-empty">
+
+            <h3>
+                No comments here yet.
+            </h3>
+
+            <p>
+                New conversations will appear
+                here when visitors start commenting.
+            </p>
+
+        </div>
+
+
+    {% endfor %}
+
+
+</div>
+
+
+{% endblock %}

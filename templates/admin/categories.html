@@ -1,0 +1,154 @@
+{% extends "admin/base.html" %}
+
+
+{% block title %}
+    Folders | Creator Studio
+{% endblock %}
+
+
+{% block content %}
+
+
+<div class="page-heading">
+
+    <span class="eyebrow">
+        ORGANISE
+    </span>
+
+    <h1>
+        Content folders.
+    </h1>
+
+    <p>
+        Organise stories, reels and vlogs
+        into collections your audience can explore.
+    </p>
+
+</div>
+
+
+
+<div class="two-column-admin">
+
+
+    <!-- =====================================================
+         CREATE
+    ====================================================== -->
+
+    <div class="form-card">
+
+        <h2>
+            Create folder
+        </h2>
+
+
+        <form method="POST">
+
+
+            <label class="field-label">
+
+                Folder name
+
+                <input
+                    type="text"
+                    name="name"
+                    maxlength="100"
+                    required
+                    placeholder="e.g. Travel"
+                >
+
+            </label>
+
+
+            <label class="field-label">
+
+                Description
+
+                <textarea
+                    name="description"
+                    rows="5"
+                    placeholder="What belongs here?"
+                ></textarea>
+
+            </label>
+
+
+            <button
+                type="submit"
+                class="save-button"
+            >
+                Create folder
+            </button>
+
+
+        </form>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         EXISTING
+    ====================================================== -->
+
+    <div>
+
+        <div class="folder-list">
+
+            {% for category in categories %}
+
+                <div class="folder-card">
+
+                    <div>
+
+                        <span class="folder-icon">
+                            ↗
+                        </span>
+
+                    </div>
+
+
+                    <div class="folder-info">
+
+                        <strong>
+                            {{ category.name }}
+                        </strong>
+
+                        {% if category.description %}
+
+                            <p>
+                                {{ category.description }}
+                            </p>
+
+                        {% endif %}
+
+                        <small>
+                            {{ category.posts|length }}
+                            content item{% if category.posts|length != 1 %}s{% endif %}
+                        </small>
+
+                    </div>
+
+                </div>
+
+            {% else %}
+
+                <div class="empty-state">
+
+                    <p>
+                        No folders yet.
+                    </p>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+
+</div>
+
+
+{% endblock %}

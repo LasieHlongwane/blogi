@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>
+        Sign in | Creator Studio
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/admin.css') }}"
+    >
+
+</head>
+
+
+<body class="login-page">
+
+
+<div class="login-card">
+
+
+    <div class="login-heading">
+
+        <span>
+            CREATOR
+        </span>
+
+        <h1>
+            Studio
+        </h1>
+
+        <p>
+            Sign in to manage your stories,
+            reels and vlogs.
+        </p>
+
+    </div>
+
+
+    {% with messages = get_flashed_messages(
+        with_categories=true
+    ) %}
+
+        {% if messages %}
+
+            <div class="flash-stack">
+
+                {% for category, message in messages %}
+
+                    <div
+                        class="flash-message {{ category }}"
+                    >
+                        {{ message }}
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        {% endif %}
+
+    {% endwith %}
+
+
+    <form
+        method="POST"
+        class="login-form"
+    >
+
+        <label>
+
+            Username or email
+
+            <input
+                type="text"
+                name="identity"
+                required
+                autocomplete="username"
+            >
+
+        </label>
+
+
+        <label>
+
+            Password
+
+            <input
+                type="password"
+                name="password"
+                required
+                autocomplete="current-password"
+            >
+
+        </label>
+
+
+        <button type="submit">
+            Sign in
+        </button>
+
+    </form>
+
+
+    <a
+        href="{{ url_for('public.home') }}"
+        class="back-link"
+    >
+        ← Back to website
+    </a>
+
+
+</div>
+
+
+</body>
+
+</html>

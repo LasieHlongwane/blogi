@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+
+{% block title %}
+    {{ title }}
+{% endblock %}
+
+
+{% block content %}
+
+
+<main class="newsletter-result-page">
+
+
+    <section class="newsletter-result-card">
+
+
+        <span class="newsletter-result-eyebrow">
+            EMAIL UPDATES
+        </span>
+
+
+        <h1>
+            {{ heading }}
+        </h1>
+
+
+        <p>
+            {{ message }}
+        </p>
+
+
+        <a
+            href="{{ url_for('public.home') }}"
+            class="newsletter-home-button"
+        >
+            Back to home
+        </a>
+
+
+    </section>
+
+
+</main>
+
+
+{% endblock %}

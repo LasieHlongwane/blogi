@@ -1,0 +1,347 @@
+{% extends "admin/base.html" %}
+
+
+{% block title %}
+    Dashboard | Creator Studio
+{% endblock %}
+
+
+{% block content %}
+
+
+<div class="page-heading">
+
+    <div>
+
+        <span class="eyebrow">
+            OVERVIEW
+        </span>
+
+        <h1>
+            Welcome back{% if creator %},
+            {{ creator.display_name }}{% endif %}.
+        </h1>
+
+        <p>
+            Here's what's happening with your content.
+        </p>
+
+    </div>
+
+</div>
+
+
+
+<!-- =========================================================
+     STATS
+========================================================== -->
+
+<div class="stats-grid">
+
+
+    <div class="stat-card">
+
+        <span>
+            Total content
+        </span>
+
+        <strong>
+            {{ total_posts }}
+        </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Published
+        </span>
+
+        <strong>
+            {{ published_posts }}
+        </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Drafts
+        </span>
+
+        <strong>
+            {{ draft_posts }}
+        </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Exclusive
+        </span>
+
+        <strong>
+            {{ exclusive_posts }}
+        </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Email subscribers
+        </span>
+
+        <strong>
+            {{ email_subscribers }}
+        </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Folders
+        </span>
+
+        <strong>
+            {{ categories_count }}
+        </strong>
+
+    </div>
+
+
+</div>
+
+
+
+<!-- =========================================================
+     QUICK ACTIONS
+========================================================== -->
+
+<section class="admin-section">
+
+    <div class="section-title">
+
+        <div>
+
+            <span class="eyebrow">
+                CREATE
+            </span>
+
+            <h2>
+                What are you sharing today?
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <div class="quick-actions">
+
+
+        <a
+            href="{{ url_for(
+                'admin.content_new'
+            ) }}?type=story"
+            class="quick-action"
+        >
+
+            <span class="quick-icon">
+                ✎
+            </span>
+
+            <strong>
+                Story
+            </strong>
+
+            <small>
+                Write something worth reading.
+            </small>
+
+        </a>
+
+
+        <a
+            href="{{ url_for(
+                'admin.content_new'
+            ) }}?type=reel"
+            class="quick-action"
+        >
+
+            <span class="quick-icon">
+                ▶
+            </span>
+
+            <strong>
+                Reel
+            </strong>
+
+            <small>
+                Share a short moment.
+            </small>
+
+        </a>
+
+
+        <a
+            href="{{ url_for(
+                'admin.content_new'
+            ) }}?type=vlog"
+            class="quick-action"
+        >
+
+            <span class="quick-icon">
+                ◉
+            </span>
+
+            <strong>
+                Vlog
+            </strong>
+
+            <small>
+                Publish a longer video.
+            </small>
+
+        </a>
+
+
+        <a
+            href="{{ url_for(
+                'admin.content_new'
+            ) }}?type=vlog"
+            class="quick-action dark"
+        >
+
+            <span class="quick-icon">
+                🔒
+            </span>
+
+            <strong>
+                Exclusive
+            </strong>
+
+            <small>
+                Create something for members.
+            </small>
+
+        </a>
+
+
+    </div>
+
+</section>
+
+
+
+<!-- =========================================================
+     RECENT CONTENT
+========================================================== -->
+
+<section class="admin-section">
+
+    <div class="section-title">
+
+        <div>
+
+            <span class="eyebrow">
+                RECENT
+            </span>
+
+            <h2>
+                Your content
+            </h2>
+
+        </div>
+
+
+        <a href="{{ url_for('admin.content_list') }}">
+            View everything →
+        </a>
+
+    </div>
+
+
+    {% if recent_posts %}
+
+        <div class="content-table">
+
+            {% for post in recent_posts %}
+
+                <a
+                    href="{{ url_for(
+                        'admin.content_edit',
+                        post_id=post.id
+                    ) }}"
+                    class="content-row"
+                >
+
+                    <div>
+
+                        <span class="content-type">
+                            {{ post.content_type }}
+                        </span>
+
+                        <strong>
+                            {{ post.title }}
+                        </strong>
+
+                    </div>
+
+
+                    <div class="row-meta">
+
+                        {% if post.access_level == "subscriber" %}
+
+                            <span class="badge exclusive">
+                                🔒 Exclusive
+                            </span>
+
+                        {% endif %}
+
+
+                        <span
+                            class="badge {{ post.status }}"
+                        >
+                            {{ post.status }}
+                        </span>
+
+                        <span>
+                            →
+                        </span>
+
+                    </div>
+
+                </a>
+
+            {% endfor %}
+
+        </div>
+
+    {% else %}
+
+        <div class="empty-state">
+
+            <h3>
+                Nothing here yet.
+            </h3>
+
+            <p>
+                Create your first story, reel or vlog.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+</section>
+
+
+{% endblock %}
