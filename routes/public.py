@@ -1,5 +1,5 @@
 # ============================================================
-# CREATOR BLOG
+# CREATOR PLATFORM
 # PUBLIC ROUTES
 # ============================================================
 
@@ -20,7 +20,6 @@ from flask import (
 from extensions import db
 
 from models import (
-    CreatorAccount,
     CreatorProfile,
     ContentCategory,
     ContentPost,
@@ -51,135 +50,59 @@ public_bp = Blueprint(
 # ============================================================
 
 COMMENT_MAX_LENGTH = 1500
-
 AUTHOR_MAX_LENGTH = 80
-
 COMMENT_COOLDOWN_SECONDS = 8
 
 
 # ============================================================
-# CREATOR HELPERS
+# CURRENT LEGACY CREATOR
 # ============================================================
 
-
-def get_primary_creator():
-
+def get_current_creator():
     """
-    Transitional helper for the existing root website.
+    Return the existing creator currently powering the root
+    website.
 
-    During the SaaS conversion, "/" continues to represent
-    the original creator website.
+    During the SaaS transition "/" continues to represent the
+    original creator.
 
-    Once /@username public pages are introduced, creator
-    resolution will happen from the username in the URL.
+    Later multi-creator public pages will use:
+
+        /@username
+
+    and resolve the creator directly from the URL.
     """
 
-    creator = (
+    return (
         CreatorProfile.query
-        .filter(
-            CreatorProfile.creator_account_id
-            .isnot(None)
-        )
         .order_by(
             CreatorProfile.id.asc()
         )
         .first()
     )
 
-    # ========================================================
-    # LEGACY FALLBACK
-    # ========================================================
-    #
-    # This keeps the current production website available
-    # until the existing creator backfill has been completed.
-    # ========================================================
 
-    if creator is None:
+def get_current_creator_account_id():
+    """
+    Return the CreatorAccount ID belonging to the existing
+    creator.
 
-        creator = (
-            CreatorProfile.query
-            .order_by(
-                CreatorProfile.id.asc()
-            )
-            .first()
-        )
+    None is allowed temporarily so the public website keeps
+    working before the one-time backfill is executed.
+    """
 
-    return creator
+    creator = get_current_creator()
 
-
-def get_creator_account(
-    creator,
-):
-
-    if creator is None:
+    if not creator:
 
         return None
 
-    if (
-        creator.creator_account_id
-        is None
-    ):
-
-        return None
-
-    return db.session.get(
-        CreatorAccount,
-        creator.creator_account_id,
-    )
-
-
-def get_post_creator(
-    post,
-):
-
-    """
-    Resolve the creator profile that owns a post.
-    """
-
-    if (
-        post.creator_account_id
-        is not None
-    ):
-
-        creator = (
-            CreatorProfile.query
-            .filter_by(
-                creator_account_id=(
-                    post.creator_account_id
-                )
-            )
-            .first()
-        )
-
-        if creator is not None:
-
-            return creator
-
-    # Legacy fallback before backfill.
-    return get_primary_creator()
-
-
-def public_content_url(
-    post,
-):
-
-    """
-    Central helper for redirects back to content.
-
-    This will make the later transition to /@username URLs
-    easier.
-    """
-
-    return url_for(
-        "public.content_detail",
-        slug=post.slug,
-    )
+    return creator.creator_account_id
 
 
 # ============================================================
 # ANONYMOUS SESSION
 # ============================================================
-
 
 def get_anonymous_session_id():
 
@@ -189,10 +112,8 @@ def get_anonymous_session_id():
 
     if not anonymous_id:
 
-        anonymous_id = (
-            secrets.token_urlsafe(
-                24
-            )
+        anonymous_id = secrets.token_urlsafe(
+            24
         )
 
         session[
@@ -206,12 +127,9 @@ def get_anonymous_session_id():
 # COMMENT COOLDOWN
 # ============================================================
 
-
 def comment_rate_limited():
 
-    current_time = (
-        time.time()
-    )
+    current_time = time.time()
 
     previous_time = session.get(
         "last_comment_time"
@@ -242,115 +160,81 @@ def comment_rate_limited():
 # HOME
 # ============================================================
 
-
 @public_bp.route("/")
 def home():
 
-    creator = (
-        get_primary_creator()
-    )
+    creator = get_current_creator()
 
-    if creator is None:
+    if not creator:
 
-        return render_template(
-            "public/home.html",
-            creator=None,
-            categories=[],
-            posts=[],
-        )
+        abort(404)
 
-    creator_account = (
-        get_creator_account(
-            creator
-        )
+    creator_account_id = (
+        creator.creator_account_id
     )
 
     # ========================================================
-    # TENANT-SCOPED CONTENT
+    # CATEGORIES
     # ========================================================
 
-    if creator_account:
+    categories_query = (
+        ContentCategory.query
+        .filter_by(
+            is_active=True
+        )
+    )
 
-        categories = (
-            ContentCategory.query
+    if creator_account_id is not None:
+
+        categories_query = (
+            categories_query
             .filter_by(
                 creator_account_id=(
-                    creator_account.id
-                ),
-                is_active=True,
+                    creator_account_id
+                )
             )
-            .order_by(
-                ContentCategory
-                .display_order
-                .asc(),
-                ContentCategory
-                .name
-                .asc(),
-            )
-            .all()
         )
 
-        posts = (
-            ContentPost.query
+    categories = (
+        categories_query
+        .order_by(
+            ContentCategory.display_order.asc(),
+            ContentCategory.name.asc(),
+        )
+        .all()
+    )
+
+    # ========================================================
+    # POSTS
+    # ========================================================
+
+    posts_query = (
+        ContentPost.query
+        .filter_by(
+            status="published"
+        )
+    )
+
+    if creator_account_id is not None:
+
+        posts_query = (
+            posts_query
             .filter_by(
                 creator_account_id=(
-                    creator_account.id
-                ),
-                status="published",
+                    creator_account_id
+                )
             )
-            .order_by(
-                ContentPost
-                .published_at
-                .desc(),
-                ContentPost
-                .created_at
-                .desc(),
-            )
-            .limit(12)
-            .all()
         )
 
-    else:
-
-        # ====================================================
-        # LEGACY FALLBACK
-        # ====================================================
-        #
-        # Only used until the original creator is backfilled.
-        # ====================================================
-
-        categories = (
-            ContentCategory.query
-            .filter_by(
-                is_active=True
-            )
-            .order_by(
-                ContentCategory
-                .display_order
-                .asc(),
-                ContentCategory
-                .name
-                .asc(),
-            )
-            .all()
+    posts = (
+        posts_query
+        .order_by(
+            ContentPost.published_at.desc(),
+            ContentPost.created_at.desc(),
         )
-
-        posts = (
-            ContentPost.query
-            .filter_by(
-                status="published"
-            )
-            .order_by(
-                ContentPost
-                .published_at
-                .desc(),
-                ContentPost
-                .created_at
-                .desc(),
-            )
-            .limit(12)
-            .all()
-        )
+        .limit(12)
+        .all()
+    )
 
     return render_template(
         "public/home.html",
@@ -364,28 +248,40 @@ def home():
 # CONTENT DETAIL
 # ============================================================
 
-
 @public_bp.route(
     "/content/<string:slug>"
 )
 def content_detail(
-    slug,
+    slug
 ):
 
-    post = (
+    creator = get_current_creator()
+
+    if not creator:
+
+        abort(404)
+
+    creator_account_id = (
+        creator.creator_account_id
+    )
+
+    query = (
         ContentPost.query
         .filter_by(
             slug=slug,
             status="published",
         )
-        .first_or_404()
     )
 
-    creator = (
-        get_post_creator(
-            post
+    if creator_account_id is not None:
+
+        query = query.filter_by(
+            creator_account_id=(
+                creator_account_id
+            )
         )
-    )
+
+    post = query.first_or_404()
 
     # ========================================================
     # MEDIA
@@ -398,9 +294,7 @@ def content_detail(
             media_type="gallery_image",
         )
         .order_by(
-            ContentMedia
-            .media_order
-            .asc()
+            ContentMedia.media_order.asc()
         )
         .all()
     )
@@ -426,9 +320,7 @@ def content_detail(
             status="approved",
         )
         .order_by(
-            Comment
-            .created_at
-            .desc()
+            Comment.created_at.desc()
         )
         .all()
     )
@@ -457,13 +349,12 @@ def content_detail(
 # ADD COMMENT
 # ============================================================
 
-
 @public_bp.route(
     "/content/<int:post_id>/comments",
     methods=["POST"],
 )
 def add_comment(
-    post_id,
+    post_id
 ):
 
     post = db.get_or_404(
@@ -471,10 +362,21 @@ def add_comment(
         post_id,
     )
 
+    creator = get_current_creator()
+
+    if not creator:
+
+        abort(404)
+
     if (
-        post.status
-        != "published"
+        creator.creator_account_id is not None
+        and post.creator_account_id
+        != creator.creator_account_id
     ):
+
+        abort(404)
+
+    if post.status != "published":
 
         abort(404)
 
@@ -494,8 +396,9 @@ def add_comment(
     if website:
 
         return redirect(
-            public_content_url(
-                post
+            url_for(
+                "public.content_detail",
+                slug=post.slug,
             )
             + "#comments"
         )
@@ -513,8 +416,9 @@ def add_comment(
         )
 
         return redirect(
-            public_content_url(
-                post
+            url_for(
+                "public.content_detail",
+                slug=post.slug,
             )
             + "#comments"
         )
@@ -553,16 +457,14 @@ def add_comment(
         )
 
         return redirect(
-            public_content_url(
-                post
+            url_for(
+                "public.content_detail",
+                slug=post.slug,
             )
             + "#comments"
         )
 
-    if (
-        len(author_name)
-        > AUTHOR_MAX_LENGTH
-    ):
+    if len(author_name) > AUTHOR_MAX_LENGTH:
 
         flash(
             "Your name is too long.",
@@ -570,8 +472,9 @@ def add_comment(
         )
 
         return redirect(
-            public_content_url(
-                post
+            url_for(
+                "public.content_detail",
+                slug=post.slug,
             )
             + "#comments"
         )
@@ -584,16 +487,14 @@ def add_comment(
         )
 
         return redirect(
-            public_content_url(
-                post
+            url_for(
+                "public.content_detail",
+                slug=post.slug,
             )
             + "#comments"
         )
 
-    if (
-        len(body)
-        > COMMENT_MAX_LENGTH
-    ):
+    if len(body) > COMMENT_MAX_LENGTH:
 
         flash(
             "Your comment is too long.",
@@ -601,8 +502,9 @@ def add_comment(
         )
 
         return redirect(
-            public_content_url(
-                post
+            url_for(
+                "public.content_detail",
+                slug=post.slug,
             )
             + "#comments"
         )
@@ -634,8 +536,9 @@ def add_comment(
     )
 
     return redirect(
-        public_content_url(
-            post
+        url_for(
+            "public.content_detail",
+            slug=post.slug,
         )
         + "#comments"
     )
@@ -645,13 +548,12 @@ def add_comment(
 # ADD REPLY
 # ============================================================
 
-
 @public_bp.route(
     "/comments/<int:comment_id>/reply",
     methods=["POST"],
 )
 def add_reply(
-    comment_id,
+    comment_id
 ):
 
     parent = db.get_or_404(
@@ -661,10 +563,21 @@ def add_reply(
 
     post = parent.post
 
+    creator = get_current_creator()
+
+    if not creator:
+
+        abort(404)
+
     if (
-        post.status
-        != "published"
+        creator.creator_account_id is not None
+        and post.creator_account_id
+        != creator.creator_account_id
     ):
+
+        abort(404)
+
+    if post.status != "published":
 
         abort(404)
 
@@ -672,10 +585,7 @@ def add_reply(
     # ONLY ONE LEVEL OF REPLIES
     # ========================================================
 
-    if (
-        parent.parent_id
-        is not None
-    ):
+    if parent.parent_id is not None:
 
         abort(400)
 
@@ -695,8 +605,9 @@ def add_reply(
     if website:
 
         return redirect(
-            public_content_url(
-                post
+            url_for(
+                "public.content_detail",
+                slug=post.slug,
             )
             + f"#comment-{parent.id}"
         )
@@ -714,8 +625,9 @@ def add_reply(
         )
 
         return redirect(
-            public_content_url(
-                post
+            url_for(
+                "public.content_detail",
+                slug=post.slug,
             )
             + f"#comment-{parent.id}"
         )
@@ -754,16 +666,14 @@ def add_reply(
         )
 
         return redirect(
-            public_content_url(
-                post
+            url_for(
+                "public.content_detail",
+                slug=post.slug,
             )
             + f"#comment-{parent.id}"
         )
 
-    if (
-        len(author_name)
-        > AUTHOR_MAX_LENGTH
-    ):
+    if len(author_name) > AUTHOR_MAX_LENGTH:
 
         flash(
             "Your name is too long.",
@@ -771,8 +681,9 @@ def add_reply(
         )
 
         return redirect(
-            public_content_url(
-                post
+            url_for(
+                "public.content_detail",
+                slug=post.slug,
             )
             + f"#comment-{parent.id}"
         )
@@ -785,16 +696,14 @@ def add_reply(
         )
 
         return redirect(
-            public_content_url(
-                post
+            url_for(
+                "public.content_detail",
+                slug=post.slug,
             )
             + f"#comment-{parent.id}"
         )
 
-    if (
-        len(body)
-        > COMMENT_MAX_LENGTH
-    ):
+    if len(body) > COMMENT_MAX_LENGTH:
 
         flash(
             "Your reply is too long.",
@@ -802,8 +711,9 @@ def add_reply(
         )
 
         return redirect(
-            public_content_url(
-                post
+            url_for(
+                "public.content_detail",
+                slug=post.slug,
             )
             + f"#comment-{parent.id}"
         )
@@ -836,8 +746,9 @@ def add_reply(
     )
 
     return redirect(
-        public_content_url(
-            post
+        url_for(
+            "public.content_detail",
+            slug=post.slug,
         )
         + f"#comment-{parent.id}"
     )
@@ -847,48 +758,21 @@ def add_reply(
 # NEWSLETTER SUBSCRIBE
 # ============================================================
 
-
 @public_bp.route(
     "/newsletter/subscribe",
     methods=["POST"],
 )
 def newsletter_subscribe():
 
-    creator = (
-        get_primary_creator()
-    )
+    creator = get_current_creator()
 
-    if creator is None:
+    if not creator:
 
         abort(404)
 
-    creator_account = (
-        get_creator_account(
-            creator
-        )
+    creator_account_id = (
+        creator.creator_account_id
     )
-
-    # ========================================================
-    # SAAS REQUIREMENT
-    # ========================================================
-    #
-    # New subscriptions must always belong to a creator.
-    # ========================================================
-
-    if creator_account is None:
-
-        flash(
-            "Newsletter subscriptions are temporarily "
-            "unavailable.",
-            "error",
-        )
-
-        return redirect(
-            url_for(
-                "public.home"
-            )
-            + "#newsletter"
-        )
 
     email = (
         request.form
@@ -946,18 +830,29 @@ def newsletter_subscribe():
         )
 
     # ========================================================
-    # TENANT-SCOPED SUBSCRIBER LOOKUP
+    # CREATOR-SCOPED SUBSCRIBER LOOKUP
     # ========================================================
 
-    subscriber = (
+    subscriber_query = (
         EmailSubscriber.query
         .filter_by(
-            creator_account_id=(
-                creator_account.id
-            ),
-            email=email,
+            email=email
         )
-        .first()
+    )
+
+    if creator_account_id is not None:
+
+        subscriber_query = (
+            subscriber_query
+            .filter_by(
+                creator_account_id=(
+                    creator_account_id
+                )
+            )
+        )
+
+    subscriber = (
+        subscriber_query.first()
     )
 
     # ========================================================
@@ -1000,34 +895,37 @@ def newsletter_subscribe():
 
     if subscriber:
 
-        subscriber.status = (
-            "pending"
-        )
+        subscriber.status = "pending"
 
         subscriber.verification_token = (
             verification_token
         )
 
-        if (
-            not subscriber
-            .unsubscribe_token
-        ):
+        if not subscriber.unsubscribe_token:
 
             subscriber.unsubscribe_token = (
                 unsubscribe_token
             )
 
         subscriber.verified_at = None
+        subscriber.unsubscribed_at = None
 
-        subscriber.unsubscribed_at = (
-            None
-        )
+        if (
+            subscriber.creator_account_id
+            is None
+            and creator_account_id
+            is not None
+        ):
+
+            subscriber.creator_account_id = (
+                creator_account_id
+            )
 
     else:
 
         subscriber = EmailSubscriber(
             creator_account_id=(
-                creator_account.id
+                creator_account_id
             ),
             email=email,
             status="pending",
@@ -1082,12 +980,11 @@ def newsletter_subscribe():
 # VERIFY NEWSLETTER EMAIL
 # ============================================================
 
-
 @public_bp.route(
     "/newsletter/verify/<string:token>"
 )
 def newsletter_verify(
-    token,
+    token
 ):
 
     subscriber = (
@@ -1110,29 +1007,18 @@ def newsletter_verify(
             ),
         ), 404
 
-    # ========================================================
-    # ACTIVATE
-    # ========================================================
-
-    subscriber.status = (
-        "active"
-    )
+    subscriber.status = "active"
 
     subscriber.verified_at = (
         utc_now()
     )
 
-    subscriber.unsubscribed_at = (
-        None
-    )
+    subscriber.unsubscribed_at = None
 
-    subscriber.verification_token = (
-        None
-    )
+    subscriber.verification_token = None
 
     db.session.commit()
 
-    # Welcome-email failure must never undo verification.
     send_welcome_email(
         subscriber
     )
@@ -1153,12 +1039,11 @@ def newsletter_verify(
 # UNSUBSCRIBE
 # ============================================================
 
-
 @public_bp.route(
     "/newsletter/unsubscribe/<string:token>"
 )
 def newsletter_unsubscribe(
-    token,
+    token
 ):
 
     subscriber = (
@@ -1189,9 +1074,7 @@ def newsletter_unsubscribe(
         utc_now()
     )
 
-    subscriber.verification_token = (
-        None
-    )
+    subscriber.verification_token = None
 
     db.session.commit()
 
