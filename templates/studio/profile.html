@@ -1,471 +1,483 @@
 {% extends "studio/base.html" %}
 
-
 {% block title %}
-    Profile | Creator Studio
+Profile | Creator Studio
 {% endblock %}
-
 
 {% block content %}
 
-
 <!-- =========================================================
      HEADING
-========================================================== -->
+========================================================== --><div class="page-heading"><span class="eyebrow">
+    YOUR SPACE
+</span>
 
-<div class="page-heading">
+<h1>
+    Creator profile.
+</h1>
 
-    <span class="eyebrow">
-        YOUR SPACE
-    </span>
+<p>
+    Control how you introduce yourself
+    to everyone who visits your website.
+</p>
 
-    <h1>
-        Creator profile.
-    </h1>
+</div><!-- =========================================================
+     PROFILE FORM
+========================================================== --><form
+    method="POST"
+    enctype="multipart/form-data"
+    class="profile-editor"
+><!-- =====================================================
+     LEFT
+====================================================== -->
 
-    <p>
-        Control how you introduce yourself
-        to everyone who visits your website.
-    </p>
+<div class="profile-editor-main">
+
+
+    <!-- =================================================
+         BASIC INFORMATION
+    ================================================== -->
+
+    <section class="form-card">
+
+        <div class="form-card-heading">
+
+            <div>
+
+                <span class="eyebrow">
+                    PROFILE
+                </span>
+
+                <h2>
+                    About you
+                </h2>
+
+            </div>
+
+        </div>
+
+
+        <!-- =============================================
+             DISPLAY NAME
+        ============================================== -->
+
+        <label class="field-label">
+
+            Display name
+
+            <input
+                type="text"
+                name="display_name"
+                maxlength="120"
+                required
+                value="{{ creator.display_name }}"
+                placeholder="Your name"
+            >
+
+        </label>
+
+
+        <!-- =============================================
+             USERNAME
+        ============================================== -->
+
+        <label class="field-label">
+
+            Username
+
+            <input
+                type="text"
+                value="{{ creator.username }}"
+                readonly
+            >
+
+            <small class="media-help">
+                Your username identifies your creator space
+                and cannot be changed here.
+            </small>
+
+        </label>
+
+
+        <!-- =============================================
+             TAGLINE
+        ============================================== -->
+
+        <label class="field-label">
+
+            Tagline
+
+            <input
+                type="text"
+                name="tagline"
+                maxlength="255"
+                value="{{ creator.tagline or '' }}"
+                placeholder="A short introduction"
+            >
+
+        </label>
+
+
+        <!-- =============================================
+             BIO
+        ============================================== -->
+
+        <label class="field-label">
+
+            Bio
+
+            <textarea
+                name="bio"
+                rows="8"
+                placeholder="Tell people a little about yourself..."
+            >{{ creator.bio or '' }}</textarea>
+
+        </label>
+
+    </section>
+
+
+
+    <!-- =================================================
+         SOCIALS
+    ================================================== -->
+
+    <section class="form-card">
+
+        <div class="form-card-heading">
+
+            <div>
+
+                <span class="eyebrow">
+                    CONNECT
+                </span>
+
+                <h2>
+                    Social links
+                </h2>
+
+            </div>
+
+        </div>
+
+
+        <!-- =============================================
+             INSTAGRAM
+        ============================================== -->
+
+        <label class="field-label">
+
+            Instagram URL
+
+            <input
+                type="url"
+                name="instagram_url"
+                value="{{ creator.instagram_url or '' }}"
+                placeholder="https://instagram.com/..."
+            >
+
+        </label>
+
+
+        <!-- =============================================
+             TIKTOK
+        ============================================== -->
+
+        <label class="field-label">
+
+            TikTok URL
+
+            <input
+                type="url"
+                name="tiktok_url"
+                value="{{ creator.tiktok_url or '' }}"
+                placeholder="https://tiktok.com/@..."
+            >
+
+        </label>
+
+
+        <!-- =============================================
+             YOUTUBE
+        ============================================== -->
+
+        <label class="field-label">
+
+            YouTube URL
+
+            <input
+                type="url"
+                name="youtube_url"
+                value="{{ creator.youtube_url or '' }}"
+                placeholder="https://youtube.com/..."
+            >
+
+        </label>
+
+    </section>
+
 
 </div>
 
 
 
-<!-- =========================================================
-     PROFILE FORM
-========================================================== -->
+<!-- =====================================================
+     MEDIA
+====================================================== -->
 
-<form
-    method="POST"
-    enctype="multipart/form-data"
-    class="profile-editor"
->
+<aside class="profile-media-column">
 
 
-    <!-- =====================================================
-         LEFT
-    ====================================================== -->
+    <!-- =================================================
+         PROFILE PHOTO
+    ================================================== -->
 
-    <div class="profile-editor-main">
+    <section class="form-card">
 
+        <span class="eyebrow">
+            PROFILE PHOTO
+        </span>
 
-        <!-- =================================================
-             BASIC INFORMATION
-        ================================================== -->
-
-        <section class="form-card">
-
-            <div class="form-card-heading">
-
-                <div>
-
-                    <span class="eyebrow">
-                        PROFILE
-                    </span>
-
-                    <h2>
-                        About you
-                    </h2>
-
-                </div>
-
-            </div>
-
-
-            <label class="field-label">
-
-                Display name
-
-                <input
-                    type="text"
-                    name="display_name"
-                    maxlength="120"
-                    required
-                    value="{{ creator.display_name }}"
-                    placeholder="Your name"
-                >
-
-            </label>
-
-
-            <label class="field-label">
-
-                Username
-
-                <input
-                    type="text"
-                    name="username"
-                    maxlength="80"
-                    required
-                    value="{{ creator.username }}"
-                    placeholder="username"
-                >
-
-            </label>
-
-
-            <label class="field-label">
-
-                Tagline
-
-                <input
-                    type="text"
-                    name="tagline"
-                    maxlength="255"
-                    value="{{ creator.tagline or '' }}"
-                    placeholder="A short introduction"
-                >
-
-            </label>
-
-
-            <label class="field-label">
-
-                Bio
-
-                <textarea
-                    name="bio"
-                    rows="8"
-                    placeholder="Tell people a little about yourself..."
-                >{{ creator.bio or '' }}</textarea>
-
-            </label>
-
-        </section>
-
-
-
-        <!-- =================================================
-             SOCIALS
-        ================================================== -->
-
-        <section class="form-card">
-
-            <div class="form-card-heading">
-
-                <div>
-
-                    <span class="eyebrow">
-                        CONNECT
-                    </span>
-
-                    <h2>
-                        Social links
-                    </h2>
-
-                </div>
-
-            </div>
-
-
-            <label class="field-label">
-
-                Instagram URL
-
-                <input
-                    type="url"
-                    name="instagram_url"
-                    value="{{ creator.instagram_url or '' }}"
-                    placeholder="https://instagram.com/..."
-                >
-
-            </label>
-
-
-            <label class="field-label">
-
-                TikTok URL
-
-                <input
-                    type="url"
-                    name="tiktok_url"
-                    value="{{ creator.tiktok_url or '' }}"
-                    placeholder="https://tiktok.com/@..."
-                >
-
-            </label>
-
-
-            <label class="field-label">
-
-                YouTube URL
-
-                <input
-                    type="url"
-                    name="youtube_url"
-                    value="{{ creator.youtube_url or '' }}"
-                    placeholder="https://youtube.com/..."
-                >
-
-            </label>
-
-        </section>
-
-
-    </div>
-
-
-
-    <!-- =====================================================
-         MEDIA
-    ====================================================== -->
-
-    <aside class="profile-media-column">
-
-
-        <!-- =================================================
-             PROFILE PHOTO
-        ================================================== -->
-
-        <section class="form-card">
-
-            <span class="eyebrow">
-                PROFILE PHOTO
-            </span>
-
-            <h3>
-                Your photo
-            </h3>
-
-
-            {% if creator.profile_image_url %}
-
-                <div class="admin-profile-preview">
-
-                    <img
-                        src="{{ creator.profile_image_url }}"
-                        alt="{{ creator.display_name }}"
-                    >
-
-                </div>
-
-                <p class="media-help">
-                    Upload another image below
-                    to replace this one.
-                </p>
-
-            {% else %}
-
-                <div class="admin-profile-placeholder">
-
-                    <span>
-                        +
-                    </span>
-
-                    <small>
-                        No profile photo
-                    </small>
-
-                </div>
-
-            {% endif %}
-
-
-            <label class="upload-field">
-
-                <span>
-                    Choose profile photo
-                </span>
-
-                <input
-                    type="file"
-                    name="profile_image"
-                    accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
-                >
-
-            </label>
-
-
-            <small class="media-help">
-                JPG, PNG or WebP.
-            </small>
-
-        </section>
-
-
-
-        <!-- =================================================
-             INTRO REEL
-        ================================================== -->
-
-        <section class="form-card">
-
-            <span class="eyebrow">
-                INTRO REEL
-            </span>
-
-            <h3>
-                Meet me
-            </h3>
-
-
-            {% if creator.intro_reel_url %}
-
-                <div class="admin-video-preview">
-
-                    <video
-                        controls
-                        playsinline
-                        preload="metadata"
-                        {% if creator.intro_reel_thumbnail_url %}
-                            poster="{{ creator.intro_reel_thumbnail_url }}"
-                        {% endif %}
-                    >
-
-                        <source
-                            src="{{ creator.intro_reel_url }}"
-                        >
-
-                    </video>
-
-                </div>
-
-
-                <p class="media-help">
-                    Upload another video below
-                    to replace this reel.
-                </p>
-
-            {% else %}
-
-                <div class="admin-reel-placeholder">
-
-                    <span>
-                        ▶
-                    </span>
-
-                    <strong>
-                        Introduction reel
-                    </strong>
-
-                    <small>
-                        No reel uploaded yet.
-                    </small>
-
-                </div>
-
-            {% endif %}
-
-
-            <label class="upload-field">
-
-                <span>
-                    Choose intro reel
-                </span>
-
-                <input
-                    type="file"
-                    name="intro_reel"
-                    accept=".mp4,.mov,.m4v,.webm,video/mp4,video/quicktime,video/webm"
-                >
-
-            </label>
-
-
-            <small class="media-help">
-                MP4, MOV, M4V or WebM.
-            </small>
-
-        </section>
-
-
-
-        <!-- =================================================
-             SAVE
-        ================================================== -->
-
-        <button
-            type="submit"
-            class="save-button profile-save"
-        >
-            Save profile
-        </button>
-
-
-    </aside>
-
-
-</form>
-
-
-
-<!-- =========================================================
-     MEDIA REMOVAL
-========================================================== -->
-
-{% if creator.profile_image_url or creator.intro_reel_url %}
-
-<section class="danger-zone">
-
-    <span class="eyebrow">
-        MEDIA MANAGEMENT
-    </span>
-
-    <h2>
-        Remove media
-    </h2>
-
-    <p>
-        Use these controls only if you want to remove
-        existing profile media completely.
-    </p>
-
-
-    <div class="danger-actions">
+        <h3>
+            Your photo
+        </h3>
 
 
         {% if creator.profile_image_url %}
 
-            <form
-                method="POST"
-                action="{{ url_for(
-                    'admin.profile_remove_image'
-                ) }}"
-                onsubmit="
-                    return confirm(
-                        'Remove the current profile photo?'
-                    );
-                "
-            >
+            <div class="admin-profile-preview">
 
-                <button type="submit">
-                    Remove profile photo
-                </button>
+                <img
+                    src="{{ creator.profile_image_url }}"
+                    alt="{{ creator.display_name }}"
+                >
 
-            </form>
+            </div>
+
+
+            <p class="media-help">
+                Upload another image below
+                to replace this one.
+            </p>
+
+        {% else %}
+
+            <div class="admin-profile-placeholder">
+
+                <span>
+                    +
+                </span>
+
+                <small>
+                    No profile photo
+                </small>
+
+            </div>
 
         {% endif %}
+
+
+        <label class="upload-field">
+
+            <span>
+                Choose profile photo
+            </span>
+
+            <input
+                type="file"
+                name="profile_image"
+                accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp"
+            >
+
+        </label>
+
+
+        <small class="media-help">
+            JPG, PNG or WebP.
+        </small>
+
+    </section>
+
+
+
+    <!-- =================================================
+         INTRO REEL
+    ================================================== -->
+
+    <section class="form-card">
+
+        <span class="eyebrow">
+            INTRO REEL
+        </span>
+
+        <h3>
+            Meet me
+        </h3>
 
 
         {% if creator.intro_reel_url %}
 
-            <form
-                method="POST"
-                action="{{ url_for(
-                    'admin.profile_remove_intro_reel'
-                ) }}"
-                onsubmit="
-                    return confirm(
-                        'Remove the current introduction reel?'
-                    );
-                "
-            >
+            <div class="admin-video-preview">
 
-                <button type="submit">
-                    Remove intro reel
-                </button>
+                <video
+                    controls
+                    playsinline
+                    preload="metadata"
+                    {% if creator.intro_reel_thumbnail_url %}
+                        poster="{{ creator.intro_reel_thumbnail_url }}"
+                    {% endif %}
+                >
 
-            </form>
+                    <source
+                        src="{{ creator.intro_reel_url }}"
+                    >
+
+                </video>
+
+            </div>
+
+
+            <p class="media-help">
+                Upload another video below
+                to replace this reel.
+            </p>
+
+        {% else %}
+
+            <div class="admin-reel-placeholder">
+
+                <span>
+                    ▶
+                </span>
+
+                <strong>
+                    Introduction reel
+                </strong>
+
+                <small>
+                    No reel uploaded yet.
+                </small>
+
+            </div>
 
         {% endif %}
 
 
-    </div>
+        <label class="upload-field">
 
-</section>
+            <span>
+                Choose intro reel
+            </span>
 
-{% endif %}
+            <input
+                type="file"
+                name="intro_reel"
+                accept=".mp4,.mov,.m4v,.webm,video/mp4,video/quicktime,video/webm"
+            >
 
+        </label>
+
+
+        <small class="media-help">
+            MP4, MOV, M4V or WebM.
+        </small>
+
+    </section>
+
+
+
+    <!-- =================================================
+         SAVE
+    ================================================== -->
+
+    <button
+        type="submit"
+        class="save-button profile-save"
+    >
+        Save profile
+    </button>
+
+
+</aside>
+
+</form><!-- =========================================================
+     MEDIA REMOVAL
+========================================================== -->{% if creator.profile_image_url or creator.intro_reel_url %}
+
+<section class="danger-zone"><span class="eyebrow">
+    MEDIA MANAGEMENT
+</span>
+
+<h2>
+    Remove media
+</h2>
+
+<p>
+    Use these controls only if you want to remove
+    existing profile media completely.
+</p>
+
+
+<div class="danger-actions">
+
+
+    <!-- =================================================
+         REMOVE PROFILE PHOTO
+    ================================================== -->
+
+    {% if creator.profile_image_url %}
+
+        <form
+            method="POST"
+            action="{{ url_for(
+                'studio.profile_remove_image'
+            ) }}"
+            onsubmit="
+                return confirm(
+                    'Remove the current profile photo?'
+                );
+            "
+        >
+
+            <button type="submit">
+                Remove profile photo
+            </button>
+
+        </form>
+
+    {% endif %}
+
+
+
+    <!-- =================================================
+         REMOVE INTRO REEL
+    ================================================== -->
+
+    {% if creator.intro_reel_url %}
+
+        <form
+            method="POST"
+            action="{{ url_for(
+                'studio.profile_remove_intro_reel'
+            ) }}"
+            onsubmit="
+                return confirm(
+                    'Remove the current introduction reel?'
+                );
+            "
+        >
+
+            <button type="submit">
+                Remove intro reel
+            </button>
+
+        </form>
+
+    {% endif %}
+
+
+</div>
+
+</section>{% endif %}
 
 {% endblock %}
