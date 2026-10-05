@@ -824,7 +824,7 @@
                     <form
                         method="POST"
                         action="{{ url_for(
-                            'admin.content_remove_cover',
+                            'studio.content_remove_cover',
                             post_id=post.id
                         ) }}"
                         onsubmit="
@@ -890,7 +890,7 @@
                         <form
                             method="POST"
                             action="{{ url_for(
-                                'admin.content_remove_video',
+                                'studio.content_remove_video',
                                 post_id=post.id
                             ) }}"
                             onsubmit="
@@ -935,7 +935,7 @@
                         <form
                             method="POST"
                             action="{{ url_for(
-                                'admin.content_remove_gallery_image',
+                                'studio.content_remove_gallery_image',
                                 post_id=post.id,
                                 media_id=media.id
                             ) }}"
