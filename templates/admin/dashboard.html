@@ -252,6 +252,85 @@
 
 
 <!-- =========================================================
+     REGISTRATION PAYMENTS
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Registration payments
+        </h2>
+
+        <p>
+            Registration payment status across
+            creator accounts.
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="stats-grid">
+
+
+    <a
+        href="{{
+            url_for(
+                'admin.creators',
+                payment='paid'
+            )
+        }}"
+        class="stat-card"
+    >
+
+        <span>
+            Paid registrations
+        </span>
+
+        <strong>
+            {{ paid_creators }}
+        </strong>
+
+        <small>
+            Registration payment confirmed
+        </small>
+
+    </a>
+
+
+    <a
+        href="{{
+            url_for(
+                'admin.creators',
+                payment='unpaid'
+            )
+        }}"
+        class="stat-card"
+    >
+
+        <span>
+            Unpaid registrations
+        </span>
+
+        <strong>
+            {{ unpaid_creators }}
+        </strong>
+
+        <small>
+            Registration payment outstanding
+        </small>
+
+    </a>
+
+
+</div>
+
+
+
+<!-- =========================================================
      SUBSCRIPTIONS
 ========================================================== -->
 
@@ -364,6 +443,88 @@
     </a>
 
 
+
+    <!-- =====================================================
+         PAST DUE
+    ====================================================== -->
+
+    <a
+        href="{{
+            url_for(
+                'admin.creators',
+                subscription='past_due'
+            )
+        }}"
+        class="stat-card"
+    >
+
+        <span>
+            Past due
+        </span>
+
+        <strong>
+            {{ past_due_subscriptions }}
+        </strong>
+
+        <small>
+            Subscription payment needs attention
+        </small>
+
+    </a>
+
+
+
+    <!-- =====================================================
+         CANCELLED
+    ====================================================== -->
+
+    <a
+        href="{{
+            url_for(
+                'admin.creators',
+                subscription='cancelled'
+            )
+        }}"
+        class="stat-card"
+    >
+
+        <span>
+            Cancelled
+        </span>
+
+        <strong>
+            {{ cancelled_subscriptions }}
+        </strong>
+
+        <small>
+            Cancelled creator subscriptions
+        </small>
+
+    </a>
+
+
+
+    <!-- =====================================================
+         EXPIRING SOON
+    ====================================================== -->
+
+    <div class="stat-card">
+
+        <span>
+            Expiring soon
+        </span>
+
+        <strong>
+            {{ expiring_soon }}
+        </strong>
+
+        <small>
+            Active subscriptions expiring within 7 days
+        </small>
+
+    </div>
+
+
 </div>
 
 
@@ -438,6 +599,50 @@
 
 
     <!-- =====================================================
+         DRAFTS
+    ====================================================== -->
+
+    <div class="stat-card">
+
+        <span>
+            Drafts
+        </span>
+
+        <strong>
+            {{ draft_posts }}
+        </strong>
+
+        <small>
+            Creator content still in progress
+        </small>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         ARCHIVED
+    ====================================================== -->
+
+    <div class="stat-card">
+
+        <span>
+            Archived
+        </span>
+
+        <strong>
+            {{ archived_posts }}
+        </strong>
+
+        <small>
+            Archived creator content
+        </small>
+
+    </div>
+
+
+
+    <!-- =====================================================
          SUBSCRIBERS
     ====================================================== -->
 
@@ -453,6 +658,28 @@
 
         <small>
             Subscribers across creators
+        </small>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         ACTIVE SUBSCRIBERS
+    ====================================================== -->
+
+    <div class="stat-card">
+
+        <span>
+            Active subscribers
+        </span>
+
+        <strong>
+            {{ active_email_subscribers }}
+        </strong>
+
+        <small>
+            Verified active newsletter subscribers
         </small>
 
     </div>
@@ -509,6 +736,10 @@
 <div class="admin-card">
 
 
+    <!-- =====================================================
+         APPROVALS
+    ====================================================== -->
+
     {% if pending_approval > 0 %}
 
         <div class="content-row">
@@ -560,6 +791,10 @@
 
 
 
+    <!-- =====================================================
+         REGISTRATION PAYMENTS
+    ====================================================== -->
+
     {% if pending_payment > 0 %}
 
         <div class="content-row">
@@ -609,6 +844,10 @@
     {% endif %}
 
 
+
+    <!-- =====================================================
+         EXPIRED SUBSCRIPTIONS
+    ====================================================== -->
 
     {% if expired_subscriptions > 0 %}
 
@@ -660,10 +899,108 @@
 
 
 
+    <!-- =====================================================
+         PAST DUE
+    ====================================================== -->
+
+    {% if past_due_subscriptions > 0 %}
+
+        <div class="content-row">
+
+            <div>
+
+                <strong>
+                    Past-due subscriptions
+                </strong>
+
+                <p>
+
+                    {{ past_due_subscriptions }}
+
+                    creator{% if past_due_subscriptions != 1 %}s{% endif %}
+
+                    {% if past_due_subscriptions == 1 %}
+                        has
+                    {% else %}
+                        have
+                    {% endif %}
+
+                    a past-due subscription.
+
+                </p>
+
+            </div>
+
+
+            <div>
+
+                <a
+                    href="{{
+                        url_for(
+                            'admin.creators',
+                            subscription='past_due'
+                        )
+                    }}"
+                >
+                    Review
+                </a>
+
+            </div>
+
+        </div>
+
+    {% endif %}
+
+
+
+    <!-- =====================================================
+         EXPIRING SOON
+    ====================================================== -->
+
+    {% if expiring_soon > 0 %}
+
+        <div class="content-row">
+
+            <div>
+
+                <strong>
+                    Subscriptions expiring soon
+                </strong>
+
+                <p>
+
+                    {{ expiring_soon }}
+
+                    active subscription{% if expiring_soon != 1 %}s{% endif %}
+
+                    {% if expiring_soon == 1 %}
+                        expires
+                    {% else %}
+                        expire
+                    {% endif %}
+
+                    within the next 7 days.
+
+                </p>
+
+            </div>
+
+        </div>
+
+    {% endif %}
+
+
+
+    <!-- =====================================================
+         NOTHING REQUIRES ATTENTION
+    ====================================================== -->
+
     {% if (
         pending_approval == 0
         and pending_payment == 0
         and expired_subscriptions == 0
+        and past_due_subscriptions == 0
+        and expiring_soon == 0
     ) %}
 
         <div class="empty-state">
@@ -674,7 +1011,7 @@
 
             <p>
                 There are currently no pending approvals,
-                unpaid registrations or expired subscriptions
+                unpaid registrations or subscription issues
                 requiring action.
             </p>
 
@@ -972,14 +1309,11 @@
                         </p>
 
 
-                        {% if post.creator_account %}
+                        <!-- =================================
+                             CREATOR OWNERSHIP
+                        ================================== -->
 
-                            <small>
-                                by
-                                @{{ post.creator_account.username }}
-                            </small>
-
-                        {% elif post.creator_account_id %}
+                        {% if post.creator_account_id %}
 
                             <small>
                                 Creator #{{ post.creator_account_id }}
@@ -1083,6 +1417,10 @@
     <div class="creator-status-grid">
 
 
+        <!-- =================================================
+             STEP 1
+        ================================================== -->
+
         <div>
 
             <span class="meta-label">
@@ -1099,6 +1437,11 @@
 
         </div>
 
+
+
+        <!-- =================================================
+             STEP 2
+        ================================================== -->
 
         <div>
 
@@ -1117,6 +1460,11 @@
         </div>
 
 
+
+        <!-- =================================================
+             STEP 3
+        ================================================== -->
+
         <div>
 
             <span class="meta-label">
@@ -1134,6 +1482,11 @@
         </div>
 
 
+
+        <!-- =================================================
+             STEP 4
+        ================================================== -->
+
         <div>
 
             <span class="meta-label">
@@ -1150,6 +1503,11 @@
 
         </div>
 
+
+
+        <!-- =================================================
+             STEP 5
+        ================================================== -->
 
         <div>
 
