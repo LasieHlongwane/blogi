@@ -1,7 +1,10 @@
 from flask import Flask
 
 from config import Config
-from extensions import db, migrate
+from extensions import (
+    db,
+    migrate,
+)
 
 
 # ============================================================
@@ -46,8 +49,13 @@ def create_app():
     # BLUEPRINTS
     # ========================================================
 
-    from routes.public import public_bp
-    from routes.admin import admin_bp
+    from routes.public import (
+        public_bp,
+    )
+
+    from routes.admin import (
+        admin_bp,
+    )
 
     app.register_blueprint(
         public_bp
@@ -64,6 +72,7 @@ def create_app():
     from seed import (
         seed_command,
         create_admin_command,
+        backfill_existing_creator_command,
         initialize_production_identity,
     )
 
@@ -75,23 +84,29 @@ def create_app():
         create_admin_command
     )
 
+    app.cli.add_command(
+        backfill_existing_creator_command
+    )
+
     # ========================================================
     # PRODUCTION BOOTSTRAP
     # ========================================================
     #
-    # Render Free does not provide convenient shell access.
+    # This bootstrap remains deliberately limited.
     #
-    # Therefore the first production administrator and creator
-    # profile can be created from environment variables.
+    # It can:
     #
-    # initialize_production_identity() is idempotent:
+    # - Create the initial platform AdminUser.
+    # - Preserve/create the legacy CreatorProfile.
     #
-    # - Existing admins are NOT recreated.
-    # - Existing passwords are NOT reset.
-    # - Existing creator profiles are NOT overwritten.
+    # It does NOT automatically create CreatorAccount records.
     #
-    # The database schema must already exist through Alembic
-    # migrations before this executes.
+    # CreatorAccount backfill is performed explicitly through:
+    #
+    #     flask backfill-existing-creator
+    #
+    # New SaaS creators will eventually register through the
+    # creator registration flow.
     # ========================================================
 
     with app.app_context():
@@ -102,13 +117,17 @@ def create_app():
                 initialize_production_identity()
             )
 
-            if result["admin_created"]:
+            if result[
+                "admin_created"
+            ]:
 
                 app.logger.info(
                     "Initial production admin created."
                 )
 
-            if result["creator_created"]:
+            if result[
+                "creator_created"
+            ]:
 
                 app.logger.info(
                     "Initial creator profile created."
@@ -117,14 +136,9 @@ def create_app():
         except Exception:
 
             # =================================================
-            # IMPORTANT
-            # =================================================
-            #
-            # We log bootstrap problems instead of preventing
-            # the entire Flask application from starting.
-            #
-            # Database/application errors will therefore remain
-            # visible in Render logs for diagnosis.
+            # Bootstrap failure should be visible in Render
+            # logs without preventing the Flask application
+            # itself from starting.
             # =================================================
 
             app.logger.exception(
