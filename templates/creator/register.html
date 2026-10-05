@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>
+        Become a Creator
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for(
+            'static',
+            filename='css/admin.css'
+        ) }}"
+    >
+
+</head>
+
+
+<body class="login-page">
+
+
+<div class="login-card">
+
+
+    <div class="login-heading">
+
+        <span>
+            CREATOR PLATFORM
+        </span>
+
+        <h1>
+            Create your space.
+        </h1>
+
+        <p>
+            Start your creator account and build
+            your own audience.
+        </p>
+
+    </div>
+
+
+    {% with messages = get_flashed_messages(
+        with_categories=true
+    ) %}
+
+        {% if messages %}
+
+            <div class="flash-stack">
+
+                {% for category, message in messages %}
+
+                    <div
+                        class="flash-message {{ category }}"
+                    >
+                        {{ message }}
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        {% endif %}
+
+    {% endwith %}
+
+
+    <form
+        method="POST"
+        class="login-form"
+    >
+
+
+        <label>
+
+            Display name
+
+            <input
+                type="text"
+                name="display_name"
+                maxlength="120"
+                required
+            >
+
+        </label>
+
+
+        <label>
+
+            Username
+
+            <input
+                type="text"
+                name="username"
+                maxlength="80"
+                required
+                autocomplete="username"
+            >
+
+        </label>
+
+
+        <label>
+
+            Email
+
+            <input
+                type="email"
+                name="email"
+                maxlength="255"
+                required
+                autocomplete="email"
+            >
+
+        </label>
+
+
+        <label>
+
+            Password
+
+            <input
+                type="password"
+                name="password"
+                minlength="8"
+                required
+                autocomplete="new-password"
+            >
+
+        </label>
+
+
+        <label>
+
+            Confirm password
+
+            <input
+                type="password"
+                name="confirm_password"
+                minlength="8"
+                required
+                autocomplete="new-password"
+            >
+
+        </label>
+
+
+        <button type="submit">
+            Create creator account
+        </button>
+
+
+    </form>
+
+
+    <p>
+        Already registered?
+
+        <a href="{{ url_for(
+            'creator_auth.login'
+        ) }}">
+            Sign in
+        </a>
+    </p>
+
+
+</div>
+
+
+</body>
+
+</html>
