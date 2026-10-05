@@ -1,133 +1,264 @@
-<!DOCTYPE html>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 
-<html lang="en">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+>
 
-<head>
+<meta
+    name="theme-color"
+    content="#111318"
+>
 
-    <meta charset="UTF-8">
+<title>
+    {% block title %}
+        Creator Studio
+    {% endblock %}
+</title>
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1"
-    >
+<link
+    rel="stylesheet"
+    href="{{ url_for(
+        'static',
+        filename='css/admin.css'
+    ) }}"
+>
 
-    <meta
-        name="theme-color"
-        content="#111318"
-    >
+<style>
 
-    <title>
-        {% block title %}
-            Creator Studio
-        {% endblock %}
-    </title>
+    .studio-plan-card {
+        margin: 18px 0;
+        padding: 16px;
+        border-radius: 12px;
+        background: rgba(
+            255,
+            255,
+            255,
+            0.07
+        );
+    }
 
-    <link
-        rel="stylesheet"
-        href="{{ url_for(
-            'static',
-            filename='css/admin.css'
-        ) }}"
-    >
+    .studio-plan-card span {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 10px;
+        letter-spacing: 0.12em;
+        opacity: 0.65;
+    }
 
-</head>
+    .studio-plan-card strong {
+        display: block;
+        font-size: 16px;
+    }
+
+    .studio-plan-card small {
+        display: block;
+        margin-top: 4px;
+        opacity: 0.72;
+    }
+
+    .studio-plan-card a {
+        display: inline-block;
+        margin-top: 10px;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+    .premium-nav-item {
+        position: relative;
+    }
+
+    .premium-nav-badge {
+        margin-left: 6px;
+        padding: 2px 5px;
+        border-radius: 999px;
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        background: rgba(
+            255,
+            255,
+            255,
+            0.12
+        );
+    }
+
+</style>
+
+</head><body><div class="admin-shell"><aside class="sidebar">
+
+    <div>
 
 
-<body>
+        <a
+            href="{{ url_for(
+                'studio.dashboard'
+            ) }}"
+            class="studio-brand"
+        >
+
+            <span>
+                CREATOR
+            </span>
+
+            <strong>
+                Studio
+            </strong>
+
+        </a>
 
 
-<div class="admin-shell">
+        <!-- =============================================
+             CURRENT PLAN
+        ============================================== -->
 
+        <div class="studio-plan-card">
 
-    <aside class="sidebar">
+            <span>
+                YOUR PLAN
+            </span>
 
-        <div>
+            <strong>
+                {{ creator_account.plan|default(
+                    "standard",
+                    true
+                )|upper }}
+            </strong>
 
+            {% if creator_account.plan == "premium" %}
 
-            <a
-                href="{{ url_for(
-                    'studio.dashboard'
-                ) }}"
-                class="studio-brand"
-            >
+                <small>
+                    R149/month
+                </small>
 
-                <span>
-                    CREATOR
-                </span>
+            {% else %}
 
-                <strong>
-                    Studio
-                </strong>
+                <small>
+                    R79/month
+                </small>
 
-            </a>
-
-
-            <nav class="sidebar-nav">
-
-
-                <a href="{{ url_for(
-                    'studio.dashboard'
-                ) }}">
-                    Dashboard
+                <a href="#">
+                    Upgrade to Premium →
                 </a>
 
-
-                <a href="{{ url_for(
-                    'studio.content_list'
-                ) }}">
-                    Content
-                </a>
-
-
-                <a href="{{ url_for(
-                    'studio.content_new'
-                ) }}">
-                    Create
-                </a>
-
-
-                <a href="{{ url_for(
-                    'studio.categories'
-                ) }}">
-                    Folders
-                </a>
-
-
-                <a href="{{ url_for(
-                    'studio.comments'
-                ) }}">
-                    Comments
-                </a>
-
-
-                <a href="{{ url_for(
-                    'studio.subscribers'
-                ) }}">
-                    Subscribers
-                </a>
-
-
-                <a href="{{ url_for(
-                    'studio.analytics'
-                ) }}">
-                    Analytics
-                </a>
-
-
-                <a href="{{ url_for(
-                    'studio.profile'
-                ) }}">
-                    Profile
-                </a>
-
-
-            </nav>
+            {% endif %}
 
         </div>
 
 
-        <div class="sidebar-bottom">
+        <nav class="sidebar-nav">
 
+
+            <a href="{{ url_for(
+                'studio.dashboard'
+            ) }}">
+                Dashboard
+            </a>
+
+
+            <a href="{{ url_for(
+                'studio.content_list'
+            ) }}">
+                Content
+            </a>
+
+
+            <a href="{{ url_for(
+                'studio.content_new'
+            ) }}">
+                Create
+            </a>
+
+
+            <a href="{{ url_for(
+                'studio.categories'
+            ) }}">
+                Folders
+            </a>
+
+
+            <a href="{{ url_for(
+                'studio.comments'
+            ) }}">
+                Comments
+            </a>
+
+
+            <a href="{{ url_for(
+                'studio.subscribers'
+            ) }}">
+                Subscribers
+            </a>
+
+
+            <a href="{{ url_for(
+                'studio.analytics'
+            ) }}">
+                Analytics
+            </a>
+
+
+            <!-- =========================================
+                 PREMIUM FEATURES STAY VISIBLE
+            ========================================== -->
+
+            <a
+                href="#premium-features"
+                class="premium-nav-item"
+            >
+                Exclusive content
+
+                {% if creator_account.plan != "premium" %}
+                    <span class="premium-nav-badge">
+                        PREMIUM
+                    </span>
+                {% endif %}
+            </a>
+
+
+            <a
+                href="#premium-features"
+                class="premium-nav-item"
+            >
+                Fan support
+
+                {% if creator_account.plan != "premium" %}
+                    <span class="premium-nav-badge">
+                        PREMIUM
+                    </span>
+                {% endif %}
+            </a>
+
+
+            <a href="{{ url_for(
+                'studio.profile'
+            ) }}">
+                Profile
+            </a>
+
+
+        </nav>
+
+    </div>
+
+
+    <div class="sidebar-bottom">
+
+
+        {% if creator_account %}
+
+            <a
+                href="{{ url_for(
+                    'public.creator_home',
+                    username=creator_account.username
+                ) }}"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                View website ↗
+            </a>
+
+        {% else %}
 
             <a
                 href="{{ url_for(
@@ -139,95 +270,92 @@
                 View website ↗
             </a>
 
-
-            <form
-                method="POST"
-                action="{{ url_for(
-                    'creator_auth.logout'
-                ) }}"
-            >
-
-                <button type="submit">
-                    Sign out
-                </button>
-
-            </form>
+        {% endif %}
 
 
-        </div>
+        <form
+            method="POST"
+            action="{{ url_for(
+                'creator_auth.logout'
+            ) }}"
+        >
 
-    </aside>
+            <button type="submit">
+                Sign out
+            </button>
 
+        </form>
 
-    <div class="admin-main">
-
-
-        <header class="admin-topbar">
-
-            <div>
-
-                <span class="mobile-brand">
-                    Creator Studio
-                </span>
-
-            </div>
-
-
-            <a
-                href="{{ url_for(
-                    'studio.content_new'
-                ) }}"
-                class="create-button"
-            >
-                + New content
-            </a>
-
-        </header>
-
-
-        <main class="admin-content">
-
-
-            {% with messages =
-                get_flashed_messages(
-                    with_categories=true
-                )
-            %}
-
-                {% if messages %}
-
-                    <div class="flash-stack">
-
-                        {% for category, message
-                            in messages
-                        %}
-
-                            <div
-                                class="flash-message {{ category }}"
-                            >
-                                {{ message }}
-                            </div>
-
-                        {% endfor %}
-
-                    </div>
-
-                {% endif %}
-
-            {% endwith %}
-
-
-            {% block content %}
-            {% endblock %}
-
-
-        </main>
 
     </div>
 
+</aside>
+
+
+<div class="admin-main">
+
+
+    <header class="admin-topbar">
+
+        <div>
+
+            <span class="mobile-brand">
+                Creator Studio
+            </span>
+
+        </div>
+
+
+        <a
+            href="{{ url_for(
+                'studio.content_new'
+            ) }}"
+            class="create-button"
+        >
+            + New content
+        </a>
+
+    </header>
+
+
+    <main class="admin-content">
+
+
+        {% with messages =
+            get_flashed_messages(
+                with_categories=true
+            )
+        %}
+
+            {% if messages %}
+
+                <div class="flash-stack">
+
+                    {% for category, message
+                        in messages
+                    %}
+
+                        <div
+                            class="flash-message {{ category }}"
+                        >
+                            {{ message }}
+                        </div>
+
+                    {% endfor %}
+
+                </div>
+
+            {% endif %}
+
+        {% endwith %}
+
+
+        {% block content %}
+        {% endblock %}
+
+
+    </main>
+
 </div>
 
-
-</body>
-
-</html>
+</div></body></html>
