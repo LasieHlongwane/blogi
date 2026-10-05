@@ -293,6 +293,253 @@ class CreatorAccount(db.Model):
             password,
         )
 
+
+# ============================================================
+# PLATFORM SUBSCRIPTION
+# ============================================================
+#
+# Current SaaS subscription state for one creator.
+#
+# One CreatorAccount has at most one current subscription
+# record. Payment history lives separately in
+# PlatformSubscriptionPayment.
+#
+# status:
+#
+# inactive
+# active
+# past_due
+# expired
+# cancelled
+#
+# provider:
+#
+# manual
+# yoco
+# legacy
+#
+# ============================================================
+
+class PlatformSubscription(db.Model):
+
+    __tablename__ = "platform_subscriptions"
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True,
+    )
+
+    creator_account_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "creator_accounts.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    plan = db.Column(
+        db.String(30),
+        nullable=False,
+        index=True,
+    )
+
+    status = db.Column(
+        db.String(30),
+        nullable=False,
+        default="inactive",
+        index=True,
+    )
+
+    provider = db.Column(
+        db.String(30),
+        nullable=True,
+        index=True,
+    )
+
+    provider_subscription_id = db.Column(
+        db.String(255),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+
+    started_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    current_period_start = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    current_period_end = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+
+    grace_period_ends_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+
+    cancelled_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
+
+    creator_account = db.relationship(
+        "CreatorAccount",
+        backref=db.backref(
+            "platform_subscription",
+            uselist=False,
+            cascade="all, delete-orphan",
+            single_parent=True,
+        ),
+    )
+
+
+# ============================================================
+# PLATFORM SUBSCRIPTION PAYMENT
+# ============================================================
+#
+# Financial history for creator -> platform payments.
+#
+# Examples:
+#
+# Standard  R79  paid
+# Premium   R149 paid
+#
+# Later Yoco webhook events will create/update these records.
+# ============================================================
+
+class PlatformSubscriptionPayment(db.Model):
+
+    __tablename__ = (
+        "platform_subscription_payments"
+    )
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True,
+    )
+
+    creator_account_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "creator_accounts.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        index=True,
+    )
+
+    subscription_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "platform_subscriptions.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
+    )
+
+    plan = db.Column(
+        db.String(30),
+        nullable=False,
+        index=True,
+    )
+
+    # Store money in cents.
+    #
+    # R79  = 7900
+    # R149 = 14900
+
+    amount_cents = db.Column(
+        db.Integer,
+        nullable=False,
+    )
+
+    currency = db.Column(
+        db.String(10),
+        nullable=False,
+        default="ZAR",
+    )
+
+    provider = db.Column(
+        db.String(30),
+        nullable=False,
+        default="yoco",
+        index=True,
+    )
+
+    provider_reference = db.Column(
+        db.String(255),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+
+    # pending / paid / failed / refunded
+
+    status = db.Column(
+        db.String(30),
+        nullable=False,
+        default="pending",
+        index=True,
+    )
+
+    paid_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
+
+    creator_account = db.relationship(
+        "CreatorAccount",
+        backref=db.backref(
+            "platform_subscription_payments",
+            lazy=True,
+        ),
+    )
+
+    subscription = db.relationship(
+        "PlatformSubscription",
+        backref=db.backref(
+            "payments",
+            lazy=True,
+        ),
+    )
 # ============================================================
 # CREATOR PROFILE
 # ============================================================
