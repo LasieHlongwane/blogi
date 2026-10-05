@@ -1,0 +1,1347 @@
+{% extends "admin/base.html" %}
+
+
+{% block title %}
+    @{{ creator.username }} | Platform Control Centre
+{% endblock %}
+
+
+{% block content %}
+
+
+<!-- =========================================================
+     BACK
+========================================================== -->
+
+<div class="page-back">
+
+    <a
+        href="{{ url_for('admin.creators') }}"
+    >
+        ← Back to creators
+    </a>
+
+</div>
+
+
+
+<!-- =========================================================
+     CREATOR HEADER
+========================================================== -->
+
+<section class="admin-card">
+
+    <div class="creator-detail-header">
+
+
+        <!-- =================================================
+             IDENTITY
+        ================================================== -->
+
+        <div class="creator-identity">
+
+
+            {% if profile and profile.profile_image_url %}
+
+                <img
+                    src="{{ profile.profile_image_url }}"
+                    alt="{{ profile.display_name }}"
+                    class="creator-avatar"
+                >
+
+            {% else %}
+
+                <div class="creator-avatar creator-avatar-placeholder">
+
+                    {{
+                        (
+                            profile.display_name
+                            if profile
+                            else creator.username
+                        )[0]
+                        | upper
+                    }}
+
+                </div>
+
+            {% endif %}
+
+
+            <div>
+
+                <p class="eyebrow">
+                    CREATOR ACCOUNT #{{ creator.id }}
+                </p>
+
+                <h1>
+
+                    {% if profile %}
+
+                        {{ profile.display_name }}
+
+                    {% else %}
+
+                        @{{ creator.username }}
+
+                    {% endif %}
+
+                </h1>
+
+                <p>
+                    @{{ creator.username }}
+                </p>
+
+                <p>
+                    {{ creator.email }}
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <!-- =================================================
+             PUBLIC PROFILE
+        ================================================== -->
+
+        {% if creator.account_status == "active" %}
+
+            <a
+                href="{{
+                    url_for(
+                        'public.creator_home',
+                        username=creator.username
+                    )
+                }}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="create-button"
+            >
+                View profile ↗
+            </a>
+
+        {% endif %}
+
+
+    </div>
+
+</section>
+
+
+
+<!-- =========================================================
+     ACCOUNT STATUS
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Account status
+        </h2>
+
+        <p>
+            Registration and platform access.
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="stats-grid">
+
+
+    <!-- =====================================================
+         ACCOUNT
+    ====================================================== -->
+
+    <div class="stat-card">
+
+        <span>
+            Account
+        </span>
+
+        <strong>
+            {{
+                creator.account_status
+                | replace("_", " ")
+                | title
+            }}
+        </strong>
+
+    </div>
+
+
+    <!-- =====================================================
+         PAYMENT
+    ====================================================== -->
+
+    <div class="stat-card">
+
+        <span>
+            Registration payment
+        </span>
+
+        <strong>
+            {{
+                creator.payment_status
+                | replace("_", " ")
+                | title
+            }}
+        </strong>
+
+    </div>
+
+
+    <!-- =====================================================
+         SUBSCRIPTION
+    ====================================================== -->
+
+    <div class="stat-card">
+
+        <span>
+            Platform subscription
+        </span>
+
+        <strong>
+            {{
+                creator.subscription_status
+                | replace("_", " ")
+                | title
+            }}
+        </strong>
+
+    </div>
+
+
+    <!-- =====================================================
+         ACCESS
+    ====================================================== -->
+
+    <div class="stat-card">
+
+        <span>
+            Studio access
+        </span>
+
+        <strong>
+
+            {% if (
+                creator.account_status == "active"
+                and subscription_is_current
+            ) %}
+
+                Allowed
+
+            {% else %}
+
+                Locked
+
+            {% endif %}
+
+        </strong>
+
+    </div>
+
+
+</div>
+
+
+
+<!-- =========================================================
+     REGISTRATION PAYMENT
+========================================================== -->
+
+<section class="admin-card">
+
+    <div class="card-heading">
+
+        <div>
+
+            <p class="eyebrow">
+                REGISTRATION
+            </p>
+
+            <h2>
+                Registration payment
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <div class="detail-grid">
+
+
+        <div>
+
+            <span class="meta-label">
+                Payment status
+            </span>
+
+            <strong>
+                {{
+                    creator.payment_status
+                    | title
+                }}
+            </strong>
+
+        </div>
+
+
+        <div>
+
+            <span class="meta-label">
+                Paid at
+            </span>
+
+            <strong>
+
+                {% if creator.registration_paid_at %}
+
+                    {{
+                        creator.registration_paid_at
+                        .strftime(
+                            "%d %b %Y %H:%M"
+                        )
+                    }}
+
+                {% else %}
+
+                    —
+
+                {% endif %}
+
+            </strong>
+
+        </div>
+
+
+    </div>
+
+
+    <!-- =====================================================
+         PAYMENT ACTIONS
+    ====================================================== -->
+
+    <div class="action-row">
+
+
+        {% if creator.payment_status != "paid" %}
+
+            <form
+                method="POST"
+                action="{{
+                    url_for(
+                        'admin.creator_mark_paid',
+                        creator_id=creator.id
+                    )
+                }}"
+            >
+
+                <button
+                    type="submit"
+                    class="create-button"
+                >
+                    Mark registration paid
+                </button>
+
+            </form>
+
+        {% endif %}
+
+
+        {% if (
+            creator.payment_status == "paid"
+            and creator.account_status != "active"
+        ) %}
+
+            <form
+                method="POST"
+                action="{{
+                    url_for(
+                        'admin.creator_mark_unpaid',
+                        creator_id=creator.id
+                    )
+                }}"
+            >
+
+                <button type="submit">
+                    Mark unpaid
+                </button>
+
+            </form>
+
+        {% endif %}
+
+
+    </div>
+
+</section>
+
+
+
+<!-- =========================================================
+     APPROVAL
+========================================================== -->
+
+<section class="admin-card">
+
+    <div class="card-heading">
+
+        <div>
+
+            <p class="eyebrow">
+                PLATFORM ACCESS
+            </p>
+
+            <h2>
+                Creator approval
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <div class="detail-grid">
+
+
+        <div>
+
+            <span class="meta-label">
+                Account status
+            </span>
+
+            <strong>
+                {{
+                    creator.account_status
+                    | replace("_", " ")
+                    | title
+                }}
+            </strong>
+
+        </div>
+
+
+        <div>
+
+            <span class="meta-label">
+                Approved at
+            </span>
+
+            <strong>
+
+                {% if creator.approved_at %}
+
+                    {{
+                        creator.approved_at
+                        .strftime(
+                            "%d %b %Y %H:%M"
+                        )
+                    }}
+
+                {% else %}
+
+                    —
+
+                {% endif %}
+
+            </strong>
+
+        </div>
+
+
+    </div>
+
+
+
+    <!-- =====================================================
+         APPROVAL ACTIONS
+    ====================================================== -->
+
+    <div class="action-row">
+
+
+        {% if (
+            creator.payment_status == "paid"
+            and creator.account_status
+            in [
+                "pending_payment",
+                "pending_approval"
+            ]
+        ) %}
+
+            <form
+                method="POST"
+                action="{{
+                    url_for(
+                        'admin.creator_approve',
+                        creator_id=creator.id
+                    )
+                }}"
+            >
+
+                <button
+                    type="submit"
+                    class="create-button"
+                >
+                    Approve creator
+                </button>
+
+            </form>
+
+        {% endif %}
+
+
+        {% if creator.account_status in [
+            "pending_payment",
+            "pending_approval"
+        ] %}
+
+            <form
+                method="POST"
+                action="{{
+                    url_for(
+                        'admin.creator_reject',
+                        creator_id=creator.id
+                    )
+                }}"
+                onsubmit="
+                    return confirm(
+                        'Reject this creator account?'
+                    );
+                "
+            >
+
+                <button type="submit">
+                    Reject
+                </button>
+
+            </form>
+
+        {% endif %}
+
+
+        {% if creator.account_status == "active" %}
+
+            <form
+                method="POST"
+                action="{{
+                    url_for(
+                        'admin.creator_suspend',
+                        creator_id=creator.id
+                    )
+                }}"
+                onsubmit="
+                    return confirm(
+                        'Suspend this creator?'
+                    );
+                "
+            >
+
+                <button type="submit">
+                    Suspend creator
+                </button>
+
+            </form>
+
+        {% endif %}
+
+
+        {% if creator.account_status in [
+            "suspended",
+            "rejected"
+        ] %}
+
+            <form
+                method="POST"
+                action="{{
+                    url_for(
+                        'admin.creator_reactivate',
+                        creator_id=creator.id
+                    )
+                }}"
+            >
+
+                <button
+                    type="submit"
+                    class="create-button"
+                >
+                    Reactivate creator
+                </button>
+
+            </form>
+
+        {% endif %}
+
+
+    </div>
+
+</section>
+
+
+
+<!-- =========================================================
+     SUBSCRIPTION
+========================================================== -->
+
+<section class="admin-card">
+
+    <div class="card-heading">
+
+        <div>
+
+            <p class="eyebrow">
+                SAAS SUBSCRIPTION
+            </p>
+
+            <h2>
+                Platform subscription
+            </h2>
+
+            <p>
+                Controls whether this creator can
+                access Creator Studio.
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <div class="detail-grid">
+
+
+        <div>
+
+            <span class="meta-label">
+                Status
+            </span>
+
+            <strong>
+                {{
+                    creator.subscription_status
+                    | replace("_", " ")
+                    | title
+                }}
+            </strong>
+
+        </div>
+
+
+        <div>
+
+            <span class="meta-label">
+                Started
+            </span>
+
+            <strong>
+
+                {% if creator.subscription_started_at %}
+
+                    {{
+                        creator.subscription_started_at
+                        .strftime(
+                            "%d %b %Y"
+                        )
+                    }}
+
+                {% else %}
+
+                    —
+
+                {% endif %}
+
+            </strong>
+
+        </div>
+
+
+        <div>
+
+            <span class="meta-label">
+                Expires
+            </span>
+
+            <strong>
+
+                {% if creator.subscription_expires_at %}
+
+                    {{
+                        creator.subscription_expires_at
+                        .strftime(
+                            "%d %b %Y"
+                        )
+                    }}
+
+                {% else %}
+
+                    No expiry set
+
+                {% endif %}
+
+            </strong>
+
+        </div>
+
+
+        <div>
+
+            <span class="meta-label">
+                Current access
+            </span>
+
+            <strong>
+
+                {% if subscription_is_current %}
+
+                    Active
+
+                {% else %}
+
+                    Inactive
+
+                {% endif %}
+
+            </strong>
+
+        </div>
+
+
+    </div>
+
+
+
+    <!-- =====================================================
+         SUBSCRIPTION ACTIONS
+    ====================================================== -->
+
+    {% if creator.account_status == "active" %}
+
+        <div class="action-row">
+
+
+            {% if not subscription_is_current %}
+
+                <form
+                    method="POST"
+                    action="{{
+                        url_for(
+                            'admin.creator_subscription_activate',
+                            creator_id=creator.id
+                        )
+                    }}"
+                >
+
+                    <button
+                        type="submit"
+                        class="create-button"
+                    >
+                        Activate 30 days
+                    </button>
+
+                </form>
+
+            {% endif %}
+
+
+
+            <form
+                method="POST"
+                action="{{
+                    url_for(
+                        'admin.creator_subscription_extend',
+                        creator_id=creator.id
+                    )
+                }}"
+                class="inline-form"
+            >
+
+                <label>
+
+                    Extend by
+
+                    <input
+                        type="number"
+                        name="days"
+                        value="30"
+                        min="1"
+                        max="365"
+                    >
+
+                    days
+
+                </label>
+
+                <button
+                    type="submit"
+                    class="create-button"
+                >
+                    Extend
+                </button>
+
+            </form>
+
+
+
+            {% if creator.subscription_status == "active" %}
+
+                <form
+                    method="POST"
+                    action="{{
+                        url_for(
+                            'admin.creator_subscription_expire',
+                            creator_id=creator.id
+                        )
+                    }}"
+                    onsubmit="
+                        return confirm(
+                            'Expire this subscription now?'
+                        );
+                    "
+                >
+
+                    <button type="submit">
+                        Expire now
+                    </button>
+
+                </form>
+
+
+                <form
+                    method="POST"
+                    action="{{
+                        url_for(
+                            'admin.creator_subscription_cancel',
+                            creator_id=creator.id
+                        )
+                    }}"
+                    onsubmit="
+                        return confirm(
+                            'Cancel this subscription?'
+                        );
+                    "
+                >
+
+                    <button type="submit">
+                        Cancel subscription
+                    </button>
+
+                </form>
+
+            {% endif %}
+
+
+        </div>
+
+    {% endif %}
+
+
+</section>
+
+
+
+<!-- =========================================================
+     CREATOR ACTIVITY
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Creator activity
+        </h2>
+
+        <p>
+            Current activity belonging only to
+            @{{ creator.username }}.
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="stats-grid">
+
+
+    <div class="stat-card">
+
+        <span>
+            Total posts
+        </span>
+
+        <strong>
+            {{ total_posts }}
+        </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Published
+        </span>
+
+        <strong>
+            {{ published_posts }}
+        </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Drafts
+        </span>
+
+        <strong>
+            {{ draft_posts }}
+        </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Exclusive
+        </span>
+
+        <strong>
+            {{ exclusive_posts }}
+        </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Folders
+        </span>
+
+        <strong>
+            {{ category_count }}
+        </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Subscribers
+        </span>
+
+        <strong>
+            {{ subscriber_count }}
+        </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Active subscribers
+        </span>
+
+        <strong>
+            {{ active_subscriber_count }}
+        </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Comments
+        </span>
+
+        <strong>
+            {{ comment_count }}
+        </strong>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Emails
+        </span>
+
+        <strong>
+            {{ email_delivery_count }}
+        </strong>
+
+    </div>
+
+
+</div>
+
+
+
+<!-- =========================================================
+     PROFILE INFORMATION
+========================================================== -->
+
+<section class="admin-card">
+
+    <div class="card-heading">
+
+        <div>
+
+            <p class="eyebrow">
+                PUBLIC IDENTITY
+            </p>
+
+            <h2>
+                Creator profile
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    {% if profile %}
+
+
+        <div class="detail-grid">
+
+
+            <div>
+
+                <span class="meta-label">
+                    Display name
+                </span>
+
+                <strong>
+                    {{ profile.display_name }}
+                </strong>
+
+            </div>
+
+
+            <div>
+
+                <span class="meta-label">
+                    Username
+                </span>
+
+                <strong>
+                    @{{ creator.username }}
+                </strong>
+
+            </div>
+
+
+            <div>
+
+                <span class="meta-label">
+                    Tagline
+                </span>
+
+                <strong>
+                    {{ profile.tagline or "—" }}
+                </strong>
+
+            </div>
+
+
+            <div>
+
+                <span class="meta-label">
+                    Profile created
+                </span>
+
+                <strong>
+
+                    {% if profile.created_at %}
+
+                        {{
+                            profile.created_at.strftime(
+                                "%d %b %Y"
+                            )
+                        }}
+
+                    {% else %}
+
+                        —
+
+                    {% endif %}
+
+                </strong>
+
+            </div>
+
+
+        </div>
+
+
+        {% if profile.bio %}
+
+            <div class="creator-bio">
+
+                <span class="meta-label">
+                    Bio
+                </span>
+
+                <p>
+                    {{ profile.bio }}
+                </p>
+
+            </div>
+
+        {% endif %}
+
+
+    {% else %}
+
+        <div class="empty-state">
+
+            <h3>
+                Profile missing
+            </h3>
+
+            <p>
+                This CreatorAccount does not currently
+                have a linked CreatorProfile.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+</section>
+
+
+
+<!-- =========================================================
+     RECENT CONTENT
+========================================================== -->
+
+<section class="admin-card">
+
+    <div class="card-heading">
+
+        <div>
+
+            <p class="eyebrow">
+                CONTENT
+            </p>
+
+            <h2>
+                Recent content
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    {% if recent_posts %}
+
+        <div class="admin-list">
+
+            {% for post in recent_posts %}
+
+                <div class="content-row">
+
+                    <div>
+
+                        <strong>
+                            {{ post.title }}
+                        </strong>
+
+                        <p>
+
+                            {{
+                                post.content_type
+                                | title
+                            }}
+
+                            ·
+
+                            {{
+                                post.status
+                                | title
+                            }}
+
+                            ·
+
+                            {{
+                                post.access_level
+                                | title
+                            }}
+
+                        </p>
+
+                    </div>
+
+
+                    <div>
+
+                        {% if post.published_at %}
+
+                            {{
+                                post.published_at
+                                .strftime(
+                                    "%d %b %Y"
+                                )
+                            }}
+
+                        {% else %}
+
+                            Draft
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+
+    {% else %}
+
+        <div class="empty-state">
+
+            <p>
+                This creator has not created
+                any content yet.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+</section>
+
+
+
+<!-- =========================================================
+     ACCOUNT INFORMATION
+========================================================== -->
+
+<section class="admin-card">
+
+    <div class="card-heading">
+
+        <div>
+
+            <p class="eyebrow">
+                ACCOUNT
+            </p>
+
+            <h2>
+                Account information
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <div class="detail-grid">
+
+
+        <div>
+
+            <span class="meta-label">
+                Creator ID
+            </span>
+
+            <strong>
+                {{ creator.id }}
+            </strong>
+
+        </div>
+
+
+        <div>
+
+            <span class="meta-label">
+                Email
+            </span>
+
+            <strong>
+                {{ creator.email }}
+            </strong>
+
+        </div>
+
+
+        <div>
+
+            <span class="meta-label">
+                Registered
+            </span>
+
+            <strong>
+
+                {% if creator.created_at %}
+
+                    {{
+                        creator.created_at.strftime(
+                            "%d %b %Y %H:%M"
+                        )
+                    }}
+
+                {% else %}
+
+                    —
+
+                {% endif %}
+
+            </strong>
+
+        </div>
+
+
+        <div>
+
+            <span class="meta-label">
+                Last login
+            </span>
+
+            <strong>
+
+                {% if creator.last_login_at %}
+
+                    {{
+                        creator.last_login_at.strftime(
+                            "%d %b %Y %H:%M"
+                        )
+                    }}
+
+                {% else %}
+
+                    Never
+
+                {% endif %}
+
+            </strong>
+
+        </div>
+
+
+    </div>
+
+</section>
+
+
+{% endblock %}
