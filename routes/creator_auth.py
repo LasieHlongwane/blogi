@@ -782,7 +782,7 @@ def pending():
         creator_account=creator,
         selected_plan=normalize_plan(
             creator.plan,
-            default=PLAN_PREMIUM,
+            default=PLAN_STANDARD,
         ),
         plan_prices=PLAN_PRICES,
     )
