@@ -412,6 +412,9 @@ def logout():
 # ============================================================
 # PLATFORM DASHBOARD
 # ============================================================
+# ============================================================
+# PLATFORM DASHBOARD
+# ============================================================
 
 @admin_bp.route("/")
 @admin_required
@@ -434,7 +437,7 @@ def dashboard():
         .count()
     )
 
-    pending_payment_creators = (
+    pending_payment = (
         CreatorAccount.query
         .filter_by(
             account_status="pending_payment"
@@ -442,7 +445,7 @@ def dashboard():
         .count()
     )
 
-    pending_approval_creators = (
+    pending_approval = (
         CreatorAccount.query
         .filter_by(
             account_status="pending_approval"
@@ -466,8 +469,9 @@ def dashboard():
         .count()
     )
 
+
     # ========================================================
-    # PAYMENT COUNTS
+    # REGISTRATION PAYMENT COUNTS
     # ========================================================
 
     paid_creators = (
@@ -486,8 +490,9 @@ def dashboard():
         .count()
     )
 
+
     # ========================================================
-    # SUBSCRIPTION COUNTS
+    # PLATFORM SUBSCRIPTIONS
     # ========================================================
 
     active_subscriptions = (
@@ -500,16 +505,45 @@ def dashboard():
 
     inactive_subscriptions = (
         CreatorAccount.query
-        .filter(
-            CreatorAccount
-            .subscription_status
-            != "active"
+        .filter_by(
+            subscription_status="inactive"
         )
         .count()
     )
 
+    expired_subscriptions = (
+        CreatorAccount.query
+        .filter_by(
+            subscription_status="expired"
+        )
+        .count()
+    )
+
+    past_due_subscriptions = (
+        CreatorAccount.query
+        .filter_by(
+            subscription_status="past_due"
+        )
+        .count()
+    )
+
+    cancelled_subscriptions = (
+        CreatorAccount.query
+        .filter_by(
+            subscription_status="cancelled"
+        )
+        .count()
+    )
+
+
+    # ========================================================
+    # SUBSCRIPTIONS EXPIRING SOON
+    # ========================================================
+
+    now = utc_now()
+
     expiring_soon_at = (
-        utc_now()
+        now
         + timedelta(
             days=7
         )
@@ -525,7 +559,7 @@ def dashboard():
             .isnot(None),
 
             CreatorAccount.subscription_expires_at
-            > utc_now(),
+            > now,
 
             CreatorAccount.subscription_expires_at
             <= expiring_soon_at,
@@ -533,8 +567,9 @@ def dashboard():
         .count()
     )
 
+
     # ========================================================
-    # PLATFORM ACTIVITY
+    # PLATFORM CONTENT
     # ========================================================
 
     total_posts = (
@@ -550,6 +585,27 @@ def dashboard():
         .count()
     )
 
+    draft_posts = (
+        ContentPost.query
+        .filter_by(
+            status="draft"
+        )
+        .count()
+    )
+
+    archived_posts = (
+        ContentPost.query
+        .filter_by(
+            status="archived"
+        )
+        .count()
+    )
+
+
+    # ========================================================
+    # NEWSLETTER SUBSCRIBERS
+    # ========================================================
+
     total_subscribers = (
         EmailSubscriber.query
         .count()
@@ -563,13 +619,19 @@ def dashboard():
         .count()
     )
 
+
+    # ========================================================
+    # COMMENTS
+    # ========================================================
+
     total_comments = (
         Comment.query
         .count()
     )
 
+
     # ========================================================
-    # RECENT CREATORS
+    # RECENT CREATOR REGISTRATIONS
     # ========================================================
 
     recent_creators = (
@@ -577,56 +639,146 @@ def dashboard():
         .order_by(
             CreatorAccount.created_at.desc()
         )
-        .limit(10)
+        .limit(8)
         .all()
     )
+
+
+    # ========================================================
+    # RECENT PLATFORM CONTENT
+    # ========================================================
+
+    recent_posts = (
+        ContentPost.query
+        .order_by(
+            ContentPost.created_at.desc()
+        )
+        .limit(8)
+        .all()
+    )
+
+
+    # ========================================================
+    # RENDER DASHBOARD
+    # ========================================================
 
     return render_template(
         "admin/dashboard.html",
 
         admin=current_admin(),
 
-        # Creator accounts
+        # ----------------------------------------------------
+        # CREATOR ACCOUNTS
+        # ----------------------------------------------------
+
         total_creators=total_creators,
+
         active_creators=active_creators,
-        pending_payment_creators=(
-            pending_payment_creators
-        ),
-        pending_approval_creators=(
-            pending_approval_creators
-        ),
+
+        pending_payment=pending_payment,
+
+        pending_approval=pending_approval,
+
         suspended_creators=(
             suspended_creators
         ),
+
         rejected_creators=(
             rejected_creators
         ),
 
-        # Payments
-        paid_creators=paid_creators,
-        unpaid_creators=unpaid_creators,
 
-        # SaaS subscriptions
+        # ----------------------------------------------------
+        # REGISTRATION PAYMENTS
+        # ----------------------------------------------------
+
+        paid_creators=(
+            paid_creators
+        ),
+
+        unpaid_creators=(
+            unpaid_creators
+        ),
+
+
+        # ----------------------------------------------------
+        # PLATFORM SUBSCRIPTIONS
+        # ----------------------------------------------------
+
         active_subscriptions=(
             active_subscriptions
         ),
+
         inactive_subscriptions=(
             inactive_subscriptions
         ),
-        expiring_soon=expiring_soon,
 
-        # Platform activity
-        total_posts=total_posts,
-        published_posts=published_posts,
+        expired_subscriptions=(
+            expired_subscriptions
+        ),
+
+        past_due_subscriptions=(
+            past_due_subscriptions
+        ),
+
+        cancelled_subscriptions=(
+            cancelled_subscriptions
+        ),
+
+        expiring_soon=(
+            expiring_soon
+        ),
+
+
+        # ----------------------------------------------------
+        # PLATFORM CONTENT
+        # ----------------------------------------------------
+
+        total_posts=(
+            total_posts
+        ),
+
+        published_posts=(
+            published_posts
+        ),
+
+        draft_posts=(
+            draft_posts
+        ),
+
+        archived_posts=(
+            archived_posts
+        ),
+
+
+        # ----------------------------------------------------
+        # AUDIENCE
+        # ----------------------------------------------------
+
         total_subscribers=(
             total_subscribers
         ),
+
         active_email_subscribers=(
             active_email_subscribers
         ),
-        total_comments=total_comments,
 
-        recent_creators=recent_creators,
+        total_comments=(
+            total_comments
+        ),
+
+
+        # ----------------------------------------------------
+        # RECENT ACTIVITY
+        # ----------------------------------------------------
+
+        recent_creators=(
+            recent_creators
+        ),
+
+        recent_posts=(
+            recent_posts
+        ),
     )
 
 
