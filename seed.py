@@ -1,18 +1,29 @@
 import os
 
-from datetime import datetime, timezone, timedelta
+from datetime import (
+    datetime,
+    timezone,
+    timedelta,
+)
 
 import click
-from flask.cli import with_appcontext
+
+from flask.cli import (
+    with_appcontext,
+)
 
 from extensions import db
+
 from models import (
     AdminUser,
+    CreatorAccount,
     CreatorProfile,
     ContentCategory,
     ContentPost,
     ContentMedia,
+    Comment,
     EmailSubscriber,
+    EmailDelivery,
 )
 
 
@@ -22,11 +33,42 @@ from models import (
 
 
 def utc_now():
-    return datetime.now(timezone.utc)
+
+    return datetime.now(
+        timezone.utc
+    )
+
+
+def normalize_username(
+    value,
+):
+
+    return (
+        value
+        .strip()
+        .lower()
+    )
+
+
+def normalize_email(
+    value,
+):
+
+    return (
+        value
+        .strip()
+        .lower()
+    )
+
+
+# ============================================================
+# CREATE DEVELOPMENT POST
+# ============================================================
 
 
 def create_post(
     *,
+    creator_account,
     title,
     slug,
     excerpt,
@@ -38,15 +80,24 @@ def create_post(
     days_ago=0,
     cover_image_url=None,
 ):
+
     """
     Create and return a published development post.
+
+    Every seeded post belongs to the supplied CreatorAccount.
     """
 
-    published_at = utc_now() - timedelta(
-        days=days_ago
+    published_at = (
+        utc_now()
+        - timedelta(
+            days=days_ago
+        )
     )
 
     post = ContentPost(
+        creator_account_id=(
+            creator_account.id
+        ),
         title=title,
         slug=slug,
         excerpt=excerpt,
@@ -73,21 +124,34 @@ def create_post(
 
 
 def initialize_production_identity():
+
     """
-    Create the initial production AdminUser and CreatorProfile
+    Create the platform AdminUser and legacy CreatorProfile
     from environment variables.
+
+    IMPORTANT:
+
+    This function intentionally does NOT automatically create
+    or backfill CreatorAccount records.
+
+    CreatorAccount requires real creator login credentials.
+    Those are handled separately through:
+
+        flask backfill-existing-creator
+
+    This keeps Render startup idempotent and prevents the
+    application from inventing creator passwords.
 
     Existing records are never overwritten.
 
-    Required environment variables:
+    Existing environment variables:
 
         ADMIN_USERNAME
         ADMIN_EMAIL
         ADMIN_PASSWORD
+
         CREATOR_NAME
         CREATOR_USERNAME
-
-    Returns a dictionary describing what happened.
     """
 
     result = {
@@ -109,18 +173,18 @@ def initialize_production_identity():
         .strip()
     )
 
-    admin_email = (
+    admin_email = normalize_email(
         os.getenv(
             "ADMIN_EMAIL",
             "",
         )
-        .strip()
-        .lower()
     )
 
-    admin_password = os.getenv(
-        "ADMIN_PASSWORD",
-        "",
+    admin_password = (
+        os.getenv(
+            "ADMIN_PASSWORD",
+            "",
+        )
     )
 
     # ========================================================
@@ -135,16 +199,15 @@ def initialize_production_identity():
         .strip()
     )
 
-    creator_username = (
+    creator_username = normalize_username(
         os.getenv(
             "CREATOR_USERNAME",
             "",
         )
-        .strip()
     )
 
     # ========================================================
-    # ADMIN
+    # PLATFORM ADMIN
     # ========================================================
 
     if (
@@ -153,7 +216,9 @@ def initialize_production_identity():
         and admin_password
     ):
 
-        result["admin_configured"] = True
+        result[
+            "admin_configured"
+        ] = True
 
         existing_admin = (
             AdminUser.query
@@ -190,10 +255,19 @@ def initialize_production_identity():
                 admin
             )
 
-            result["admin_created"] = True
+            result[
+                "admin_created"
+            ] = True
 
     # ========================================================
-    # CREATOR PROFILE
+    # LEGACY CREATOR PROFILE
+    # ========================================================
+    #
+    # We preserve this bootstrap so an existing deployment
+    # does not break.
+    #
+    # New SaaS creators will NOT be created here.
+    # They will register through the Creator registration flow.
     # ========================================================
 
     if (
@@ -201,10 +275,16 @@ def initialize_production_identity():
         and creator_username
     ):
 
-        result["creator_configured"] = True
+        result[
+            "creator_configured"
+        ] = True
 
         existing_creator = (
-            CreatorProfile.query.first()
+            CreatorProfile.query
+            .filter_by(
+                username=creator_username
+            )
+            .first()
         )
 
         if existing_creator is None:
@@ -225,7 +305,9 @@ def initialize_production_identity():
                 creator
             )
 
-            result["creator_created"] = True
+            result[
+                "creator_created"
+            ] = True
 
     # ========================================================
     # SAVE
@@ -250,7 +332,425 @@ def initialize_production_identity():
 
 
 # ============================================================
-# CREATE ADMIN CLI COMMAND
+# BACKFILL EXISTING PRODUCTION CREATOR
+# ============================================================
+
+
+def backfill_existing_creator():
+
+    """
+    Convert the existing single-creator installation into the
+    first SaaS CreatorAccount.
+
+    This operation:
+
+    1. Finds the existing CreatorProfile.
+    2. Creates its CreatorAccount if necessary.
+    3. Links the CreatorProfile.
+    4. Assigns existing categories.
+    5. Assigns existing posts.
+    6. Assigns existing newsletter subscribers.
+
+    Existing posts, comments, media and email history are
+    preserved.
+
+    Required environment variables:
+
+        CREATOR_USERNAME
+        CREATOR_EMAIL
+        CREATOR_PASSWORD
+    """
+
+    creator_username = normalize_username(
+        os.getenv(
+            "CREATOR_USERNAME",
+            "",
+        )
+    )
+
+    creator_email = normalize_email(
+        os.getenv(
+            "CREATOR_EMAIL",
+            "",
+        )
+    )
+
+    creator_password = (
+        os.getenv(
+            "CREATOR_PASSWORD",
+            "",
+        )
+    )
+
+    if not creator_username:
+
+        raise RuntimeError(
+            "CREATOR_USERNAME is required."
+        )
+
+    if not creator_email:
+
+        raise RuntimeError(
+            "CREATOR_EMAIL is required."
+        )
+
+    if not creator_password:
+
+        raise RuntimeError(
+            "CREATOR_PASSWORD is required."
+        )
+
+    if len(creator_password) < 8:
+
+        raise RuntimeError(
+            "CREATOR_PASSWORD must contain "
+            "at least 8 characters."
+        )
+
+    # ========================================================
+    # FIND EXISTING PROFILE
+    # ========================================================
+
+    profile = (
+        CreatorProfile.query
+        .filter_by(
+            username=creator_username
+        )
+        .first()
+    )
+
+    if profile is None:
+
+        raise RuntimeError(
+            "No CreatorProfile exists with username "
+            f"'{creator_username}'."
+        )
+
+    # ========================================================
+    # FIND / CREATE ACCOUNT
+    # ========================================================
+
+    account = None
+
+    if profile.creator_account_id:
+
+        account = db.session.get(
+            CreatorAccount,
+            profile.creator_account_id,
+        )
+
+    if account is None:
+
+        account = (
+            CreatorAccount.query
+            .filter_by(
+                username=creator_username
+            )
+            .first()
+        )
+
+    existing_email_account = (
+        CreatorAccount.query
+        .filter_by(
+            email=creator_email
+        )
+        .first()
+    )
+
+    if (
+        existing_email_account
+        and account
+        and existing_email_account.id
+        != account.id
+    ):
+
+        raise RuntimeError(
+            "CREATOR_EMAIL already belongs "
+            "to another CreatorAccount."
+        )
+
+    if (
+        existing_email_account
+        and account is None
+    ):
+
+        account = (
+            existing_email_account
+        )
+
+    account_created = False
+
+    if account is None:
+
+        account = CreatorAccount(
+            username=creator_username,
+            email=creator_email,
+
+            # Existing production creator becomes active
+            # immediately because this is a migration of the
+            # creator who already owns the live site.
+            account_status="active",
+
+            # Registration payment does not apply retroactively
+            # to the existing creator.
+            payment_status="paid",
+
+            registration_paid_at=(
+                utc_now()
+            ),
+
+            approved_at=(
+                utc_now()
+            ),
+
+            # Existing creator gets active platform access.
+            # Yoco billing will replace this temporary state
+            # when SaaS billing is implemented.
+            subscription_status="active",
+
+            subscription_started_at=(
+                utc_now()
+            ),
+
+            subscription_expires_at=None,
+        )
+
+        account.set_password(
+            creator_password
+        )
+
+        db.session.add(
+            account
+        )
+
+        db.session.flush()
+
+        account_created = True
+
+    else:
+
+        if (
+            account.username
+            != creator_username
+        ):
+
+            raise RuntimeError(
+                "Existing CreatorAccount username "
+                "does not match CREATOR_USERNAME."
+            )
+
+        if (
+            account.email
+            != creator_email
+        ):
+
+            raise RuntimeError(
+                "Existing CreatorAccount email "
+                "does not match CREATOR_EMAIL."
+            )
+
+    # ========================================================
+    # LINK PROFILE
+    # ========================================================
+
+    if (
+        profile.creator_account_id
+        and profile.creator_account_id
+        != account.id
+    ):
+
+        raise RuntimeError(
+            "CreatorProfile is already linked "
+            "to another CreatorAccount."
+        )
+
+    profile.creator_account_id = (
+        account.id
+    )
+
+    # ========================================================
+    # ASSIGN LEGACY CATEGORIES
+    # ========================================================
+
+    categories_updated = (
+        ContentCategory.query
+        .filter(
+            ContentCategory.creator_account_id
+            .is_(None)
+        )
+        .update(
+            {
+                ContentCategory.creator_account_id:
+                    account.id
+            },
+            synchronize_session=False,
+        )
+    )
+
+    # ========================================================
+    # ASSIGN LEGACY POSTS
+    # ========================================================
+
+    posts_updated = (
+        ContentPost.query
+        .filter(
+            ContentPost.creator_account_id
+            .is_(None)
+        )
+        .update(
+            {
+                ContentPost.creator_account_id:
+                    account.id
+            },
+            synchronize_session=False,
+        )
+    )
+
+    # ========================================================
+    # ASSIGN LEGACY SUBSCRIBERS
+    # ========================================================
+
+    subscribers_updated = (
+        EmailSubscriber.query
+        .filter(
+            EmailSubscriber.creator_account_id
+            .is_(None)
+        )
+        .update(
+            {
+                EmailSubscriber.creator_account_id:
+                    account.id
+            },
+            synchronize_session=False,
+        )
+    )
+
+    # ========================================================
+    # SAVE
+    # ========================================================
+
+    try:
+
+        db.session.commit()
+
+    except Exception:
+
+        db.session.rollback()
+
+        raise
+
+    return {
+        "account_id": account.id,
+        "account_created": account_created,
+        "profile_id": profile.id,
+        "categories_updated": (
+            categories_updated
+        ),
+        "posts_updated": (
+            posts_updated
+        ),
+        "subscribers_updated": (
+            subscribers_updated
+        ),
+    }
+
+
+# ============================================================
+# BACKFILL CLI COMMAND
+# ============================================================
+
+
+@click.command(
+    "backfill-existing-creator"
+)
+@with_appcontext
+def backfill_existing_creator_command():
+
+    """
+    Attach the existing production creator/data to the first
+    CreatorAccount.
+
+    Required:
+
+        CREATOR_USERNAME
+        CREATOR_EMAIL
+        CREATOR_PASSWORD
+    """
+
+    click.echo("")
+    click.echo(
+        "========================================"
+    )
+    click.echo(
+        " Existing Creator SaaS Backfill"
+    )
+    click.echo(
+        "========================================"
+    )
+    click.echo("")
+
+    try:
+
+        result = (
+            backfill_existing_creator()
+        )
+
+    except Exception as exc:
+
+        click.echo(
+            f"Backfill failed: {exc}"
+        )
+
+        raise click.ClickException(
+            str(exc)
+        )
+
+    if result["account_created"]:
+
+        click.echo(
+            "CreatorAccount created."
+        )
+
+    else:
+
+        click.echo(
+            "CreatorAccount already existed."
+        )
+
+    click.echo(
+        f"Creator account ID: "
+        f"{result['account_id']}"
+    )
+
+    click.echo(
+        f"Creator profile ID: "
+        f"{result['profile_id']}"
+    )
+
+    click.echo(
+        "Categories assigned: "
+        f"{result['categories_updated']}"
+    )
+
+    click.echo(
+        "Posts assigned: "
+        f"{result['posts_updated']}"
+    )
+
+    click.echo(
+        "Subscribers assigned: "
+        f"{result['subscribers_updated']}"
+    )
+
+    click.echo("")
+    click.echo(
+        "Existing creator backfill completed."
+    )
+    click.echo("")
+
+
+# ============================================================
+# CREATE PLATFORM ADMIN CLI COMMAND
 # ============================================================
 
 
@@ -259,9 +759,10 @@ def initialize_production_identity():
 )
 @with_appcontext
 def create_admin_command():
+
     """
-    Create the production admin and creator profile using
-    environment variables.
+    Create the production platform admin and legacy creator
+    profile using environment variables.
 
     Usage:
 
@@ -308,21 +809,23 @@ def create_admin_command():
     else:
 
         click.echo(
-            "Admin already exists. No changes made."
+            "Admin already exists. "
+            "No changes made."
         )
 
     # ========================================================
-    # CREATOR RESULT
+    # CREATOR PROFILE RESULT
     # ========================================================
 
     if not result["creator_configured"]:
 
         click.echo(
-            "Creator profile not created."
+            "Legacy creator profile not created."
         )
 
         click.echo(
-            "Set CREATOR_NAME and CREATOR_USERNAME."
+            "Set CREATOR_NAME and "
+            "CREATOR_USERNAME."
         )
 
     elif result["creator_created"]:
@@ -358,17 +861,20 @@ def create_admin_command():
     ),
 )
 @with_appcontext
-def seed_command(reset):
+def seed_command(
+    reset,
+):
+
     """
     Seed the application with DEVELOPMENT content.
 
-    Do not use this command against the production database.
+    DO NOT use this command against production Neon.
 
     Usage:
 
         python -m flask --app app seed
 
-    Reset and seed:
+    Reset:
 
         python -m flask --app app seed --reset
     """
@@ -392,55 +898,56 @@ def seed_command(reset):
     if reset:
 
         click.echo(
-            "Resetting existing development data..."
+            "Resetting development data..."
         )
 
+        EmailDelivery.query.delete()
+        Comment.query.delete()
         ContentMedia.query.delete()
         ContentPost.query.delete()
         ContentCategory.query.delete()
         EmailSubscriber.query.delete()
         CreatorProfile.query.delete()
+        CreatorAccount.query.delete()
 
         db.session.commit()
 
         click.echo(
-            "Existing development data removed."
+            "Development creator data removed."
         )
 
         click.echo("")
 
     # ========================================================
-    # PROTECT AGAINST DUPLICATE SEEDING
+    # DUPLICATE PROTECTION
     # ========================================================
 
     existing_creator = (
-        CreatorProfile.query.first()
+        CreatorAccount.query.first()
     )
 
     if existing_creator:
 
         click.echo(
-            "Seed skipped: a creator profile "
+            "Seed skipped: a CreatorAccount "
             "already exists."
         )
 
         click.echo("")
-
         click.echo(
-            "WARNING: Do not use --reset against "
-            "your production Neon database."
+            "WARNING: Never use --reset "
+            "against production Neon."
         )
-
         click.echo("")
 
         return
 
     # ========================================================
-    # ADMIN USER
+    # PLATFORM ADMIN
     # ========================================================
 
     click.echo(
-        "Creating development admin account..."
+        "Creating development platform admin..."
     )
 
     existing_admin = (
@@ -468,6 +975,35 @@ def seed_command(reset):
         )
 
     # ========================================================
+    # CREATOR ACCOUNT
+    # ========================================================
+
+    click.echo(
+        "Creating development creator account..."
+    )
+
+    creator_account = CreatorAccount(
+        username="naledi",
+        email="creator@example.com",
+        account_status="active",
+        payment_status="paid",
+        registration_paid_at=utc_now(),
+        approved_at=utc_now(),
+        subscription_status="active",
+        subscription_started_at=utc_now(),
+    )
+
+    creator_account.set_password(
+        "Creator123!"
+    )
+
+    db.session.add(
+        creator_account
+    )
+
+    db.session.flush()
+
+    # ========================================================
     # CREATOR PROFILE
     # ========================================================
 
@@ -476,6 +1012,9 @@ def seed_command(reset):
     )
 
     creator = CreatorProfile(
+        creator_account_id=(
+            creator_account.id
+        ),
         display_name="Naledi M.",
         username="naledi",
         tagline=(
@@ -501,7 +1040,7 @@ def seed_command(reset):
     )
 
     # ========================================================
-    # CATEGORIES / FOLDERS
+    # CATEGORIES
     # ========================================================
 
     click.echo(
@@ -509,6 +1048,7 @@ def seed_command(reset):
     )
 
     lifestyle = ContentCategory(
+        creator_account_id=creator_account.id,
         name="Lifestyle",
         slug="lifestyle",
         description=(
@@ -518,6 +1058,7 @@ def seed_command(reset):
     )
 
     personal = ContentCategory(
+        creator_account_id=creator_account.id,
         name="Personal",
         slug="personal",
         description=(
@@ -527,6 +1068,7 @@ def seed_command(reset):
     )
 
     travel = ContentCategory(
+        creator_account_id=creator_account.id,
         name="Travel",
         slug="travel",
         description=(
@@ -536,6 +1078,7 @@ def seed_command(reset):
     )
 
     behind_scenes = ContentCategory(
+        creator_account_id=creator_account.id,
         name="Behind the Scenes",
         slug="behind-the-scenes",
         description=(
@@ -545,6 +1088,7 @@ def seed_command(reset):
     )
 
     conversations = ContentCategory(
+        creator_account_id=creator_account.id,
         name="Conversations",
         slug="conversations",
         description=(
@@ -566,7 +1110,7 @@ def seed_command(reset):
     db.session.flush()
 
     # ========================================================
-    # STORY 1
+    # SAMPLE STORIES
     # ========================================================
 
     click.echo(
@@ -574,6 +1118,7 @@ def seed_command(reset):
     )
 
     create_post(
+        creator_account=creator_account,
         title=(
             "Learning to Enjoy the Quiet Seasons"
         ),
@@ -614,11 +1159,8 @@ Some chapters are simply preparing us for what comes next.
         days_ago=0,
     )
 
-    # ========================================================
-    # STORY 2
-    # ========================================================
-
     create_post(
+        creator_account=creator_account,
         title=(
             "Five Things Making Me Happy Right Now"
         ),
@@ -652,11 +1194,8 @@ Sometimes happiness really is hidden inside ordinary moments.
         days_ago=2,
     )
 
-    # ========================================================
-    # STORY 3
-    # ========================================================
-
     create_post(
+        creator_account=creator_account,
         title="The Weekend I Needed",
         slug="the-weekend-i-needed",
         excerpt=(
@@ -692,6 +1231,7 @@ ourselves space away from our normal routines.
     )
 
     reel = create_post(
+        creator_account=creator_account,
         title="A Little Sunday Reset",
         slug="a-little-sunday-reset",
         excerpt=(
@@ -717,6 +1257,7 @@ ourselves space away from our normal routines.
     )
 
     vlog = create_post(
+        creator_account=creator_account,
         title="Spend the Day With Me",
         slug="spend-the-day-with-me",
         excerpt=(
@@ -734,7 +1275,7 @@ ourselves space away from our normal routines.
     )
 
     # ========================================================
-    # EXCLUSIVE VLOG 1
+    # EXCLUSIVE CONTENT
     # ========================================================
 
     click.echo(
@@ -742,6 +1283,7 @@ ourselves space away from our normal routines.
     )
 
     exclusive_one = create_post(
+        creator_account=creator_account,
         title="Life Update: Let's Talk",
         slug="exclusive-life-update-lets-talk",
         excerpt=(
@@ -759,11 +1301,8 @@ ourselves space away from our normal routines.
         days_ago=4,
     )
 
-    # ========================================================
-    # EXCLUSIVE VLOG 2
-    # ========================================================
-
     exclusive_two = create_post(
+        creator_account=creator_account,
         title="Behind the Content",
         slug="behind-the-content",
         excerpt=(
@@ -780,11 +1319,8 @@ ourselves space away from our normal routines.
         days_ago=7,
     )
 
-    # ========================================================
-    # EXCLUSIVE STORY
-    # ========================================================
-
     create_post(
+        creator_account=creator_account,
         title=(
             "What I Don't Usually Share Online"
         ),
@@ -810,10 +1346,6 @@ community to exist.
         days_ago=9,
     )
 
-    # ========================================================
-    # DEVELOPMENT MEDIA PLACEHOLDERS
-    # ========================================================
-
     _ = (
         reel,
         vlog,
@@ -822,7 +1354,7 @@ community to exist.
     )
 
     # ========================================================
-    # SAMPLE EMAIL SUBSCRIBER
+    # SAMPLE SUBSCRIBER
     # ========================================================
 
     click.echo(
@@ -830,6 +1362,7 @@ community to exist.
     )
 
     email_subscriber = EmailSubscriber(
+        creator_account_id=creator_account.id,
         email="demo@example.com",
         status="active",
         verification_token=None,
@@ -854,21 +1387,42 @@ community to exist.
     # ========================================================
 
     post_count = (
-        ContentPost.query.count()
+        ContentPost.query
+        .filter_by(
+            creator_account_id=(
+                creator_account.id
+            )
+        )
+        .count()
     )
 
     category_count = (
-        ContentCategory.query.count()
+        ContentCategory.query
+        .filter_by(
+            creator_account_id=(
+                creator_account.id
+            )
+        )
+        .count()
     )
 
     subscriber_count = (
-        EmailSubscriber.query.count()
+        EmailSubscriber.query
+        .filter_by(
+            creator_account_id=(
+                creator_account.id
+            )
+        )
+        .count()
     )
 
     public_count = (
         ContentPost.query
         .filter_by(
-            access_level="public"
+            creator_account_id=(
+                creator_account.id
+            ),
+            access_level="public",
         )
         .count()
     )
@@ -876,7 +1430,10 @@ community to exist.
     exclusive_count = (
         ContentPost.query
         .filter_by(
-            access_level="subscriber"
+            creator_account_id=(
+                creator_account.id
+            ),
+            access_level="subscriber",
         )
         .count()
     )
@@ -895,6 +1452,11 @@ community to exist.
 
     click.echo(
         f"Creator: {creator.display_name}"
+    )
+
+    click.echo(
+        f"CreatorAccount ID: "
+        f"{creator_account.id}"
     )
 
     click.echo(
@@ -918,9 +1480,18 @@ community to exist.
     )
 
     click.echo("")
+    click.echo(
+        "Creator login:"
+    )
+    click.echo(
+        "Username: naledi"
+    )
+    click.echo(
+        "Password: Creator123!"
+    )
 
+    click.echo("")
     click.echo(
         "Open: http://127.0.0.1:5000"
     )
-
     click.echo("")
