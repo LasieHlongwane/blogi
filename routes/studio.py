@@ -241,6 +241,10 @@ def slugify(value):
 # UNIQUE POST SLUG
 # ============================================================
 
+# ============================================================
+# UNIQUE POST SLUG
+# ============================================================
+
 def unique_post_slug(
     creator,
     title,
@@ -253,28 +257,29 @@ def unique_post_slug(
     )
 
     candidate = base_slug
-
     counter = 2
 
     while True:
 
+        # ====================================================
+        # TENANT-SCOPED LOOKUP
+        # ====================================================
+        #
+        # Only check posts belonging to THIS creator.
+        #
+        # Another creator is allowed to use the exact same
+        # slug.
+        # ====================================================
+
         query = (
             ContentPost.query
             .filter_by(
-                slug=candidate
+                creator_account_id=(
+                    creator.id
+                ),
+                slug=candidate,
             )
         )
-
-        # ----------------------------------------------------
-        # IMPORTANT
-        # ----------------------------------------------------
-        #
-        # Slugs are still globally unique in the current
-        # database schema.
-        #
-        # Therefore this query intentionally remains global
-        # until the later composite-slug migration.
-        # ----------------------------------------------------
 
         if post_id is not None:
 
@@ -293,6 +298,9 @@ def unique_post_slug(
 
         counter += 1
 
+# ============================================================
+# UNIQUE CATEGORY SLUG
+# ============================================================
 
 # ============================================================
 # UNIQUE CATEGORY SLUG
@@ -309,25 +317,34 @@ def unique_category_slug(
     )
 
     candidate = base_slug
-
     counter = 2
 
-    while (
-        ContentCategory.query
-        .filter_by(
-            slug=candidate
+    while True:
+
+        # ====================================================
+        # TENANT-SCOPED LOOKUP
+        # ====================================================
+
+        existing = (
+            ContentCategory.query
+            .filter_by(
+                creator_account_id=(
+                    creator.id
+                ),
+                slug=candidate,
+            )
+            .first()
         )
-        .first()
-    ):
+
+        if not existing:
+
+            return candidate
 
         candidate = (
             f"{base_slug}-{counter}"
         )
 
         counter += 1
-
-    return candidate
-
 
 # ============================================================
 # CLOUDINARY FOLDER
