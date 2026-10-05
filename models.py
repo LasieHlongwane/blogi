@@ -13,11 +13,18 @@ from extensions import db
 # ============================================================
 
 def utc_now():
-    return datetime.now(timezone.utc)
+    return datetime.now(
+        timezone.utc
+    )
 
 
 # ============================================================
-# ADMIN USER
+# PLATFORM ADMIN
+# ============================================================
+#
+# This remains your platform-level administrator.
+#
+# Creator users will NOT use this table.
 # ============================================================
 
 class AdminUser(db.Model):
@@ -72,13 +79,190 @@ class AdminUser(db.Model):
         nullable=False,
     )
 
-    def set_password(self, password):
+    def set_password(
+        self,
+        password,
+    ):
 
-        self.password_hash = generate_password_hash(
-            password
+        self.password_hash = (
+            generate_password_hash(
+                password
+            )
         )
 
-    def check_password(self, password):
+    def check_password(
+        self,
+        password,
+    ):
+
+        return check_password_hash(
+            self.password_hash,
+            password,
+        )
+
+
+# ============================================================
+# CREATOR ACCOUNT
+# ============================================================
+#
+# This is the SaaS tenant/account.
+#
+# Every creator who registers gets one CreatorAccount.
+#
+# account_status:
+#
+# pending_payment
+# pending_approval
+# active
+# suspended
+# rejected
+#
+# payment_status:
+#
+# unpaid
+# paid
+#
+# subscription_status:
+#
+# inactive
+# active
+# past_due
+# expired
+# cancelled
+#
+# ============================================================
+
+class CreatorAccount(db.Model):
+
+    __tablename__ = "creator_accounts"
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True,
+    )
+
+    username = db.Column(
+        db.String(80),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    email = db.Column(
+        db.String(255),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    password_hash = db.Column(
+        db.String(255),
+        nullable=False,
+    )
+
+    # ========================================================
+    # ACCOUNT APPROVAL
+    # ========================================================
+
+    account_status = db.Column(
+        db.String(30),
+        default="pending_payment",
+        nullable=False,
+        index=True,
+    )
+
+    # ========================================================
+    # REGISTRATION PAYMENT
+    # ========================================================
+
+    payment_status = db.Column(
+        db.String(30),
+        default="unpaid",
+        nullable=False,
+        index=True,
+    )
+
+    registration_paid_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # ========================================================
+    # PLATFORM APPROVAL
+    # ========================================================
+
+    approved_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # ========================================================
+    # MONTHLY SAAS SUBSCRIPTION
+    # ========================================================
+
+    subscription_status = db.Column(
+        db.String(30),
+        default="inactive",
+        nullable=False,
+        index=True,
+    )
+
+    subscription_started_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    subscription_expires_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+
+    # ========================================================
+    # LOGIN
+    # ========================================================
+
+    last_login_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    # ========================================================
+    # TIMESTAMPS
+    # ========================================================
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
+
+    # ========================================================
+    # PASSWORD
+    # ========================================================
+
+    def set_password(
+        self,
+        password,
+    ):
+
+        self.password_hash = (
+            generate_password_hash(
+                password
+            )
+        )
+
+    def check_password(
+        self,
+        password,
+    ):
 
         return check_password_hash(
             self.password_hash,
@@ -97,6 +281,25 @@ class CreatorProfile(db.Model):
     id = db.Column(
         db.Integer,
         primary_key=True,
+    )
+
+    # ========================================================
+    # SAAS OWNER
+    # ========================================================
+    #
+    # Temporarily nullable for migration/backfill.
+    # Later this becomes nullable=False.
+    # ========================================================
+
+    creator_account_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "creator_accounts.id",
+            ondelete="CASCADE",
+        ),
+        nullable=True,
+        unique=True,
+        index=True,
     )
 
     # ========================================================
@@ -194,6 +397,20 @@ class CreatorProfile(db.Model):
         nullable=False,
     )
 
+    # ========================================================
+    # RELATIONSHIP
+    # ========================================================
+
+    creator_account = db.relationship(
+        "CreatorAccount",
+        backref=db.backref(
+            "profile",
+            uselist=False,
+            cascade="all, delete-orphan",
+            single_parent=True,
+        ),
+    )
+
 
 # ============================================================
 # CONTENT CATEGORY / FOLDER
@@ -206,6 +423,20 @@ class ContentCategory(db.Model):
     id = db.Column(
         db.Integer,
         primary_key=True,
+    )
+
+    # ========================================================
+    # SAAS OWNER
+    # ========================================================
+
+    creator_account_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "creator_accounts.id",
+            ondelete="CASCADE",
+        ),
+        nullable=True,
+        index=True,
     )
 
     name = db.Column(
@@ -243,6 +474,18 @@ class ContentCategory(db.Model):
         nullable=False,
     )
 
+    # ========================================================
+    # RELATIONSHIP
+    # ========================================================
+
+    creator_account = db.relationship(
+        "CreatorAccount",
+        backref=db.backref(
+            "categories",
+            lazy=True,
+        ),
+    )
+
 
 # ============================================================
 # CONTENT POST
@@ -255,6 +498,20 @@ class ContentPost(db.Model):
     id = db.Column(
         db.Integer,
         primary_key=True,
+    )
+
+    # ========================================================
+    # SAAS OWNER
+    # ========================================================
+
+    creator_account_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "creator_accounts.id",
+            ondelete="CASCADE",
+        ),
+        nullable=True,
+        index=True,
     )
 
     category_id = db.Column(
@@ -295,6 +552,7 @@ class ContentPost(db.Model):
     )
 
     # story / reel / vlog
+
     content_type = db.Column(
         db.String(30),
         nullable=False,
@@ -303,6 +561,7 @@ class ContentPost(db.Model):
     )
 
     # public / subscriber
+
     access_level = db.Column(
         db.String(30),
         nullable=False,
@@ -311,6 +570,7 @@ class ContentPost(db.Model):
     )
 
     # draft / published / archived
+
     status = db.Column(
         db.String(30),
         nullable=False,
@@ -343,6 +603,10 @@ class ContentPost(db.Model):
         nullable=False,
     )
 
+    # ========================================================
+    # RELATIONSHIPS
+    # ========================================================
+
     category = db.relationship(
         "ContentCategory",
         backref=db.backref(
@@ -351,6 +615,13 @@ class ContentPost(db.Model):
         ),
     )
 
+    creator_account = db.relationship(
+        "CreatorAccount",
+        backref=db.backref(
+            "posts",
+            lazy=True,
+        ),
+    )
 
 
 # ============================================================
@@ -376,7 +647,8 @@ class ContentMedia(db.Model):
         index=True,
     )
 
-    # image / video
+    # cover / gallery_image / video
+
     media_type = db.Column(
         db.String(20),
         nullable=False,
@@ -465,18 +737,10 @@ class Comment(db.Model):
 
     __tablename__ = "comments"
 
-    # ========================================================
-    # PRIMARY KEY
-    # ========================================================
-
     id = db.Column(
         db.Integer,
         primary_key=True,
     )
-
-    # ========================================================
-    # POST
-    # ========================================================
 
     post_id = db.Column(
         db.Integer,
@@ -488,10 +752,6 @@ class Comment(db.Model):
         index=True,
     )
 
-    # ========================================================
-    # REPLY / PARENT
-    # ========================================================
-
     parent_id = db.Column(
         db.Integer,
         db.ForeignKey(
@@ -502,18 +762,10 @@ class Comment(db.Model):
         index=True,
     )
 
-    # ========================================================
-    # VISITOR
-    # ========================================================
-
     author_name = db.Column(
         db.String(80),
         nullable=False,
     )
-
-    # ========================================================
-    # COMMENT
-    # ========================================================
 
     body = db.Column(
         db.Text,
@@ -521,6 +773,7 @@ class Comment(db.Model):
     )
 
     # pending / approved / hidden
+
     status = db.Column(
         db.String(20),
         nullable=False,
@@ -528,29 +781,17 @@ class Comment(db.Model):
         index=True,
     )
 
-    # ========================================================
-    # CREATOR REPLY FLAG
-    # ========================================================
-
     is_creator = db.Column(
         db.Boolean,
         default=False,
         nullable=False,
     )
 
-    # ========================================================
-    # ANONYMOUS SESSION
-    # ========================================================
-
     anonymous_session_id = db.Column(
         db.String(100),
         nullable=True,
         index=True,
     )
-
-    # ========================================================
-    # TIMESTAMPS
-    # ========================================================
 
     created_at = db.Column(
         db.DateTime(timezone=True),
@@ -594,6 +835,16 @@ class Comment(db.Model):
 # ============================================================
 # EMAIL SUBSCRIBER
 # ============================================================
+#
+# A visitor can subscribe separately to multiple creators.
+#
+# Therefore email is no longer globally unique.
+# Instead:
+#
+# creator_account_id + email
+#
+# must be unique.
+# ============================================================
 
 class EmailSubscriber(db.Model):
 
@@ -604,14 +855,24 @@ class EmailSubscriber(db.Model):
         primary_key=True,
     )
 
+    creator_account_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "creator_accounts.id",
+            ondelete="CASCADE",
+        ),
+        nullable=True,
+        index=True,
+    )
+
     email = db.Column(
         db.String(255),
-        unique=True,
         nullable=False,
         index=True,
     )
 
     # pending / active / unsubscribed
+
     status = db.Column(
         db.String(30),
         default="pending",
@@ -656,6 +917,33 @@ class EmailSubscriber(db.Model):
         nullable=False,
     )
 
+    # ========================================================
+    # RELATIONSHIP
+    # ========================================================
+
+    creator_account = db.relationship(
+        "CreatorAccount",
+        backref=db.backref(
+            "email_subscribers",
+            lazy=True,
+        ),
+    )
+
+    # ========================================================
+    # MULTI-TENANT UNIQUE CONSTRAINT
+    # ========================================================
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "creator_account_id",
+            "email",
+            name=(
+                "uq_email_subscriber_"
+                "creator_email"
+            ),
+        ),
+    )
+
 
 # ============================================================
 # EMAIL DELIVERY
@@ -691,6 +979,7 @@ class EmailDelivery(db.Model):
     )
 
     # verification / welcome / new_post
+
     email_type = db.Column(
         db.String(50),
         nullable=False,
@@ -709,6 +998,7 @@ class EmailDelivery(db.Model):
     )
 
     # sent / failed
+
     status = db.Column(
         db.String(30),
         nullable=False,
