@@ -66,58 +66,85 @@ class Config:
     )
 
     # ========================================================
-# SMTP
-# ========================================================
+    # SMTP
+    # ========================================================
 
     SMTP_HOST = os.getenv(
-    "SMTP_HOST"
+        "SMTP_HOST"
     )
 
     SMTP_PORT = int(
-      os.getenv(
-        "SMTP_PORT",
-        "587",
-      )
+        os.getenv(
+            "SMTP_PORT",
+            "587",
+        )
     )
 
     SMTP_USERNAME = os.getenv(
-      "SMTP_USERNAME"
+        "SMTP_USERNAME"
     )
 
     SMTP_PASSWORD = os.getenv(
-      "SMTP_PASSWORD"
+        "SMTP_PASSWORD"
     )
 
     SMTP_FROM_EMAIL = os.getenv(
-      "SMTP_FROM_EMAIL"
+        "SMTP_FROM_EMAIL"
     )
 
     SMTP_FROM_NAME = os.getenv(
-      "SMTP_FROM_NAME",
-      "Creator Blog",
+        "SMTP_FROM_NAME",
+        "Creator Platform",
     )
 
     SMTP_USE_TLS = (
-      os.getenv(
-        "SMTP_USE_TLS",
-        "true",
-      )
-      .lower()
-      == "true"
+        os.getenv(
+            "SMTP_USE_TLS",
+            "true",
+        )
+        .lower()
+        == "true"
     )
 
-# ========================================================
-# WEBSITE
-# ========================================================
+    # ========================================================
+    # WEBSITE
+    # ========================================================
 
-SITE_URL = (
-    os.getenv(
-        "SITE_URL",
-        "http://127.0.0.1:5000",
+    SITE_URL = (
+        os.getenv(
+            "SITE_URL",
+            "http://127.0.0.1:5000",
+        )
+        .rstrip("/")
     )
-    .rstrip("/")
-)
 
     # ========================================================
-    # MEMBERSHIP
+    # CREATOR SAAS
     # ========================================================
+    #
+    # Yoco is NOT connected yet.
+    #
+    # These values define the business rules so we don't
+    # hard-code prices throughout the application.
+    # ========================================================
+
+    CREATOR_REGISTRATION_FEE_CENTS = int(
+        os.getenv(
+            "CREATOR_REGISTRATION_FEE_CENTS",
+            "0",
+        )
+    )
+
+    CREATOR_MONTHLY_FEE_CENTS = int(
+        os.getenv(
+            "CREATOR_MONTHLY_FEE_CENTS",
+            "0",
+        )
+    )
+
+    CREATOR_SUBSCRIPTION_DAYS = int(
+        os.getenv(
+            "CREATOR_SUBSCRIPTION_DAYS",
+            "30",
+        )
+    )
