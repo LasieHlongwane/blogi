@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <meta
+        name="theme-color"
+        content="#111318"
+    >
+
+    <title>
+        {% block title %}
+            Creator Studio
+        {% endblock %}
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for(
+            'static',
+            filename='css/admin.css'
+        ) }}"
+    >
+
+</head>
+
+
+<body>
+
+
+<div class="admin-shell">
+
+
+    <aside class="sidebar">
+
+        <div>
+
+
+            <a
+                href="{{ url_for(
+                    'studio.dashboard'
+                ) }}"
+                class="studio-brand"
+            >
+
+                <span>
+                    CREATOR
+                </span>
+
+                <strong>
+                    Studio
+                </strong>
+
+            </a>
+
+
+            <nav class="sidebar-nav">
+
+
+                <a href="{{ url_for(
+                    'studio.dashboard'
+                ) }}">
+                    Dashboard
+                </a>
+
+
+                <a href="{{ url_for(
+                    'studio.content_list'
+                ) }}">
+                    Content
+                </a>
+
+
+                <a href="{{ url_for(
+                    'studio.content_new'
+                ) }}">
+                    Create
+                </a>
+
+
+                <a href="{{ url_for(
+                    'studio.categories'
+                ) }}">
+                    Folders
+                </a>
+
+
+                <a href="{{ url_for(
+                    'studio.comments'
+                ) }}">
+                    Comments
+                </a>
+
+
+                <a href="{{ url_for(
+                    'studio.subscribers'
+                ) }}">
+                    Subscribers
+                </a>
+
+
+                <a href="{{ url_for(
+                    'studio.analytics'
+                ) }}">
+                    Analytics
+                </a>
+
+
+                <a href="{{ url_for(
+                    'studio.profile'
+                ) }}">
+                    Profile
+                </a>
+
+
+            </nav>
+
+        </div>
+
+
+        <div class="sidebar-bottom">
+
+
+            <a
+                href="{{ url_for(
+                    'public.home'
+                ) }}"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                View website ↗
+            </a>
+
+
+            <form
+                method="POST"
+                action="{{ url_for(
+                    'creator_auth.logout'
+                ) }}"
+            >
+
+                <button type="submit">
+                    Sign out
+                </button>
+
+            </form>
+
+
+        </div>
+
+    </aside>
+
+
+    <div class="admin-main">
+
+
+        <header class="admin-topbar">
+
+            <div>
+
+                <span class="mobile-brand">
+                    Creator Studio
+                </span>
+
+            </div>
+
+
+            <a
+                href="{{ url_for(
+                    'studio.content_new'
+                ) }}"
+                class="create-button"
+            >
+                + New content
+            </a>
+
+        </header>
+
+
+        <main class="admin-content">
+
+
+            {% with messages =
+                get_flashed_messages(
+                    with_categories=true
+                )
+            %}
+
+                {% if messages %}
+
+                    <div class="flash-stack">
+
+                        {% for category, message
+                            in messages
+                        %}
+
+                            <div
+                                class="flash-message {{ category }}"
+                            >
+                                {{ message }}
+                            </div>
+
+                        {% endfor %}
+
+                    </div>
+
+                {% endif %}
+
+            {% endwith %}
+
+
+            {% block content %}
+            {% endblock %}
+
+
+        </main>
+
+    </div>
+
+</div>
+
+
+</body>
+
+</html>
