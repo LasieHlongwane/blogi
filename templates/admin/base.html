@@ -60,35 +60,51 @@
 
             <nav class="sidebar-nav">
 
-                <a href="{{ url_for('admin.dashboard') }}">
+                <a
+                    href="{{ url_for('admin.dashboard') }}"
+                >
                     Dashboard
                 </a>
 
-                <a href="{{ url_for('admin.content_list') }}">
+                <a
+                    href="{{ url_for('admin.content_list') }}"
+                >
                     Content
                 </a>
 
-                <a href="{{ url_for('admin.content_new') }}">
+                <a
+                    href="{{ url_for('admin.content_new') }}"
+                >
                     Create
                 </a>
 
-                <a href="{{ url_for('admin.categories') }}">
+                <a
+                    href="{{ url_for('admin.categories') }}"
+                >
                     Folders
                 </a>
 
-                <a href="{{ url_for('admin.comments') }}">
+                <a
+                    href="{{ url_for('admin.comments') }}"
+                >
                     Comments
                 </a>
 
-                <a href="{{ url_for('admin.subscribers') }}">
+                <a
+                    href="{{ url_for('admin.subscribers') }}"
+                >
                     Subscribers
                 </a>
 
-                <a href="{{ url_for('admin.analytics') }}">
+                <a
+                    href="{{ url_for('admin.analytics') }}"
+                >
                     Analytics
                 </a>
 
-                <a href="{{ url_for('admin.profile') }}">
+                <a
+                    href="{{ url_for('admin.profile') }}"
+                >
                     Profile
                 </a>
 
@@ -102,6 +118,7 @@
             <a
                 href="{{ url_for('public.home') }}"
                 target="_blank"
+                rel="noopener noreferrer"
             >
                 View website ↗
             </a>
@@ -131,6 +148,10 @@
     <div class="admin-main">
 
 
+        <!-- =================================================
+             TOP BAR
+        ================================================== -->
+
         <header class="admin-topbar">
 
             <div>
@@ -151,6 +172,11 @@
 
         </header>
 
+
+
+        <!-- =================================================
+             MAIN CONTENT
+        ================================================== -->
 
         <main class="admin-content">
 
@@ -183,6 +209,11 @@
 
             {% endwith %}
 
+
+
+            <!-- =============================================
+                 PAGE CONTENT
+            ============================================== -->
 
             {% block content %}
             {% endblock %}
