@@ -32,6 +32,18 @@ from models import (
     Comment,
     EmailSubscriber,
     EmailDelivery,
+    PlatformSubscription,
+    PlatformSubscriptionPayment,
+)
+
+from services.subscription_service import (
+    get_creator_subscription,
+    creator_subscription_is_current,
+    activate_creator_subscription,
+    renew_creator_subscription,
+    expire_creator_subscription,
+    cancel_creator_subscription,
+    record_subscription_payment,
 )
 
 
@@ -172,33 +184,6 @@ def normalize_datetime_utc(
     return value.astimezone(
         timezone.utc
     )
-
-
-def creator_subscription_is_current(
-    creator,
-):
-    """
-    Check whether the creator currently has an active
-    platform subscription.
-
-    subscription_expires_at=None means no expiry has been
-    assigned yet.
-    """
-
-    if (
-        creator.subscription_status
-        != "active"
-    ):
-        return False
-
-    expires_at = normalize_datetime_utc(
-        creator.subscription_expires_at
-    )
-
-    if expires_at is None:
-        return True
-
-    return expires_at > utc_now()
 
 
 # ============================================================
@@ -1038,6 +1023,27 @@ def creator_detail(
         .count()
     )
 
+    subscription = (
+     get_creator_subscription(
+        creator,
+        create=False,
+     )
+    )
+
+    subscription_payments = (
+     PlatformSubscriptionPayment.query
+     .filter_by(
+        creator_account_id=creator.id
+     )
+     .order_by(
+        PlatformSubscriptionPayment
+        .created_at
+        .desc()
+     )
+     .limit(20)
+     .all()
+    )
+
     # ========================================================
     # COMMENTS
     # ========================================================
@@ -1106,6 +1112,11 @@ def creator_detail(
 
         category_count=category_count,
 
+        subscription=subscription,
+        subscription_payments=(
+          subscription_payments
+        ),
+
         subscriber_count=(
             subscriber_count
         ),
@@ -1131,6 +1142,10 @@ def creator_detail(
 # MARK REGISTRATION PAYMENT AS PAID
 # ============================================================
 
+# ============================================================
+# MARK FIRST SUBSCRIPTION PAYMENT AS PAID
+# ============================================================
+
 @admin_bp.route(
     "/creators/<int:creator_id>/mark-paid",
     methods=["POST"],
@@ -1143,10 +1158,6 @@ def creator_mark_paid(
     creator = creator_or_404(
         creator_id
     )
-
-    # --------------------------------------------------------
-    # DO NOT ALTER REJECTED ACCOUNTS
-    # --------------------------------------------------------
 
     if (
         creator.account_status
@@ -1166,6 +1177,28 @@ def creator_mark_paid(
             )
         )
 
+    # --------------------------------------------------------
+    # PREVENT DUPLICATE MANUAL FIRST PAYMENT
+    # --------------------------------------------------------
+
+    if (
+        creator.payment_status
+        == "paid"
+    ):
+
+        flash(
+            "This creator's first subscription "
+            "payment is already marked as paid.",
+            "warning",
+        )
+
+        return redirect(
+            url_for(
+                "admin.creator_detail",
+                creator_id=creator.id,
+            )
+        )
+
     creator.payment_status = "paid"
 
     if not creator.registration_paid_at:
@@ -1175,11 +1208,35 @@ def creator_mark_paid(
         )
 
     # --------------------------------------------------------
-    # PAYMENT COMPLETED
+    # CREATE SUBSCRIPTION RECORD
     # --------------------------------------------------------
     #
-    # Creator now waits for platform approval.
+    # Do not activate Studio yet.
+    #
+    # Payment -> pending approval -> admin approval.
     # --------------------------------------------------------
+
+    subscription = (
+        get_creator_subscription(
+            creator,
+            create=True,
+        )
+    )
+
+    subscription.plan = creator.plan
+
+    subscription.provider = "manual"
+
+    # --------------------------------------------------------
+    # RECORD PAYMENT
+    # --------------------------------------------------------
+
+    record_subscription_payment(
+        creator,
+        status="paid",
+        provider="manual",
+        subscription=subscription,
+    )
 
     if (
         creator.account_status
@@ -1193,7 +1250,7 @@ def creator_mark_paid(
     db.session.commit()
 
     flash(
-        f"Registration payment for "
+        f"First subscription payment for "
         f"@{creator.username} was marked as paid.",
         "success",
     )
@@ -1209,7 +1266,6 @@ def creator_mark_paid(
 # ============================================================
 # MARK REGISTRATION PAYMENT AS UNPAID
 # ============================================================
-
 @admin_bp.route(
     "/creators/<int:creator_id>/mark-unpaid",
     methods=["POST"],
@@ -1229,8 +1285,8 @@ def creator_mark_unpaid(
     ):
 
         flash(
-            "An active creator cannot be moved back "
-            "to registration payment automatically.",
+            "An active creator cannot be moved "
+            "back to first-payment status.",
             "warning",
         )
 
@@ -1260,7 +1316,8 @@ def creator_mark_unpaid(
     db.session.commit()
 
     flash(
-        f"@{creator.username} was marked as unpaid.",
+        f"@{creator.username} was marked "
+        f"as unpaid.",
         "success",
     )
 
@@ -1270,7 +1327,6 @@ def creator_mark_unpaid(
             creator_id=creator.id,
         )
     )
-
 
 # ============================================================
 # APPROVE CREATOR
@@ -1289,18 +1345,14 @@ def creator_approve(
         creator_id
     )
 
-    # --------------------------------------------------------
-    # REGISTRATION MUST BE PAID FIRST
-    # --------------------------------------------------------
-
     if (
         creator.payment_status
         != "paid"
     ):
 
         flash(
-            "Registration payment must be marked "
-            "as paid before approval.",
+            "The first subscription payment "
+            "must be paid before approval.",
             "error",
         )
 
@@ -1317,8 +1369,8 @@ def creator_approve(
     ):
 
         flash(
-            "This creator was rejected. Reactivate the "
-            "account instead if you want to restore it.",
+            "This creator was rejected. "
+            "Reactivate the account instead.",
             "warning",
         )
 
@@ -1338,53 +1390,22 @@ def creator_approve(
         )
 
     # --------------------------------------------------------
-    # MVP BEHAVIOUR
-    # --------------------------------------------------------
-    #
-    # Approval activates the creator's platform access.
-    #
-    # Later Yoco can replace this manual activation.
+    # ACTIVATE FIRST MONTH
     # --------------------------------------------------------
 
-    creator.subscription_status = (
-        "active"
+    activate_creator_subscription(
+        creator,
+        plan=creator.plan,
+        days=30,
+        provider="manual",
     )
-
-    if not creator.subscription_started_at:
-
-        creator.subscription_started_at = (
-            utc_now()
-        )
-
-    # --------------------------------------------------------
-    # INITIAL 30-DAY PERIOD
-    # --------------------------------------------------------
-    #
-    # If the legacy/backfilled creator already has no expiry,
-    # preserve that state.
-    #
-    # New creator accounts receive 30 days.
-    # --------------------------------------------------------
-
-    if (
-        creator.subscription_expires_at
-        is None
-        and creator.created_at
-        and creator.approved_at
-    ):
-
-        creator.subscription_expires_at = (
-            utc_now()
-            + timedelta(
-                days=30
-            )
-        )
 
     db.session.commit()
 
     flash(
         f"@{creator.username} has been approved "
-        f"and can access Creator Studio.",
+        f"with an active "
+        f"{creator.plan.title()} subscription.",
         "success",
     )
 
@@ -1602,43 +1623,19 @@ def creator_subscription_activate(
             )
         )
 
-    now = utc_now()
-
-    creator.subscription_status = (
-        "active"
+    activate_creator_subscription(
+        creator,
+        plan=creator.plan,
+        days=30,
+        provider="manual",
     )
-
-    if not creator.subscription_started_at:
-
-        creator.subscription_started_at = (
-            now
-        )
-
-    expires_at = normalize_datetime_utc(
-        creator.subscription_expires_at
-    )
-
-    # --------------------------------------------------------
-    # NEW / EXPIRED SUBSCRIPTION
-    # --------------------------------------------------------
-
-    if (
-        expires_at is None
-        or expires_at <= now
-    ):
-
-        creator.subscription_expires_at = (
-            now
-            + timedelta(
-                days=30
-            )
-        )
 
     db.session.commit()
 
     flash(
-        f"@{creator.username}'s platform "
-        f"subscription is active.",
+        f"@{creator.username}'s "
+        f"{creator.plan.title()} subscription "
+        f"is active.",
         "success",
     )
 
@@ -1647,8 +1644,7 @@ def creator_subscription_activate(
             "admin.creator_detail",
             creator_id=creator.id,
         )
-    )
-
+    )            
 
 # ============================================================
 # EXTEND SUBSCRIPTION
@@ -1710,39 +1706,33 @@ def creator_subscription_extend(
             )
         )
 
-    now = utc_now()
-
-    expires_at = normalize_datetime_utc(
-        creator.subscription_expires_at
-    )
-
-    if (
-        expires_at
-        and expires_at > now
-    ):
-
-        start_from = expires_at
-
-    else:
-
-        start_from = now
-
-    creator.subscription_status = (
-        "active"
-    )
-
-    if not creator.subscription_started_at:
-
-        creator.subscription_started_at = (
-            now
-        )
-
-    creator.subscription_expires_at = (
-        start_from
-        + timedelta(
-            days=days
+    subscription = (
+        renew_creator_subscription(
+            creator,
+            days=days,
+            plan=creator.plan,
+            provider="manual",
         )
     )
+
+    # --------------------------------------------------------
+    # NORMAL MONTHLY RENEWAL
+    # --------------------------------------------------------
+    #
+    # Record a monthly payment for a normal 30-day renewal.
+    #
+    # Arbitrary admin corrections/extensions should not
+    # pretend to be customer payments.
+    # --------------------------------------------------------
+
+    if days == 30:
+
+        record_subscription_payment(
+            creator,
+            status="paid",
+            provider="manual",
+            subscription=subscription,
+        )
 
     db.session.commit()
 
@@ -1777,12 +1767,8 @@ def creator_subscription_expire(
         creator_id
     )
 
-    creator.subscription_status = (
-        "expired"
-    )
-
-    creator.subscription_expires_at = (
-        utc_now()
+    expire_creator_subscription(
+        creator
     )
 
     db.session.commit()
@@ -1800,10 +1786,10 @@ def creator_subscription_expire(
         )
     )
 
-
 # ============================================================
 # CANCEL SUBSCRIPTION
 # ============================================================
+
 
 @admin_bp.route(
     "/creators/<int:creator_id>/subscription/cancel",
@@ -1818,8 +1804,8 @@ def creator_subscription_cancel(
         creator_id
     )
 
-    creator.subscription_status = (
-        "cancelled"
+    cancel_creator_subscription(
+        creator
     )
 
     db.session.commit()
@@ -1836,8 +1822,6 @@ def creator_subscription_cancel(
             creator_id=creator.id,
         )
     )
-
-
 # ============================================================
 # PLATFORM ANALYTICS
 # ============================================================
