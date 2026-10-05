@@ -1390,18 +1390,24 @@ def content_edit(
             "public",
             "subscriber",
         }:
+            abort(400)
 
         
         # ====================================================
         # PREMIUM: EXCLUSIVE CONTENT
         # ====================================================
 
+        making_new_exclusive = (
+          access_level == "subscriber"
+          and post.access_level != "subscriber"
+        )
+
         if (
-            access_level == "subscriber"
-            and not require_creator_feature(
-                account,
-                FEATURE_EXCLUSIVE_CONTENT,
-            )
+          making_new_exclusive
+          and not require_creator_feature(
+            account,
+            FEATURE_EXCLUSIVE_CONTENT,
+          )
         ):
 
             return render_template(
@@ -1440,6 +1446,25 @@ def content_edit(
         previous_status = (
             post.status
         )
+
+        publishing_exclusive = (
+         access_level == "subscriber"
+         and status == "published"
+         and previous_status != "published"
+        )
+
+        if (
+         publishing_exclusive
+         and not require_creator_feature(
+          account,
+          FEATURE_EXCLUSIVE_CONTENT,
+         )
+        ):
+         return render_template(
+          "studio/content_form.html",
+          post=post,
+          categories=categories,
+         )
 
         post.title = title
 
@@ -1650,6 +1675,21 @@ def content_publish(
         account,
         post_id,
     )
+
+    if (
+     post.access_level == "subscriber"
+     and post.status != "published"
+     and not require_creator_feature(
+        account,
+        FEATURE_EXCLUSIVE_CONTENT,
+     )
+    ):
+     return redirect(
+        url_for(
+            "studio.content_edit",
+            post_id=post.id,
+        )
+     )
 
     was_published = (
         post.status == "published"
