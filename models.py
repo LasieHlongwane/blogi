@@ -444,9 +444,23 @@ class ContentCategory(db.Model):
         nullable=False,
     )
 
+    # ========================================================
+    # TENANT-SCOPED SLUG
+    # ========================================================
+    #
+    # Slug is NOT globally unique anymore.
+    #
+    # Two different creators may both have:
+    #
+    #   /@creator-a/category/travel
+    #   /@creator-b/category/travel
+    #
+    # Uniqueness is enforced by the composite constraint
+    # declared in __table_args__ below.
+    # ========================================================
+
     slug = db.Column(
         db.String(120),
-        unique=True,
         nullable=False,
         index=True,
     )
@@ -486,7 +500,20 @@ class ContentCategory(db.Model):
         ),
     )
 
+    # ========================================================
+    # MULTI-TENANT UNIQUE CONSTRAINT
+    # ========================================================
 
+    __table_args__ = (
+        db.UniqueConstraint(
+            "creator_account_id",
+            "slug",
+            name=(
+                "uq_content_category_"
+                "creator_slug"
+            ),
+        ),
+    )
 # ============================================================
 # CONTENT POST
 # ============================================================
@@ -529,9 +556,22 @@ class ContentPost(db.Model):
         nullable=False,
     )
 
+    # ========================================================
+    # TENANT-SCOPED SLUG
+    # ========================================================
+    #
+    # Slug is NOT globally unique.
+    #
+    # These are both valid:
+    #
+    #   /@creator-a/content/my-first-vlog
+    #   /@creator-b/content/my-first-vlog
+    #
+    # The creator + slug combination is unique.
+    # ========================================================
+
     slug = db.Column(
         db.String(220),
-        unique=True,
         nullable=False,
         index=True,
     )
@@ -623,6 +663,20 @@ class ContentPost(db.Model):
         ),
     )
 
+    # ========================================================
+    # MULTI-TENANT UNIQUE CONSTRAINT
+    # ========================================================
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "creator_account_id",
+            "slug",
+            name=(
+                "uq_content_post_"
+                "creator_slug"
+            ),
+        ),
+    )
 
 # ============================================================
 # CONTENT MEDIA
