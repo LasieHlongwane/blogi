@@ -8,16 +8,11 @@ from extensions import db, migrate
 # APPLICATION FACTORY
 # ============================================================
 
-
 def create_app():
 
     app = Flask(
         __name__
     )
-
-    # ========================================================
-    # CONFIGURATION
-    # ========================================================
 
     app.config.from_object(
         Config
@@ -46,25 +41,47 @@ def create_app():
     # BLUEPRINTS
     # ========================================================
 
-    from routes.public import public_bp
-    from routes.admin import admin_bp
+    from routes.public import (
+        public_bp,
+    )
+
+    from routes.admin import (
+        admin_bp,
+    )
+
+    from routes.creator_auth import (
+        creator_auth_bp,
+    )
+
+    from routes.studio import (
+        studio_bp,
+    )
 
     app.register_blueprint(
         public_bp
     )
 
+    # Existing platform/admin routes remain
+    # available during the SaaS transition.
     app.register_blueprint(
         admin_bp
     )
 
+    app.register_blueprint(
+        creator_auth_bp
+    )
+
+    app.register_blueprint(
+        studio_bp
+    )
+
     # ========================================================
-    # CLI COMMANDS
+    # CLI
     # ========================================================
 
     from seed import (
         seed_command,
         create_admin_command,
-        backfill_creator_account_command,
         initialize_production_identity,
     )
 
@@ -76,28 +93,8 @@ def create_app():
         create_admin_command
     )
 
-    app.cli.add_command(
-        backfill_creator_account_command
-    )
-
     # ========================================================
     # PRODUCTION BOOTSTRAP
-    # ========================================================
-    #
-    # The platform administrator and legacy creator profile
-    # can still be bootstrapped from environment variables.
-    #
-    # IMPORTANT:
-    #
-    # CreatorAccount ownership is NOT automatically backfilled
-    # here.
-    #
-    # That operation is intentionally explicit:
-    #
-    # python -m flask --app app backfill-creator-account
-    #
-    # This prevents application startup from unexpectedly
-    # changing ownership of production data.
     # ========================================================
 
     with app.app_context():
@@ -122,14 +119,6 @@ def create_app():
 
         except Exception:
 
-            # =================================================
-            # IMPORTANT
-            # =================================================
-            #
-            # Log bootstrap problems instead of preventing
-            # the Flask application from starting.
-            # =================================================
-
             app.logger.exception(
                 "Production identity bootstrap failed."
             )
@@ -141,14 +130,12 @@ def create_app():
 # APPLICATION
 # ============================================================
 
-
 app = create_app()
 
 
 # ============================================================
 # DEVELOPMENT SERVER
 # ============================================================
-
 
 if __name__ == "__main__":
 
