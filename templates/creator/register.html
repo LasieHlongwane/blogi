@@ -1,182 +1,522 @@
-<!DOCTYPE html>
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
 
-<html lang="en">
+<meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+>
 
-<head>
+<title>
+    Become a Creator
+</title>
 
-    <meta charset="UTF-8">
+<link
+    rel="stylesheet"
+    href="{{ url_for(
+        'static',
+        filename='css/admin.css'
+    ) }}"
+>
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1"
-    >
+<style>
 
-    <title>
-        Become a Creator
-    </title>
+    .creator-plan-section {
+        margin: 28px 0;
+    }
 
-    <link
-        rel="stylesheet"
-        href="{{ url_for(
-            'static',
-            filename='css/admin.css'
-        ) }}"
-    >
+    .creator-plan-heading {
+        margin-bottom: 18px;
+    }
 
-</head>
+    .creator-plan-heading span {
+        display: block;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        opacity: 0.65;
+        margin-bottom: 6px;
+    }
 
+    .creator-plan-heading h2 {
+        margin: 0 0 6px;
+    }
 
-<body class="login-page">
+    .creator-plan-heading p {
+        margin: 0;
+        opacity: 0.72;
+    }
 
+    .creator-plan-grid {
+        display: grid;
+        grid-template-columns: repeat(
+            2,
+            minmax(0, 1fr)
+        );
+        gap: 14px;
+    }
 
-<div class="login-card">
+    .creator-plan-option {
+        position: relative;
+        display: block;
+        cursor: pointer;
+    }
 
+    .creator-plan-option input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
 
-    <div class="login-heading">
+    .creator-plan-card {
+        height: 100%;
+        padding: 22px;
+        border: 2px solid #d8dadd;
+        border-radius: 16px;
+        background: #ffffff;
+        transition:
+            border-color 0.2s ease,
+            transform 0.2s ease,
+            box-shadow 0.2s ease;
+    }
 
-        <span>
-            CREATOR PLATFORM
-        </span>
+    .creator-plan-option:hover
+    .creator-plan-card {
+        transform: translateY(-2px);
+    }
 
-        <h1>
-            Create your space.
-        </h1>
+    .creator-plan-option input:checked
+    + .creator-plan-card {
+        border-color: #111318;
+        box-shadow:
+            0 0 0 2px rgba(
+                17,
+                19,
+                24,
+                0.08
+            );
+    }
 
-        <p>
-            Start your creator account and build
-            your own audience.
-        </p>
+    .creator-plan-badge {
+        display: inline-block;
+        margin-bottom: 12px;
+        padding: 5px 9px;
+        border-radius: 999px;
+        background: #111318;
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+    }
 
-    </div>
+    .creator-plan-card h3 {
+        margin: 0 0 4px;
+        font-size: 20px;
+    }
 
+    .creator-plan-price {
+        margin: 0 0 10px;
+        font-size: 22px;
+        font-weight: 800;
+    }
 
-    {% with messages = get_flashed_messages(
-        with_categories=true
-    ) %}
+    .creator-plan-price span {
+        font-size: 13px;
+        font-weight: 500;
+        opacity: 0.65;
+    }
 
-        {% if messages %}
+    .creator-plan-positioning {
+        margin: 0 0 18px;
+        font-weight: 600;
+    }
 
-            <div class="flash-stack">
+    .creator-plan-features {
+        display: grid;
+        gap: 8px;
+        font-size: 14px;
+    }
 
-                {% for category, message in messages %}
+    .creator-plan-feature {
+        display: flex;
+        gap: 7px;
+        align-items: flex-start;
+    }
 
-                    <div
-                        class="flash-message {{ category }}"
-                    >
-                        {{ message }}
-                    </div>
+    .creator-plan-feature.locked {
+        opacity: 0.48;
+    }
 
-                {% endfor %}
+    .premium-plan-card {
+        background:
+            linear-gradient(
+                145deg,
+                #111318,
+                #262a31
+            );
+        color: #ffffff;
+        border-color: #111318;
+    }
 
-            </div>
+    .premium-plan-card
+    .creator-plan-badge {
+        background: #ffffff;
+        color: #111318;
+    }
 
-        {% endif %}
+    .creator-plan-option input:checked
+    + .premium-plan-card {
+        border-color: #111318;
+        box-shadow:
+            0 0 0 3px rgba(
+                17,
+                19,
+                24,
+                0.18
+            );
+    }
 
-    {% endwith %}
+    @media (
+        max-width: 700px
+    ) {
 
+        .creator-plan-grid {
+            grid-template-columns: 1fr;
+        }
 
-    <form
-        method="POST"
-        class="login-form"
-    >
+    }
 
+</style>
 
-        <label>
+</head><body class="login-page"><div class="login-card"><div class="login-heading">
 
-            Display name
+    <span>
+        CREATOR PLATFORM
+    </span>
 
-            <input
-                type="text"
-                name="display_name"
-                maxlength="120"
-                required
-            >
-
-        </label>
-
-
-        <label>
-
-            Username
-
-            <input
-                type="text"
-                name="username"
-                maxlength="80"
-                required
-                autocomplete="username"
-            >
-
-        </label>
-
-
-        <label>
-
-            Email
-
-            <input
-                type="email"
-                name="email"
-                maxlength="255"
-                required
-                autocomplete="email"
-            >
-
-        </label>
-
-
-        <label>
-
-            Password
-
-            <input
-                type="password"
-                name="password"
-                minlength="8"
-                required
-                autocomplete="new-password"
-            >
-
-        </label>
-
-
-        <label>
-
-            Confirm password
-
-            <input
-                type="password"
-                name="confirm_password"
-                minlength="8"
-                required
-                autocomplete="new-password"
-            >
-
-        </label>
-
-
-        <button type="submit">
-            Create creator account
-        </button>
-
-
-    </form>
-
+    <h1>
+        Create your space.
+    </h1>
 
     <p>
-        Already registered?
-
-        <a href="{{ url_for(
-            'creator_auth.login'
-        ) }}">
-            Sign in
-        </a>
+        Publish your work, build your audience
+        and choose how far you want to grow.
     </p>
-
 
 </div>
 
 
-</body>
+{% with messages = get_flashed_messages(
+    with_categories=true
+) %}
 
-</html>
+    {% if messages %}
+
+        <div class="flash-stack">
+
+            {% for category, message in messages %}
+
+                <div
+                    class="flash-message {{ category }}"
+                >
+                    {{ message }}
+                </div>
+
+            {% endfor %}
+
+        </div>
+
+    {% endif %}
+
+{% endwith %}
+
+
+<form
+    method="POST"
+    class="login-form"
+>
+
+
+    <label>
+
+        Display name
+
+        <input
+            type="text"
+            name="display_name"
+            maxlength="120"
+            required
+            value="{{ request.form.get(
+                'display_name',
+                ''
+            ) }}"
+        >
+
+    </label>
+
+
+    <label>
+
+        Username
+
+        <input
+            type="text"
+            name="username"
+            maxlength="80"
+            required
+            autocomplete="username"
+            value="{{ request.form.get(
+                'username',
+                ''
+            ) }}"
+        >
+
+    </label>
+
+
+    <label>
+
+        Email
+
+        <input
+            type="email"
+            name="email"
+            maxlength="255"
+            required
+            autocomplete="email"
+            value="{{ request.form.get(
+                'email',
+                ''
+            ) }}"
+        >
+
+    </label>
+
+
+    <!-- =================================================
+         CREATOR PLAN
+    ================================================== -->
+
+    <section class="creator-plan-section">
+
+        <div class="creator-plan-heading">
+
+            <span>
+                CHOOSE YOUR PLAN
+            </span>
+
+            <h2>
+                How do you want to grow?
+            </h2>
+
+            <p>
+                You can upgrade later as your
+                audience grows.
+            </p>
+
+        </div>
+
+
+        <div class="creator-plan-grid">
+
+
+            <!-- =========================================
+                 STANDARD
+            ========================================== -->
+
+            <label class="creator-plan-option">
+
+                <input
+                    type="radio"
+                    name="plan"
+                    value="standard"
+
+                    {% if
+                        request.form.get(
+                            'plan',
+                            'standard'
+                        )
+                        == 'standard'
+                    %}
+                        checked
+                    {% endif %}
+                >
+
+                <div class="creator-plan-card">
+
+                    <span class="creator-plan-badge">
+                        STANDARD
+                    </span>
+
+                    <h3>
+                        Standard
+                    </h3>
+
+                    <p class="creator-plan-price">
+                        R79
+                        <span>
+                            /month
+                        </span>
+                    </p>
+
+                    <p class="creator-plan-positioning">
+                        Build your audience
+                    </p>
+
+                    <div class="creator-plan-features">
+
+                        <div class="creator-plan-feature">
+                            ✓ Publishing
+                        </div>
+
+                        <div class="creator-plan-feature">
+                            ✓ Newsletter
+                        </div>
+
+                        <div class="creator-plan-feature">
+                            ✓ Analytics
+                        </div>
+
+                        <div class="creator-plan-feature locked">
+                            🔒 Exclusive content
+                        </div>
+
+                        <div class="creator-plan-feature locked">
+                            🔒 Fan support
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </label>
+
+
+
+            <!-- =========================================
+                 PREMIUM
+            ========================================== -->
+
+            <label class="creator-plan-option">
+
+                <input
+                    type="radio"
+                    name="plan"
+                    value="premium"
+
+                    {% if
+                        request.form.get('plan')
+                        == 'premium'
+                    %}
+                        checked
+                    {% endif %}
+                >
+
+                <div
+                    class="
+                        creator-plan-card
+                        premium-plan-card
+                    "
+                >
+
+                    <span class="creator-plan-badge">
+                        PREMIUM
+                    </span>
+
+                    <h3>
+                        Premium
+                    </h3>
+
+                    <p class="creator-plan-price">
+                        R149
+                        <span>
+                            /month
+                        </span>
+                    </p>
+
+                    <p class="creator-plan-positioning">
+                        Earn from your audience
+                    </p>
+
+                    <div class="creator-plan-features">
+
+                        <div class="creator-plan-feature">
+                            ✓ Publishing
+                        </div>
+
+                        <div class="creator-plan-feature">
+                            ✓ Newsletter
+                        </div>
+
+                        <div class="creator-plan-feature">
+                            ✓ Advanced analytics
+                        </div>
+
+                        <div class="creator-plan-feature">
+                            ✓ Exclusive content
+                        </div>
+
+                        <div class="creator-plan-feature">
+                            ✓ Fan support
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </label>
+
+
+        </div>
+
+    </section>
+
+
+    <label>
+
+        Password
+
+        <input
+            type="password"
+            name="password"
+            minlength="8"
+            required
+            autocomplete="new-password"
+        >
+
+    </label>
+
+
+    <label>
+
+        Confirm password
+
+        <input
+            type="password"
+            name="confirm_password"
+            minlength="8"
+            required
+            autocomplete="new-password"
+        >
+
+    </label>
+
+
+    <button type="submit">
+        Create creator account
+    </button>
+
+
+</form>
+
+
+<p>
+    Already registered?
+
+    <a href="{{ url_for(
+        'creator_auth.login'
+    ) }}">
+        Sign in
+    </a>
+</p>
+
+</div></body></html>
