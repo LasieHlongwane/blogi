@@ -173,7 +173,7 @@ class CreatorAccount(db.Model):
 
     plan = db.Column(
         db.String(30),
-        default="premium",
+        default="standard",
         nullable=False,
         index=True,
     )
