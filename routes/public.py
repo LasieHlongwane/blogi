@@ -1,202 +1,387 @@
-# ============================================================
-# CREATOR PLATFORM
-# PUBLIC ROUTES
-# ============================================================
+============================================================
+
+CREATOR PLATFORM
+
+PUBLIC ROUTES
+
+============================================================
 
 import secrets
 import time
 
 from flask import (
-    Blueprint,
-    render_template,
-    request,
-    redirect,
-    url_for,
-    flash,
-    session,
-    abort,
+Blueprint,
+render_template,
+request,
+redirect,
+url_for,
+flash,
+session,
+abort,
 )
 
 from extensions import db
 
 from models import (
-    CreatorProfile,
-    ContentCategory,
-    ContentPost,
-    ContentMedia,
-    Comment,
-    EmailSubscriber,
-    utc_now,
+CreatorAccount,
+CreatorProfile,
+ContentCategory,
+ContentPost,
+ContentMedia,
+Comment,
+EmailSubscriber,
+utc_now,
 )
 
 from services.email_service import (
-    send_verification_email,
-    send_welcome_email,
+send_verification_email,
+send_welcome_email,
 )
 
+============================================================
 
-# ============================================================
-# BLUEPRINT
-# ============================================================
+BLUEPRINT
+
+============================================================
 
 public_bp = Blueprint(
-    "public",
-    __name__,
+"public",
+name,
 )
 
+============================================================
 
-# ============================================================
-# COMMENT SETTINGS
-# ============================================================
+COMMENT SETTINGS
+
+============================================================
 
 COMMENT_MAX_LENGTH = 1500
 AUTHOR_MAX_LENGTH = 80
 COMMENT_COOLDOWN_SECONDS = 8
 
+============================================================
 
-# ============================================================
-# CURRENT LEGACY CREATOR
-# ============================================================
+LEGACY / DEFAULT CREATOR
+
+============================================================
 
 def get_current_creator():
-    """
-    Return the existing creator currently powering the root
-    website.
+"""
+Return the original creator that powers the root website.
 
-    During the SaaS transition "/" continues to represent the
-    original creator.
+"/" remains the legacy/default creator website while
+multi-creator pages use:
 
-    Later multi-creator public pages will use:
+    /@username
+"""
 
-        /@username
-
-    and resolve the creator directly from the URL.
-    """
-
-    return (
-        CreatorProfile.query
-        .order_by(
-            CreatorProfile.id.asc()
-        )
-        .first()
+return (
+    CreatorProfile.query
+    .order_by(
+        CreatorProfile.id.asc()
     )
-
+    .first()
+)
 
 def get_current_creator_account_id():
-    """
-    Return the CreatorAccount ID belonging to the existing
-    creator.
 
-    None is allowed temporarily so the public website keeps
-    working before the one-time backfill is executed.
-    """
+creator = get_current_creator()
 
-    creator = get_current_creator()
+if not creator:
 
-    if not creator:
+    return None
 
-        return None
+return creator.creator_account_id
 
-    return creator.creator_account_id
+============================================================
 
+PUBLIC CREATOR RESOLUTION
 
-# ============================================================
-# ANONYMOUS SESSION
-# ============================================================
+============================================================
+
+def get_public_creator_account(
+username,
+):
+"""
+Resolve an active public creator account.
+
+Suspended, rejected, pending-payment and pending-approval
+accounts are intentionally not exposed as public creator
+websites.
+"""
+
+normalized_username = (
+    username
+    .strip()
+    .lower()
+)
+
+account = (
+    CreatorAccount.query
+    .filter(
+        db.func.lower(
+            CreatorAccount.username
+        )
+        == normalized_username,
+        CreatorAccount.account_status
+        == "active",
+    )
+    .first()
+)
+
+if not account:
+
+    abort(404)
+
+return account
+
+def get_public_creator_profile(
+account,
+):
+
+creator = (
+    CreatorProfile.query
+    .filter_by(
+        creator_account_id=account.id
+    )
+    .first()
+)
+
+if not creator:
+
+    abort(404)
+
+return creator
+
+============================================================
+
+PUBLIC CREATOR URL
+
+============================================================
+
+def creator_home_url(
+account,
+):
+
+return url_for(
+    "public.creator_home",
+    username=account.username,
+)
+
+def creator_content_url(
+account,
+post,
+):
+
+return url_for(
+    "public.creator_content_detail",
+    username=account.username,
+    slug=post.slug,
+)
+
+============================================================
+
+ANONYMOUS SESSION
+
+============================================================
 
 def get_anonymous_session_id():
 
-    anonymous_id = session.get(
-        "anonymous_session_id"
-    )
+anonymous_id = session.get(
+    "anonymous_session_id"
+)
 
-    if not anonymous_id:
+if not anonymous_id:
 
-        anonymous_id = secrets.token_urlsafe(
+    anonymous_id = (
+        secrets.token_urlsafe(
             24
         )
+    )
 
-        session[
-            "anonymous_session_id"
-        ] = anonymous_id
+    session[
+        "anonymous_session_id"
+    ] = anonymous_id
 
-    return anonymous_id
+return anonymous_id
 
+============================================================
 
-# ============================================================
-# COMMENT COOLDOWN
-# ============================================================
+COMMENT COOLDOWN
+
+============================================================
 
 def comment_rate_limited():
 
-    current_time = time.time()
+current_time = time.time()
 
-    previous_time = session.get(
-        "last_comment_time"
+previous_time = session.get(
+    "last_comment_time"
+)
+
+if previous_time:
+
+    difference = (
+        current_time
+        - previous_time
     )
 
-    if previous_time:
+    if (
+        difference
+        < COMMENT_COOLDOWN_SECONDS
+    ):
 
-        difference = (
-            current_time
-            - previous_time
-        )
+        return True
 
-        if (
-            difference
-            < COMMENT_COOLDOWN_SECONDS
-        ):
+session[
+    "last_comment_time"
+] = current_time
 
-            return True
+return False
 
-    session[
-        "last_comment_time"
-    ] = current_time
+============================================================
 
-    return False
+SHARED CREATOR HOME RENDERER
 
+============================================================
 
-# ============================================================
-# HOME
-# ============================================================
+def render_creator_home(
+creator,
+creator_account_id,
+):
+
+categories = (
+    ContentCategory.query
+    .filter_by(
+        creator_account_id=(
+            creator_account_id
+        ),
+        is_active=True,
+    )
+    .order_by(
+        ContentCategory.display_order.asc(),
+        ContentCategory.name.asc(),
+    )
+    .all()
+)
+
+posts = (
+    ContentPost.query
+    .filter_by(
+        creator_account_id=(
+            creator_account_id
+        ),
+        status="published",
+    )
+    .order_by(
+        ContentPost.published_at.desc(),
+        ContentPost.created_at.desc(),
+    )
+    .limit(12)
+    .all()
+)
+
+return render_template(
+    "public/home.html",
+    creator=creator,
+    categories=categories,
+    posts=posts,
+)
+
+============================================================
+
+SHARED CONTENT RENDERER
+
+============================================================
+
+def render_content_detail(
+creator,
+post,
+):
+
+gallery_images = (
+    ContentMedia.query
+    .filter_by(
+        post_id=post.id,
+        media_type="gallery_image",
+    )
+    .order_by(
+        ContentMedia.media_order.asc()
+    )
+    .all()
+)
+
+video = (
+    ContentMedia.query
+    .filter_by(
+        post_id=post.id,
+        media_type="video",
+    )
+    .first()
+)
+
+comments = (
+    Comment.query
+    .filter_by(
+        post_id=post.id,
+        parent_id=None,
+        status="approved",
+    )
+    .order_by(
+        Comment.created_at.desc()
+    )
+    .all()
+)
+
+comment_count = (
+    Comment.query
+    .filter_by(
+        post_id=post.id,
+        status="approved",
+    )
+    .count()
+)
+
+return render_template(
+    "public/content_detail.html",
+    creator=creator,
+    post=post,
+    gallery_images=gallery_images,
+    video=video,
+    comments=comments,
+    comment_count=comment_count,
+)
+
+============================================================
+
+LEGACY ROOT HOME
+
+============================================================
 
 @public_bp.route("/")
 def home():
 
-    creator = get_current_creator()
+creator = get_current_creator()
 
-    if not creator:
+if not creator:
 
-        abort(404)
+    abort(404)
 
-    creator_account_id = (
-        creator.creator_account_id
-    )
+creator_account_id = (
+    creator.creator_account_id
+)
 
-    # ========================================================
-    # CATEGORIES
-    # ========================================================
+# --------------------------------------------------------
+# TEMPORARY LEGACY FALLBACK
+# --------------------------------------------------------
 
-    categories_query = (
+if creator_account_id is None:
+
+    categories = (
         ContentCategory.query
         .filter_by(
             is_active=True
         )
-    )
-
-    if creator_account_id is not None:
-
-        categories_query = (
-            categories_query
-            .filter_by(
-                creator_account_id=(
-                    creator_account_id
-                )
-            )
-        )
-
-    categories = (
-        categories_query
         .order_by(
             ContentCategory.display_order.asc(),
             ContentCategory.name.asc(),
@@ -204,30 +389,11 @@ def home():
         .all()
     )
 
-    # ========================================================
-    # POSTS
-    # ========================================================
-
-    posts_query = (
+    posts = (
         ContentPost.query
         .filter_by(
             status="published"
         )
-    )
-
-    if creator_account_id is not None:
-
-        posts_query = (
-            posts_query
-            .filter_by(
-                creator_account_id=(
-                    creator_account_id
-                )
-            )
-        )
-
-    posts = (
-        posts_query
         .order_by(
             ContentPost.published_at.desc(),
             ContentPost.created_at.desc(),
@@ -243,848 +409,1032 @@ def home():
         posts=posts,
     )
 
+return render_creator_home(
+    creator,
+    creator_account_id,
+)
 
-# ============================================================
-# CONTENT DETAIL
-# ============================================================
+============================================================
+
+MULTI-CREATOR HOME
+
+/@username
+
+============================================================
 
 @public_bp.route(
-    "/content/<string:slug>"
+"/@"string:username" (string:username)"
+)
+def creator_home(
+username,
+):
+
+account = (
+    get_public_creator_account(
+        username
+    )
+)
+
+creator = (
+    get_public_creator_profile(
+        account
+    )
+)
+
+return render_creator_home(
+    creator,
+    account.id,
+)
+
+============================================================
+
+LEGACY CONTENT DETAIL
+
+============================================================
+
+@public_bp.route(
+"/content/"string:slug" (string:slug)"
 )
 def content_detail(
-    slug
+slug,
 ):
 
-    creator = get_current_creator()
+creator = get_current_creator()
 
-    if not creator:
+if not creator:
 
-        abort(404)
+    abort(404)
 
-    creator_account_id = (
-        creator.creator_account_id
+creator_account_id = (
+    creator.creator_account_id
+)
+
+query = (
+    ContentPost.query
+    .filter_by(
+        slug=slug,
+        status="published",
+    )
+)
+
+if creator_account_id is not None:
+
+    query = query.filter_by(
+        creator_account_id=(
+            creator_account_id
+        )
     )
 
-    query = (
-        ContentPost.query
-        .filter_by(
-            slug=slug,
-            status="published",
-        )
-    )
+post = query.first_or_404()
 
-    if creator_account_id is not None:
+return render_content_detail(
+    creator,
+    post,
+)
 
-        query = query.filter_by(
-            creator_account_id=(
-                creator_account_id
-            )
-        )
+============================================================
 
-    post = query.first_or_404()
+MULTI-CREATOR CONTENT DETAIL
 
-    # ========================================================
-    # MEDIA
-    # ========================================================
+/@username/content/slug
 
-    gallery_images = (
-        ContentMedia.query
-        .filter_by(
-            post_id=post.id,
-            media_type="gallery_image",
-        )
-        .order_by(
-            ContentMedia.media_order.asc()
-        )
-        .all()
-    )
-
-    video = (
-        ContentMedia.query
-        .filter_by(
-            post_id=post.id,
-            media_type="video",
-        )
-        .first()
-    )
-
-    # ========================================================
-    # COMMENTS
-    # ========================================================
-
-    comments = (
-        Comment.query
-        .filter_by(
-            post_id=post.id,
-            parent_id=None,
-            status="approved",
-        )
-        .order_by(
-            Comment.created_at.desc()
-        )
-        .all()
-    )
-
-    comment_count = (
-        Comment.query
-        .filter_by(
-            post_id=post.id,
-            status="approved",
-        )
-        .count()
-    )
-
-    return render_template(
-        "public/content_detail.html",
-        creator=creator,
-        post=post,
-        gallery_images=gallery_images,
-        video=video,
-        comments=comments,
-        comment_count=comment_count,
-    )
-
-
-# ============================================================
-# ADD COMMENT
-# ============================================================
+============================================================
 
 @public_bp.route(
-    "/content/<int:post_id>/comments",
-    methods=["POST"],
+"/@"string:username" (string:username)/content/"string:slug" (string:slug)"
 )
-def add_comment(
-    post_id
+def creator_content_detail(
+username,
+slug,
 ):
 
-    post = db.get_or_404(
-        ContentPost,
-        post_id,
+account = (
+    get_public_creator_account(
+        username
     )
+)
 
-    creator = get_current_creator()
-
-    if not creator:
-
-        abort(404)
-
-    if (
-        creator.creator_account_id is not None
-        and post.creator_account_id
-        != creator.creator_account_id
-    ):
-
-        abort(404)
-
-    if post.status != "published":
-
-        abort(404)
-
-    # ========================================================
-    # HONEYPOT
-    # ========================================================
-
-    website = (
-        request.form
-        .get(
-            "website",
-            "",
-        )
-        .strip()
+creator = (
+    get_public_creator_profile(
+        account
     )
+)
 
-    if website:
-
-        return redirect(
-            url_for(
-                "public.content_detail",
-                slug=post.slug,
-            )
-            + "#comments"
-        )
-
-    # ========================================================
-    # RATE LIMIT
-    # ========================================================
-
-    if comment_rate_limited():
-
-        flash(
-            "Please wait a few seconds before "
-            "posting another comment.",
-            "warning",
-        )
-
-        return redirect(
-            url_for(
-                "public.content_detail",
-                slug=post.slug,
-            )
-            + "#comments"
-        )
-
-    # ========================================================
-    # FORM
-    # ========================================================
-
-    author_name = (
-        request.form
-        .get(
-            "author_name",
-            "",
-        )
-        .strip()
+post = (
+    ContentPost.query
+    .filter_by(
+        creator_account_id=account.id,
+        slug=slug,
+        status="published",
     )
+    .first_or_404()
+)
 
-    body = (
-        request.form
-        .get(
-            "body",
-            "",
-        )
-        .strip()
+return render_content_detail(
+    creator,
+    post,
+)
+
+============================================================
+
+LEGACY ADD COMMENT
+
+============================================================
+
+@public_bp.route(
+"/content/"int:post_id" (int:post_id)/comments",
+methods=["POST"],
+)
+def add_comment(
+post_id,
+):
+
+creator = get_current_creator()
+
+if not creator:
+
+    abort(404)
+
+post = (
+    ContentPost.query
+    .filter_by(
+        id=post_id,
+        status="published",
     )
+    .first_or_404()
+)
 
-    # ========================================================
-    # VALIDATION
-    # ========================================================
+if (
+    creator.creator_account_id
+    is not None
+    and post.creator_account_id
+    != creator.creator_account_id
+):
 
-    if not author_name:
+    abort(404)
 
-        flash(
-            "Enter your name before commenting.",
-            "error",
-        )
+return process_comment(
+    post=post,
+    redirect_endpoint=(
+        "public.content_detail"
+    ),
+    redirect_values={
+        "slug": post.slug,
+    },
+)
 
-        return redirect(
-            url_for(
-                "public.content_detail",
-                slug=post.slug,
-            )
-            + "#comments"
-        )
+============================================================
 
-    if len(author_name) > AUTHOR_MAX_LENGTH:
+MULTI-CREATOR ADD COMMENT
 
-        flash(
-            "Your name is too long.",
-            "error",
-        )
+============================================================
 
-        return redirect(
-            url_for(
-                "public.content_detail",
-                slug=post.slug,
-            )
-            + "#comments"
-        )
+@public_bp.route(
+"/@"string:username" (string:username)/content/"
+""int:post_id" (int:post_id)/comments",
+methods=["POST"],
+)
+def creator_add_comment(
+username,
+post_id,
+):
 
-    if not body:
-
-        flash(
-            "Write something before posting.",
-            "error",
-        )
-
-        return redirect(
-            url_for(
-                "public.content_detail",
-                slug=post.slug,
-            )
-            + "#comments"
-        )
-
-    if len(body) > COMMENT_MAX_LENGTH:
-
-        flash(
-            "Your comment is too long.",
-            "error",
-        )
-
-        return redirect(
-            url_for(
-                "public.content_detail",
-                slug=post.slug,
-            )
-            + "#comments"
-        )
-
-    # ========================================================
-    # SAVE
-    # ========================================================
-
-    comment = Comment(
-        post_id=post.id,
-        author_name=author_name,
-        body=body,
-        status="approved",
-        is_creator=False,
-        anonymous_session_id=(
-            get_anonymous_session_id()
-        ),
+account = (
+    get_public_creator_account(
+        username
     )
+)
 
-    db.session.add(
-        comment
+post = (
+    ContentPost.query
+    .filter_by(
+        id=post_id,
+        creator_account_id=account.id,
+        status="published",
     )
+    .first_or_404()
+)
 
-    db.session.commit()
+return process_comment(
+    post=post,
+    redirect_endpoint=(
+        "public.creator_content_detail"
+    ),
+    redirect_values={
+        "username": account.username,
+        "slug": post.slug,
+    },
+)
 
-    flash(
-        "Your comment was posted.",
-        "success",
-    )
+============================================================
+
+COMMENT PROCESSOR
+
+============================================================
+
+def process_comment(
+post,
+redirect_endpoint,
+redirect_values,
+):
+
+def redirect_to_comments():
 
     return redirect(
         url_for(
-            "public.content_detail",
-            slug=post.slug,
+            redirect_endpoint,
+            **redirect_values,
         )
         + "#comments"
     )
 
+# ========================================================
+# HONEYPOT
+# ========================================================
 
-# ============================================================
-# ADD REPLY
-# ============================================================
+website = (
+    request.form
+    .get(
+        "website",
+        "",
+    )
+    .strip()
+)
+
+if website:
+
+    return redirect_to_comments()
+
+# ========================================================
+# RATE LIMIT
+# ========================================================
+
+if comment_rate_limited():
+
+    flash(
+        "Please wait a few seconds before "
+        "posting another comment.",
+        "warning",
+    )
+
+    return redirect_to_comments()
+
+# ========================================================
+# FORM
+# ========================================================
+
+author_name = (
+    request.form
+    .get(
+        "author_name",
+        "",
+    )
+    .strip()
+)
+
+body = (
+    request.form
+    .get(
+        "body",
+        "",
+    )
+    .strip()
+)
+
+# ========================================================
+# VALIDATION
+# ========================================================
+
+if not author_name:
+
+    flash(
+        "Enter your name before commenting.",
+        "error",
+    )
+
+    return redirect_to_comments()
+
+if len(author_name) > AUTHOR_MAX_LENGTH:
+
+    flash(
+        "Your name is too long.",
+        "error",
+    )
+
+    return redirect_to_comments()
+
+if not body:
+
+    flash(
+        "Write something before posting.",
+        "error",
+    )
+
+    return redirect_to_comments()
+
+if len(body) > COMMENT_MAX_LENGTH:
+
+    flash(
+        "Your comment is too long.",
+        "error",
+    )
+
+    return redirect_to_comments()
+
+# ========================================================
+# SAVE
+# ========================================================
+
+comment = Comment(
+    post_id=post.id,
+    author_name=author_name,
+    body=body,
+    status="approved",
+    is_creator=False,
+    anonymous_session_id=(
+        get_anonymous_session_id()
+    ),
+)
+
+db.session.add(
+    comment
+)
+
+db.session.commit()
+
+flash(
+    "Your comment was posted.",
+    "success",
+)
+
+return redirect_to_comments()
+
+============================================================
+
+LEGACY ADD REPLY
+
+============================================================
 
 @public_bp.route(
-    "/comments/<int:comment_id>/reply",
-    methods=["POST"],
+"/comments/"int:comment_id" (int:comment_id)/reply",
+methods=["POST"],
 )
 def add_reply(
-    comment_id
+comment_id,
 ):
 
-    parent = db.get_or_404(
+creator = get_current_creator()
+
+if not creator:
+
+    abort(404)
+
+parent = (
+    db.session.get(
         Comment,
         comment_id,
     )
+)
 
-    post = parent.post
+if not parent:
 
-    creator = get_current_creator()
+    abort(404)
 
-    if not creator:
+post = parent.post
 
-        abort(404)
+if not post:
 
-    if (
-        creator.creator_account_id is not None
-        and post.creator_account_id
-        != creator.creator_account_id
-    ):
+    abort(404)
 
-        abort(404)
+if post.status != "published":
 
-    if post.status != "published":
+    abort(404)
 
-        abort(404)
+if (
+    creator.creator_account_id
+    is not None
+    and post.creator_account_id
+    != creator.creator_account_id
+):
 
-    # ========================================================
-    # ONLY ONE LEVEL OF REPLIES
-    # ========================================================
+    abort(404)
 
-    if parent.parent_id is not None:
+return process_reply(
+    parent=parent,
+    post=post,
+    redirect_endpoint=(
+        "public.content_detail"
+    ),
+    redirect_values={
+        "slug": post.slug,
+    },
+)
 
-        abort(400)
+============================================================
 
-    # ========================================================
-    # HONEYPOT
-    # ========================================================
+MULTI-CREATOR ADD REPLY
 
-    website = (
-        request.form
-        .get(
-            "website",
-            "",
-        )
-        .strip()
+============================================================
+
+@public_bp.route(
+"/@"string:username" (string:username)/comments/"
+""int:comment_id" (int:comment_id)/reply",
+methods=["POST"],
+)
+def creator_add_reply(
+username,
+comment_id,
+):
+
+account = (
+    get_public_creator_account(
+        username
     )
+)
 
-    if website:
-
-        return redirect(
-            url_for(
-                "public.content_detail",
-                slug=post.slug,
-            )
-            + f"#comment-{parent.id}"
-        )
-
-    # ========================================================
-    # RATE LIMIT
-    # ========================================================
-
-    if comment_rate_limited():
-
-        flash(
-            "Please wait a few seconds before "
-            "posting another reply.",
-            "warning",
-        )
-
-        return redirect(
-            url_for(
-                "public.content_detail",
-                slug=post.slug,
-            )
-            + f"#comment-{parent.id}"
-        )
-
-    # ========================================================
-    # FORM
-    # ========================================================
-
-    author_name = (
-        request.form
-        .get(
-            "author_name",
-            "",
-        )
-        .strip()
+parent = (
+    Comment.query
+    .join(
+        ContentPost,
+        Comment.post_id
+        == ContentPost.id,
     )
-
-    body = (
-        request.form
-        .get(
-            "body",
-            "",
-        )
-        .strip()
+    .filter(
+        Comment.id == comment_id,
+        ContentPost.creator_account_id
+        == account.id,
+        ContentPost.status
+        == "published",
     )
+    .first_or_404()
+)
 
-    # ========================================================
-    # VALIDATION
-    # ========================================================
+post = parent.post
 
-    if not author_name:
+return process_reply(
+    parent=parent,
+    post=post,
+    redirect_endpoint=(
+        "public.creator_content_detail"
+    ),
+    redirect_values={
+        "username": account.username,
+        "slug": post.slug,
+    },
+)
 
-        flash(
-            "Enter your name before replying.",
-            "error",
-        )
+============================================================
 
-        return redirect(
-            url_for(
-                "public.content_detail",
-                slug=post.slug,
-            )
-            + f"#comment-{parent.id}"
-        )
+REPLY PROCESSOR
 
-    if len(author_name) > AUTHOR_MAX_LENGTH:
+============================================================
 
-        flash(
-            "Your name is too long.",
-            "error",
-        )
+def process_reply(
+parent,
+post,
+redirect_endpoint,
+redirect_values,
+):
 
-        return redirect(
-            url_for(
-                "public.content_detail",
-                slug=post.slug,
-            )
-            + f"#comment-{parent.id}"
-        )
+# ========================================================
+# ONLY ONE LEVEL OF REPLIES
+# ========================================================
 
-    if not body:
+if parent.parent_id is not None:
 
-        flash(
-            "Write something before replying.",
-            "error",
-        )
+    abort(400)
 
-        return redirect(
-            url_for(
-                "public.content_detail",
-                slug=post.slug,
-            )
-            + f"#comment-{parent.id}"
-        )
-
-    if len(body) > COMMENT_MAX_LENGTH:
-
-        flash(
-            "Your reply is too long.",
-            "error",
-        )
-
-        return redirect(
-            url_for(
-                "public.content_detail",
-                slug=post.slug,
-            )
-            + f"#comment-{parent.id}"
-        )
-
-    # ========================================================
-    # SAVE
-    # ========================================================
-
-    reply = Comment(
-        post_id=post.id,
-        parent_id=parent.id,
-        author_name=author_name,
-        body=body,
-        status="approved",
-        is_creator=False,
-        anonymous_session_id=(
-            get_anonymous_session_id()
-        ),
-    )
-
-    db.session.add(
-        reply
-    )
-
-    db.session.commit()
-
-    flash(
-        "Your reply was posted.",
-        "success",
-    )
+def redirect_to_parent():
 
     return redirect(
         url_for(
-            "public.content_detail",
-            slug=post.slug,
+            redirect_endpoint,
+            **redirect_values,
         )
         + f"#comment-{parent.id}"
     )
 
+# ========================================================
+# HONEYPOT
+# ========================================================
 
-# ============================================================
-# NEWSLETTER SUBSCRIBE
-# ============================================================
+website = (
+    request.form
+    .get(
+        "website",
+        "",
+    )
+    .strip()
+)
+
+if website:
+
+    return redirect_to_parent()
+
+# ========================================================
+# RATE LIMIT
+# ========================================================
+
+if comment_rate_limited():
+
+    flash(
+        "Please wait a few seconds before "
+        "posting another reply.",
+        "warning",
+    )
+
+    return redirect_to_parent()
+
+# ========================================================
+# FORM
+# ========================================================
+
+author_name = (
+    request.form
+    .get(
+        "author_name",
+        "",
+    )
+    .strip()
+)
+
+body = (
+    request.form
+    .get(
+        "body",
+        "",
+    )
+    .strip()
+)
+
+# ========================================================
+# VALIDATION
+# ========================================================
+
+if not author_name:
+
+    flash(
+        "Enter your name before replying.",
+        "error",
+    )
+
+    return redirect_to_parent()
+
+if len(author_name) > AUTHOR_MAX_LENGTH:
+
+    flash(
+        "Your name is too long.",
+        "error",
+    )
+
+    return redirect_to_parent()
+
+if not body:
+
+    flash(
+        "Write something before replying.",
+        "error",
+    )
+
+    return redirect_to_parent()
+
+if len(body) > COMMENT_MAX_LENGTH:
+
+    flash(
+        "Your reply is too long.",
+        "error",
+    )
+
+    return redirect_to_parent()
+
+# ========================================================
+# SAVE
+# ========================================================
+
+reply = Comment(
+    post_id=post.id,
+    parent_id=parent.id,
+    author_name=author_name,
+    body=body,
+    status="approved",
+    is_creator=False,
+    anonymous_session_id=(
+        get_anonymous_session_id()
+    ),
+)
+
+db.session.add(
+    reply
+)
+
+db.session.commit()
+
+flash(
+    "Your reply was posted.",
+    "success",
+)
+
+return redirect_to_parent()
+
+============================================================
+
+LEGACY NEWSLETTER SUBSCRIBE
+
+============================================================
 
 @public_bp.route(
-    "/newsletter/subscribe",
-    methods=["POST"],
+"/newsletter/subscribe",
+methods=["POST"],
 )
 def newsletter_subscribe():
 
-    creator = get_current_creator()
+creator = get_current_creator()
 
-    if not creator:
+if not creator:
 
-        abort(404)
+    abort(404)
 
-    creator_account_id = (
+if creator.creator_account_id is None:
+
+    abort(
+        503,
+        description=(
+            "Creator ownership has not "
+            "been configured yet."
+        ),
+    )
+
+return process_newsletter_subscription(
+    creator_account_id=(
         creator.creator_account_id
+    ),
+    redirect_endpoint="public.home",
+    redirect_values={},
+)
+
+============================================================
+
+MULTI-CREATOR NEWSLETTER SUBSCRIBE
+
+============================================================
+
+@public_bp.route(
+"/@"string:username" (string:username)/newsletter/subscribe",
+methods=["POST"],
+)
+def creator_newsletter_subscribe(
+username,
+):
+
+account = (
+    get_public_creator_account(
+        username
     )
+)
 
-    email = (
-        request.form
-        .get(
-            "email",
-            "",
-        )
-        .strip()
-        .lower()
-    )
+return process_newsletter_subscription(
+    creator_account_id=account.id,
+    redirect_endpoint=(
+        "public.creator_home"
+    ),
+    redirect_values={
+        "username": account.username,
+    },
+)
 
-    # ========================================================
-    # HONEYPOT
-    # ========================================================
+============================================================
 
-    website = (
-        request.form
-        .get(
-            "website",
-            "",
-        )
-        .strip()
-    )
+NEWSLETTER SUBSCRIPTION PROCESSOR
 
-    if website:
+============================================================
 
-        return redirect(
-            url_for(
-                "public.home"
-            )
-            + "#newsletter"
-        )
+def process_newsletter_subscription(
+creator_account_id,
+redirect_endpoint,
+redirect_values,
+):
 
-    # ========================================================
-    # VALIDATION
-    # ========================================================
-
-    if (
-        not email
-        or "@" not in email
-        or "." not in email.split("@")[-1]
-        or len(email) > 255
-    ):
-
-        flash(
-            "Enter a valid email address.",
-            "error",
-        )
-
-        return redirect(
-            url_for(
-                "public.home"
-            )
-            + "#newsletter"
-        )
-
-    # ========================================================
-    # CREATOR-SCOPED SUBSCRIBER LOOKUP
-    # ========================================================
-
-    subscriber_query = (
-        EmailSubscriber.query
-        .filter_by(
-            email=email
-        )
-    )
-
-    if creator_account_id is not None:
-
-        subscriber_query = (
-            subscriber_query
-            .filter_by(
-                creator_account_id=(
-                    creator_account_id
-                )
-            )
-        )
-
-    subscriber = (
-        subscriber_query.first()
-    )
-
-    # ========================================================
-    # ALREADY ACTIVE
-    # ========================================================
-
-    if (
-        subscriber
-        and subscriber.status
-        == "active"
-    ):
-
-        flash(
-            "You're already subscribed.",
-            "success",
-        )
-
-        return redirect(
-            url_for(
-                "public.home"
-            )
-            + "#newsletter"
-        )
-
-    # ========================================================
-    # CREATE / REACTIVATE
-    # ========================================================
-
-    verification_token = (
-        secrets.token_urlsafe(
-            48
-        )
-    )
-
-    unsubscribe_token = (
-        secrets.token_urlsafe(
-            48
-        )
-    )
-
-    if subscriber:
-
-        subscriber.status = "pending"
-
-        subscriber.verification_token = (
-            verification_token
-        )
-
-        if not subscriber.unsubscribe_token:
-
-            subscriber.unsubscribe_token = (
-                unsubscribe_token
-            )
-
-        subscriber.verified_at = None
-        subscriber.unsubscribed_at = None
-
-        if (
-            subscriber.creator_account_id
-            is None
-            and creator_account_id
-            is not None
-        ):
-
-            subscriber.creator_account_id = (
-                creator_account_id
-            )
-
-    else:
-
-        subscriber = EmailSubscriber(
-            creator_account_id=(
-                creator_account_id
-            ),
-            email=email,
-            status="pending",
-            verification_token=(
-                verification_token
-            ),
-            unsubscribe_token=(
-                unsubscribe_token
-            ),
-        )
-
-        db.session.add(
-            subscriber
-        )
-
-    db.session.commit()
-
-    # ========================================================
-    # SEND VERIFICATION
-    # ========================================================
-
-    sent = send_verification_email(
-        subscriber
-    )
-
-    if sent:
-
-        flash(
-            "Check your inbox and confirm "
-            "your email to finish subscribing.",
-            "success",
-        )
-
-    else:
-
-        flash(
-            "Your email was saved, but the "
-            "verification email could not be "
-            "sent. Please try again shortly.",
-            "error",
-        )
+def redirect_to_newsletter():
 
     return redirect(
         url_for(
-            "public.home"
+            redirect_endpoint,
+            **redirect_values,
         )
         + "#newsletter"
     )
 
-
-# ============================================================
-# VERIFY NEWSLETTER EMAIL
-# ============================================================
-
-@public_bp.route(
-    "/newsletter/verify/<string:token>"
+email = (
+    request.form
+    .get(
+        "email",
+        "",
+    )
+    .strip()
+    .lower()
 )
-def newsletter_verify(
-    token
+
+# ========================================================
+# HONEYPOT
+# ========================================================
+
+website = (
+    request.form
+    .get(
+        "website",
+        "",
+    )
+    .strip()
+)
+
+if website:
+
+    return redirect_to_newsletter()
+
+# ========================================================
+# VALIDATION
+# ========================================================
+
+if (
+    not email
+    or "@" not in email
+    or "." not in email.split("@")[-1]
+    or len(email) > 255
 ):
 
-    subscriber = (
-        EmailSubscriber.query
-        .filter_by(
-            verification_token=token
+    flash(
+        "Enter a valid email address.",
+        "error",
+    )
+
+    return redirect_to_newsletter()
+
+# ========================================================
+# STRICT TENANT LOOKUP
+# ========================================================
+
+subscriber = (
+    EmailSubscriber.query
+    .filter_by(
+        creator_account_id=(
+            creator_account_id
+        ),
+        email=email,
+    )
+    .first()
+)
+
+# ========================================================
+# ALREADY ACTIVE
+# ========================================================
+
+if (
+    subscriber
+    and subscriber.status
+    == "active"
+):
+
+    flash(
+        "You're already subscribed.",
+        "success",
+    )
+
+    return redirect_to_newsletter()
+
+# ========================================================
+# CREATE / REACTIVATE
+# ========================================================
+
+verification_token = (
+    secrets.token_urlsafe(
+        48
+    )
+)
+
+unsubscribe_token = (
+    secrets.token_urlsafe(
+        48
+    )
+)
+
+if subscriber:
+
+    subscriber.status = "pending"
+
+    subscriber.verification_token = (
+        verification_token
+    )
+
+    if not subscriber.unsubscribe_token:
+
+        subscriber.unsubscribe_token = (
+            unsubscribe_token
         )
-        .first()
-    )
 
-    if not subscriber:
-
-        return render_template(
-            "public/newsletter_message.html",
-            title="Invalid link",
-            heading="This link isn't valid.",
-            message=(
-                "The verification link may "
-                "have expired or already been used."
-            ),
-        ), 404
-
-    subscriber.status = "active"
-
-    subscriber.verified_at = (
-        utc_now()
-    )
-
+    subscriber.verified_at = None
     subscriber.unsubscribed_at = None
 
-    subscriber.verification_token = None
+else:
 
-    db.session.commit()
+    subscriber = EmailSubscriber(
+        creator_account_id=(
+            creator_account_id
+        ),
+        email=email,
+        status="pending",
+        verification_token=(
+            verification_token
+        ),
+        unsubscribe_token=(
+            unsubscribe_token
+        ),
+    )
 
-    send_welcome_email(
+    db.session.add(
         subscriber
     )
 
-    return render_template(
-        "public/newsletter_message.html",
-        title="Subscription confirmed",
-        heading="You're in.",
-        message=(
-            "Your email is confirmed. "
-            "You'll now receive updates "
-            "when new content is published."
-        ),
+db.session.commit()
+
+# ========================================================
+# SEND TENANT-AWARE VERIFICATION
+# ========================================================
+
+sent = send_verification_email(
+    subscriber
+)
+
+if sent:
+
+    flash(
+        "Check your inbox and confirm "
+        "your email to finish subscribing.",
+        "success",
     )
 
+else:
 
-# ============================================================
-# UNSUBSCRIBE
-# ============================================================
+    flash(
+        "Your email was saved, but the "
+        "verification email could not be "
+        "sent. Please try again shortly.",
+        "error",
+    )
+
+return redirect_to_newsletter()
+
+============================================================
+
+VERIFY NEWSLETTER EMAIL
+
+============================================================
 
 @public_bp.route(
-    "/newsletter/unsubscribe/<string:token>"
+"/newsletter/verify/"string:token" (string:token)"
 )
-def newsletter_unsubscribe(
-    token
+def newsletter_verify(
+token,
 ):
 
-    subscriber = (
-        EmailSubscriber.query
-        .filter_by(
-            unsubscribe_token=token
-        )
-        .first()
+subscriber = (
+    EmailSubscriber.query
+    .filter_by(
+        verification_token=token
     )
+    .first()
+)
 
-    if not subscriber:
-
-        return render_template(
-            "public/newsletter_message.html",
-            title="Invalid link",
-            heading="This link isn't valid.",
-            message=(
-                "We couldn't find a subscription "
-                "for this unsubscribe link."
-            ),
-        ), 404
-
-    subscriber.status = (
-        "unsubscribed"
-    )
-
-    subscriber.unsubscribed_at = (
-        utc_now()
-    )
-
-    subscriber.verification_token = None
-
-    db.session.commit()
+if not subscriber:
 
     return render_template(
         "public/newsletter_message.html",
-        title="Unsubscribed",
-        heading="You've been unsubscribed.",
+        title="Invalid link",
+        heading="This link isn't valid.",
         message=(
-            "You won't receive new-post "
-            "emails anymore. You can subscribe "
-            "again from the website at any time."
+            "The verification link may "
+            "have expired or already been used."
         ),
+    ), 404
+
+# Subscriber must belong to a creator.
+if subscriber.creator_account_id is None:
+
+    return render_template(
+        "public/newsletter_message.html",
+        title="Subscription unavailable",
+        heading="We couldn't confirm this subscription.",
+        message=(
+            "This subscription is not connected "
+            "to a creator account."
+        ),
+    ), 400
+
+account = db.session.get(
+    CreatorAccount,
+    subscriber.creator_account_id,
+)
+
+if not account:
+
+    abort(404)
+
+subscriber.status = "active"
+
+subscriber.verified_at = (
+    utc_now()
+)
+
+subscriber.unsubscribed_at = None
+
+subscriber.verification_token = None
+
+db.session.commit()
+
+send_welcome_email(
+    subscriber
+)
+
+return render_template(
+    "public/newsletter_message.html",
+    title="Subscription confirmed",
+    heading="You're in.",
+    message=(
+        "Your email is confirmed. "
+        "You'll now receive updates "
+        "when new content is published."
+    ),
+    creator_username=account.username,
+)
+
+============================================================
+
+UNSUBSCRIBE
+
+============================================================
+
+@public_bp.route(
+"/newsletter/unsubscribe/"string:token" (string:token)"
+)
+def newsletter_unsubscribe(
+token,
+):
+
+subscriber = (
+    EmailSubscriber.query
+    .filter_by(
+        unsubscribe_token=token
     )
+    .first()
+)
+
+if not subscriber:
+
+    return render_template(
+        "public/newsletter_message.html",
+        title="Invalid link",
+        heading="This link isn't valid.",
+        message=(
+            "We couldn't find a subscription "
+            "for this unsubscribe link."
+        ),
+    ), 404
+
+subscriber.status = (
+    "unsubscribed"
+)
+
+subscriber.unsubscribed_at = (
+    utc_now()
+)
+
+subscriber.verification_token = None
+
+db.session.commit()
+
+creator_username = None
+
+if subscriber.creator_account_id:
+
+    account = db.session.get(
+        CreatorAccount,
+        subscriber.creator_account_id,
+    )
+
+    if account:
+
+        creator_username = (
+            account.username
+        )
+
+return render_template(
+    "public/newsletter_message.html",
+    title="Unsubscribed",
+    heading="You've been unsubscribed.",
+    message=(
+        "You won't receive new-post "
+        "emails from this creator anymore. "
+        "You can subscribe again from their "
+        "website at any time."
+    ),
+    creator_username=creator_username,
+)
