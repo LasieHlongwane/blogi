@@ -1,0 +1,511 @@
+{% extends "admin/base.html" %}
+
+
+{% block title %}
+    Creators | Platform Control Centre
+{% endblock %}
+
+
+{% block content %}
+
+
+<!-- =========================================================
+     PAGE HEADER
+========================================================== -->
+
+<div class="page-header">
+
+    <div>
+
+        <p class="eyebrow">
+            PLATFORM MANAGEMENT
+        </p>
+
+        <h1>
+            Creators
+        </h1>
+
+        <p class="page-description">
+            Manage creator registrations, approvals,
+            payments and platform subscriptions.
+        </p>
+
+    </div>
+
+</div>
+
+
+
+<!-- =========================================================
+     FILTERS
+========================================================== -->
+
+<section class="admin-card">
+
+    <form
+        method="GET"
+        action="{{ url_for('admin.creators') }}"
+        class="filter-form"
+    >
+
+        <!-- =================================================
+             SEARCH
+        ================================================== -->
+
+        <div class="form-group">
+
+            <label for="q">
+                Search creators
+            </label>
+
+            <input
+                type="search"
+                id="q"
+                name="q"
+                value="{{ search or '' }}"
+                placeholder="Username, email or display name"
+            >
+
+        </div>
+
+
+        <!-- =================================================
+             ACCOUNT STATUS
+        ================================================== -->
+
+        <div class="form-group">
+
+            <label for="status">
+                Account status
+            </label>
+
+            <select
+                id="status"
+                name="status"
+            >
+
+                <option value="">
+                    All statuses
+                </option>
+
+                <option
+                    value="pending_payment"
+                    {% if selected_status == "pending_payment" %}
+                        selected
+                    {% endif %}
+                >
+                    Pending payment
+                </option>
+
+                <option
+                    value="pending_approval"
+                    {% if selected_status == "pending_approval" %}
+                        selected
+                    {% endif %}
+                >
+                    Pending approval
+                </option>
+
+                <option
+                    value="active"
+                    {% if selected_status == "active" %}
+                        selected
+                    {% endif %}
+                >
+                    Active
+                </option>
+
+                <option
+                    value="suspended"
+                    {% if selected_status == "suspended" %}
+                        selected
+                    {% endif %}
+                >
+                    Suspended
+                </option>
+
+                <option
+                    value="rejected"
+                    {% if selected_status == "rejected" %}
+                        selected
+                    {% endif %}
+                >
+                    Rejected
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <!-- =================================================
+             PAYMENT STATUS
+        ================================================== -->
+
+        <div class="form-group">
+
+            <label for="payment">
+                Registration payment
+            </label>
+
+            <select
+                id="payment"
+                name="payment"
+            >
+
+                <option value="">
+                    All payments
+                </option>
+
+                <option
+                    value="paid"
+                    {% if selected_payment == "paid" %}
+                        selected
+                    {% endif %}
+                >
+                    Paid
+                </option>
+
+                <option
+                    value="unpaid"
+                    {% if selected_payment == "unpaid" %}
+                        selected
+                    {% endif %}
+                >
+                    Unpaid
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <!-- =================================================
+             SUBSCRIPTION STATUS
+        ================================================== -->
+
+        <div class="form-group">
+
+            <label for="subscription">
+                Subscription
+            </label>
+
+            <select
+                id="subscription"
+                name="subscription"
+            >
+
+                <option value="">
+                    All subscriptions
+                </option>
+
+                <option
+                    value="active"
+                    {% if selected_subscription == "active" %}
+                        selected
+                    {% endif %}
+                >
+                    Active
+                </option>
+
+                <option
+                    value="inactive"
+                    {% if selected_subscription == "inactive" %}
+                        selected
+                    {% endif %}
+                >
+                    Inactive
+                </option>
+
+                <option
+                    value="past_due"
+                    {% if selected_subscription == "past_due" %}
+                        selected
+                    {% endif %}
+                >
+                    Past due
+                </option>
+
+                <option
+                    value="expired"
+                    {% if selected_subscription == "expired" %}
+                        selected
+                    {% endif %}
+                >
+                    Expired
+                </option>
+
+                <option
+                    value="cancelled"
+                    {% if selected_subscription == "cancelled" %}
+                        selected
+                    {% endif %}
+                >
+                    Cancelled
+                </option>
+
+            </select>
+
+        </div>
+
+
+        <!-- =================================================
+             FILTER ACTIONS
+        ================================================== -->
+
+        <div class="filter-actions">
+
+            <button
+                type="submit"
+                class="create-button"
+            >
+                Apply filters
+            </button>
+
+            <a
+                href="{{ url_for('admin.creators') }}"
+            >
+                Clear
+            </a>
+
+        </div>
+
+    </form>
+
+</section>
+
+
+
+<!-- =========================================================
+     RESULT SUMMARY
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Creator accounts
+        </h2>
+
+        <p>
+            {{ creators|length }}
+            account{% if creators|length != 1 %}s{% endif %}
+            found.
+        </p>
+
+    </div>
+
+</div>
+
+
+
+<!-- =========================================================
+     CREATOR LIST
+========================================================== -->
+
+{% if creators %}
+
+    <div class="admin-list">
+
+        {% for creator in creators %}
+
+            <article class="admin-card">
+
+
+                <!-- =========================================
+                     CREATOR HEADER
+                ========================================== -->
+
+                <div class="creator-list-header">
+
+                    <div>
+
+                        <p class="eyebrow">
+                            CREATOR #{{ creator.id }}
+                        </p>
+
+                        <h2>
+                            @{{ creator.username }}
+                        </h2>
+
+                        <p>
+                            {{ creator.email }}
+                        </p>
+
+                    </div>
+
+
+                    <div>
+
+                        <a
+                            href="{{
+                                url_for(
+                                    'admin.creator_detail',
+                                    creator_id=creator.id
+                                )
+                            }}"
+                            class="create-button"
+                        >
+                            Manage
+                        </a>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- =========================================
+                     STATUS
+                ========================================== -->
+
+                <div class="creator-status-grid">
+
+
+                    <div>
+
+                        <span class="meta-label">
+                            Account
+                        </span>
+
+                        <strong>
+                            {{ creator.account_status
+                                | replace("_", " ")
+                                | title
+                            }}
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span class="meta-label">
+                            Registration
+                        </span>
+
+                        <strong>
+                            {{ creator.payment_status
+                                | replace("_", " ")
+                                | title
+                            }}
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span class="meta-label">
+                            Subscription
+                        </span>
+
+                        <strong>
+                            {{ creator.subscription_status
+                                | replace("_", " ")
+                                | title
+                            }}
+                        </strong>
+
+                    </div>
+
+
+                    <div>
+
+                        <span class="meta-label">
+                            Registered
+                        </span>
+
+                        <strong>
+
+                            {% if creator.created_at %}
+
+                                {{
+                                    creator.created_at.strftime(
+                                        "%d %b %Y"
+                                    )
+                                }}
+
+                            {% else %}
+
+                                —
+
+                            {% endif %}
+
+                        </strong>
+
+                    </div>
+
+
+                </div>
+
+
+
+                <!-- =========================================
+                     EXPIRY
+                ========================================== -->
+
+                {% if creator.subscription_expires_at %}
+
+                    <div class="creator-list-footer">
+
+                        Platform access expires:
+
+                        <strong>
+                            {{
+                                creator.subscription_expires_at
+                                .strftime(
+                                    "%d %b %Y"
+                                )
+                            }}
+                        </strong>
+
+                    </div>
+
+                {% endif %}
+
+
+            </article>
+
+        {% endfor %}
+
+    </div>
+
+
+{% else %}
+
+
+    <!-- =====================================================
+         EMPTY STATE
+    ====================================================== -->
+
+    <section class="admin-card">
+
+        <div class="empty-state">
+
+            <h2>
+                No creators found
+            </h2>
+
+            <p>
+                No creator accounts match the
+                selected filters.
+            </p>
+
+            <a
+                href="{{ url_for('admin.creators') }}"
+                class="create-button"
+            >
+                Show all creators
+            </a>
+
+        </div>
+
+    </section>
+
+
+{% endif %}
+
+
+{% endblock %}
