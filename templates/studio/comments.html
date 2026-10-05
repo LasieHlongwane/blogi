@@ -87,7 +87,7 @@
 <div class="content-filters">
 
     <a
-        href="{{ url_for('admin.comments') }}"
+        href="{{ url_for('studio.comments') }}"
         class="
             {% if not selected_status %}
                 active
@@ -100,7 +100,7 @@
 
     <a
         href="{{ url_for(
-            'admin.comments',
+            'studio.comments',
             status='approved'
         ) }}"
         class="
@@ -115,7 +115,7 @@
 
     <a
         href="{{ url_for(
-            'admin.comments',
+            'studio.comments',
             status='pending'
         ) }}"
         class="
@@ -130,7 +130,7 @@
 
     <a
         href="{{ url_for(
-            'admin.comments',
+            'studio.comments',
             status='hidden'
         ) }}"
         class="
@@ -272,7 +272,7 @@
                     <form
                         method="POST"
                         action="{{ url_for(
-                            'admin.comment_approve',
+                            'studio.comment_approve',
                             comment_id=comment.id
                         ) }}"
                     >
@@ -295,7 +295,7 @@
                     <form
                         method="POST"
                         action="{{ url_for(
-                            'admin.comment_hide',
+                            'studio.comment_hide',
                             comment_id=comment.id
                         ) }}"
                     >
@@ -313,7 +313,7 @@
                 <form
                     method="POST"
                     action="{{ url_for(
-                        'admin.comment_delete',
+                        'studio.comment_delete',
                         comment_id=comment.id
                     ) }}"
                     onsubmit="
@@ -349,7 +349,7 @@
                 <form
                     method="POST"
                     action="{{ url_for(
-                        'admin.comment_creator_reply',
+                        'studio.comment_creator_reply',
                         comment_id=comment.id
                     ) }}"
                     class="admin-creator-reply"
