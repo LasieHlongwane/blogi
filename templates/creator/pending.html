@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>
+        Creator Account Status
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for(
+            'static',
+            filename='css/admin.css'
+        ) }}"
+    >
+
+</head>
+
+
+<body class="login-page">
+
+
+<div class="login-card">
+
+
+    <div class="login-heading">
+
+        <span>
+            CREATOR ACCOUNT
+        </span>
+
+        <h1>
+            Almost there.
+        </h1>
+
+    </div>
+
+
+    {% if
+        creator_account.account_status
+        == "pending_payment"
+    %}
+
+        <h2>
+            Registration payment required
+        </h2>
+
+        <p>
+            Your creator account has been created
+            successfully.
+        </p>
+
+        <p>
+            Registration payment must be completed
+            before your account can be reviewed.
+        </p>
+
+        <p>
+            Online creator payments will be added
+            in the next payment layer.
+        </p>
+
+
+    {% elif
+        creator_account.account_status
+        == "pending_approval"
+    %}
+
+        <h2>
+            Account under review
+        </h2>
+
+        <p>
+            Your registration payment has been
+            received.
+        </p>
+
+        <p>
+            Your creator account is waiting for
+            platform approval.
+        </p>
+
+
+    {% elif
+        creator_account.account_status
+        == "active"
+        and creator_account.subscription_status
+        != "active"
+    %}
+
+        <h2>
+            Platform subscription inactive
+        </h2>
+
+        <p>
+            Your creator profile is approved,
+            but your platform subscription is
+            currently inactive.
+        </p>
+
+
+    {% elif
+        creator_account.account_status
+        == "suspended"
+    %}
+
+        <h2>
+            Account suspended
+        </h2>
+
+        <p>
+            This creator account currently
+            cannot access Creator Studio.
+        </p>
+
+
+    {% else %}
+
+        <h2>
+            Account unavailable
+        </h2>
+
+        <p>
+            Creator Studio is not currently
+            available for this account.
+        </p>
+
+    {% endif %}
+
+
+    <form
+        method="POST"
+        action="{{ url_for(
+            'creator_auth.logout'
+        ) }}"
+    >
+
+        <button type="submit">
+            Sign out
+        </button>
+
+    </form>
+
+
+</div>
+
+
+</body>
+
+</html>
