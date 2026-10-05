@@ -18,7 +18,7 @@
 
     <title>
         {% block title %}
-            Creator Studio
+            Platform Control Centre
         {% endblock %}
     </title>
 
@@ -44,85 +44,213 @@
 
         <div>
 
+
+            <!-- =================================================
+                 PLATFORM BRAND
+            ================================================== -->
+
             <a
                 href="{{ url_for('admin.dashboard') }}"
                 class="studio-brand"
             >
+
                 <span>
                     CREATOR
                 </span>
 
                 <strong>
-                    Studio
+                    Platform
                 </strong>
+
             </a>
 
 
+            <!-- =================================================
+                 PLATFORM NAVIGATION
+            ================================================== -->
+
             <nav class="sidebar-nav">
+
+
+                <!-- =============================================
+                     DASHBOARD
+                ============================================== -->
 
                 <a
                     href="{{ url_for('admin.dashboard') }}"
+                    class="{{
+                        'active'
+                        if request.endpoint == 'admin.dashboard'
+                        else ''
+                    }}"
                 >
                     Dashboard
                 </a>
 
-                <a
-                    href="{{ url_for('admin.content_list') }}"
-                >
-                    Content
-                </a>
+
+                <!-- =============================================
+                     CREATORS
+                ============================================== -->
 
                 <a
-                    href="{{ url_for('admin.content_new') }}"
+                    href="{{ url_for('admin.creators') }}"
+                    class="{{
+                        'active'
+                        if request.endpoint in [
+                            'admin.creators',
+                            'admin.creator_detail'
+                        ]
+                        else ''
+                    }}"
                 >
-                    Create
+                    Creators
                 </a>
 
-                <a
-                    href="{{ url_for('admin.categories') }}"
-                >
-                    Folders
-                </a>
+
+                <!-- =============================================
+                     PENDING APPROVALS
+                ============================================== -->
 
                 <a
-                    href="{{ url_for('admin.comments') }}"
+                    href="{{
+                        url_for(
+                            'admin.creators',
+                            status='pending_approval'
+                        )
+                    }}"
+                    class="{{
+                        'active'
+                        if (
+                            request.endpoint == 'admin.creators'
+                            and request.args.get('status')
+                            == 'pending_approval'
+                        )
+                        else ''
+                    }}"
                 >
-                    Comments
+                    Pending approvals
                 </a>
 
+
+                <!-- =============================================
+                     PENDING PAYMENTS
+                ============================================== -->
+
                 <a
-                    href="{{ url_for('admin.subscribers') }}"
+                    href="{{
+                        url_for(
+                            'admin.creators',
+                            status='pending_payment'
+                        )
+                    }}"
+                    class="{{
+                        'active'
+                        if (
+                            request.endpoint == 'admin.creators'
+                            and request.args.get('status')
+                            == 'pending_payment'
+                        )
+                        else ''
+                    }}"
                 >
-                    Subscribers
+                    Pending payments
                 </a>
+
+
+                <!-- =============================================
+                     ACTIVE CREATORS
+                ============================================== -->
+
+                <a
+                    href="{{
+                        url_for(
+                            'admin.creators',
+                            status='active'
+                        )
+                    }}"
+                    class="{{
+                        'active'
+                        if (
+                            request.endpoint == 'admin.creators'
+                            and request.args.get('status')
+                            == 'active'
+                        )
+                        else ''
+                    }}"
+                >
+                    Active creators
+                </a>
+
+
+                <!-- =============================================
+                     SUBSCRIPTIONS
+                ============================================== -->
+
+                <a
+                    href="{{
+                        url_for(
+                            'admin.creators',
+                            subscription='active'
+                        )
+                    }}"
+                    class="{{
+                        'active'
+                        if (
+                            request.endpoint == 'admin.creators'
+                            and request.args.get('subscription')
+                            == 'active'
+                        )
+                        else ''
+                    }}"
+                >
+                    Subscriptions
+                </a>
+
+
+                <!-- =============================================
+                     ANALYTICS
+                ============================================== -->
 
                 <a
                     href="{{ url_for('admin.analytics') }}"
+                    class="{{
+                        'active'
+                        if request.endpoint == 'admin.analytics'
+                        else ''
+                    }}"
                 >
                     Analytics
                 </a>
 
-                <a
-                    href="{{ url_for('admin.profile') }}"
-                >
-                    Profile
-                </a>
 
             </nav>
 
         </div>
 
 
+        <!-- =================================================
+             SIDEBAR BOTTOM
+        ================================================== -->
+
         <div class="sidebar-bottom">
+
+
+            <!-- =================================================
+                 PUBLIC PLATFORM
+            ================================================== -->
 
             <a
                 href="{{ url_for('public.home') }}"
                 target="_blank"
                 rel="noopener noreferrer"
             >
-                View website ↗
+                View public site ↗
             </a>
 
+
+            <!-- =================================================
+                 SIGN OUT
+            ================================================== -->
 
             <form
                 method="POST"
@@ -142,7 +270,7 @@
 
 
     <!-- =====================================================
-         CONTENT
+         MAIN AREA
     ====================================================== -->
 
     <div class="admin-main">
@@ -154,21 +282,31 @@
 
         <header class="admin-topbar">
 
+
+            <!-- =================================================
+                 MOBILE BRAND / PAGE CONTEXT
+            ================================================== -->
+
             <div>
 
                 <span class="mobile-brand">
-                    Creator Studio
+                    Platform Control Centre
                 </span>
 
             </div>
 
 
+            <!-- =================================================
+                 CREATOR DIRECTORY SHORTCUT
+            ================================================== -->
+
             <a
-                href="{{ url_for('admin.content_new') }}"
+                href="{{ url_for('admin.creators') }}"
                 class="create-button"
             >
-                + New content
+                View creators
             </a>
+
 
         </header>
 
