@@ -2876,3 +2876,140 @@ def analytics():
             .all()
         ),
     )
+
+# ============================================================
+# REMOVE PROFILE IMAGE
+# ============================================================
+
+@studio_bp.route(
+    "/profile/remove-image",
+    methods=["POST"],
+)
+@studio_required
+def profile_remove_image():
+
+    account = (
+        current_creator_account()
+    )
+
+    creator = (
+        creator_profile(account)
+    )
+
+    if not creator:
+
+        abort(404)
+
+    if creator.profile_image_public_id:
+
+        try:
+
+            delete_media(
+                creator.profile_image_public_id,
+                resource_type="image",
+            )
+
+        except Exception:
+
+            current_app.logger.exception(
+                "Creator profile image "
+                "deletion failed."
+            )
+
+            flash(
+                "Profile image could not "
+                "be removed.",
+                "error",
+            )
+
+            return redirect(
+                url_for(
+                    "studio.profile"
+                )
+            )
+
+    creator.profile_image_url = None
+
+    creator.profile_image_public_id = None
+
+    db.session.commit()
+
+    flash(
+        "Profile image removed.",
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "studio.profile"
+        )
+    )
+
+
+# ============================================================
+# REMOVE INTRO REEL
+# ============================================================
+
+@studio_bp.route(
+    "/profile/remove-intro-reel",
+    methods=["POST"],
+)
+@studio_required
+def profile_remove_intro_reel():
+
+    account = (
+        current_creator_account()
+    )
+
+    creator = (
+        creator_profile(account)
+    )
+
+    if not creator:
+
+        abort(404)
+
+    if creator.intro_reel_public_id:
+
+        try:
+
+            delete_media(
+                creator.intro_reel_public_id,
+                resource_type="video",
+            )
+
+        except Exception:
+
+            current_app.logger.exception(
+                "Creator intro reel "
+                "deletion failed."
+            )
+
+            flash(
+                "Intro reel could not "
+                "be removed.",
+                "error",
+            )
+
+            return redirect(
+                url_for(
+                    "studio.profile"
+                )
+            )
+
+    creator.intro_reel_url = None
+    creator.intro_reel_public_id = None
+    creator.intro_reel_thumbnail_url = None
+
+    db.session.commit()
+
+    flash(
+        "Intro reel removed.",
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "studio.profile"
+        )
+    )
