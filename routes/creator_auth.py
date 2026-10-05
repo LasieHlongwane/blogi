@@ -25,6 +25,14 @@ from models import (
     utc_now,
 )
 
+from services.plan_service import (
+    PLAN_STANDARD,
+    PLAN_PREMIUM,
+    VALID_PLANS,
+    PLAN_PRICES,
+    normalize_plan,
+)
+
 
 # ============================================================
 # BLUEPRINT
@@ -41,7 +49,9 @@ creator_auth_bp = Blueprint(
 # HELPERS
 # ============================================================
 
-def normalize_username(value):
+def normalize_username(
+    value,
+):
 
     value = (
         value
@@ -65,7 +75,6 @@ def get_logged_in_creator():
     )
 
     if not creator_id:
-
         return None
 
     return db.session.get(
@@ -74,7 +83,9 @@ def get_logged_in_creator():
     )
 
 
-def creator_login_required(view):
+def creator_login_required(
+    view,
+):
 
     @wraps(view)
     def wrapped_view(
@@ -155,6 +166,23 @@ def register():
         )
 
     # --------------------------------------------------------
+    # DEFAULT PLAN
+    # --------------------------------------------------------
+
+    selected_plan = (
+        request.args
+        .get(
+            "plan",
+            PLAN_STANDARD,
+        )
+        .strip()
+        .lower()
+    )
+
+    if selected_plan not in VALID_PLANS:
+        selected_plan = PLAN_STANDARD
+
+    # --------------------------------------------------------
     # FORM
     # --------------------------------------------------------
 
@@ -202,6 +230,37 @@ def register():
             )
         )
 
+        selected_plan = (
+            request.form
+            .get(
+                "plan",
+                PLAN_STANDARD,
+            )
+            .strip()
+            .lower()
+        )
+
+        # ====================================================
+        # PLAN VALIDATION
+        # ====================================================
+
+        if selected_plan not in VALID_PLANS:
+
+            flash(
+                "Choose a valid creator plan.",
+                "error",
+            )
+
+            return render_template(
+                "creator/register.html",
+                selected_plan=PLAN_STANDARD,
+                plan_prices=PLAN_PRICES,
+            )
+
+        selected_plan = normalize_plan(
+            selected_plan
+        )
+
         # ====================================================
         # VALIDATION
         # ====================================================
@@ -214,13 +273,12 @@ def register():
             )
 
             return render_template(
-                "creator/register.html"
+                "creator/register.html",
+                selected_plan=selected_plan,
+                plan_prices=PLAN_PRICES,
             )
 
-        if (
-            len(display_name)
-            > 120
-        ):
+        if len(display_name) > 120:
 
             flash(
                 "Display name is too long.",
@@ -228,7 +286,9 @@ def register():
             )
 
             return render_template(
-                "creator/register.html"
+                "creator/register.html",
+                selected_plan=selected_plan,
+                plan_prices=PLAN_PRICES,
             )
 
         if not username:
@@ -239,7 +299,9 @@ def register():
             )
 
             return render_template(
-                "creator/register.html"
+                "creator/register.html",
+                selected_plan=selected_plan,
+                plan_prices=PLAN_PRICES,
             )
 
         if len(username) < 3:
@@ -251,7 +313,9 @@ def register():
             )
 
             return render_template(
-                "creator/register.html"
+                "creator/register.html",
+                selected_plan=selected_plan,
+                plan_prices=PLAN_PRICES,
             )
 
         if len(username) > 80:
@@ -262,7 +326,9 @@ def register():
             )
 
             return render_template(
-                "creator/register.html"
+                "creator/register.html",
+                selected_plan=selected_plan,
+                plan_prices=PLAN_PRICES,
             )
 
         if (
@@ -277,7 +343,9 @@ def register():
             )
 
             return render_template(
-                "creator/register.html"
+                "creator/register.html",
+                selected_plan=selected_plan,
+                plan_prices=PLAN_PRICES,
             )
 
         if len(email) > 255:
@@ -288,7 +356,9 @@ def register():
             )
 
             return render_template(
-                "creator/register.html"
+                "creator/register.html",
+                selected_plan=selected_plan,
+                plan_prices=PLAN_PRICES,
             )
 
         if len(password) < 8:
@@ -300,7 +370,9 @@ def register():
             )
 
             return render_template(
-                "creator/register.html"
+                "creator/register.html",
+                selected_plan=selected_plan,
+                plan_prices=PLAN_PRICES,
             )
 
         if (
@@ -314,7 +386,9 @@ def register():
             )
 
             return render_template(
-                "creator/register.html"
+                "creator/register.html",
+                selected_plan=selected_plan,
+                plan_prices=PLAN_PRICES,
             )
 
         # ====================================================
@@ -340,7 +414,9 @@ def register():
             )
 
             return render_template(
-                "creator/register.html"
+                "creator/register.html",
+                selected_plan=selected_plan,
+                plan_prices=PLAN_PRICES,
             )
 
         duplicate_profile = (
@@ -362,7 +438,9 @@ def register():
             )
 
             return render_template(
-                "creator/register.html"
+                "creator/register.html",
+                selected_plan=selected_plan,
+                plan_prices=PLAN_PRICES,
             )
 
         duplicate_email = (
@@ -385,7 +463,9 @@ def register():
             )
 
             return render_template(
-                "creator/register.html"
+                "creator/register.html",
+                selected_plan=selected_plan,
+                plan_prices=PLAN_PRICES,
             )
 
         # ====================================================
@@ -395,6 +475,8 @@ def register():
         creator = CreatorAccount(
             username=username,
             email=email,
+
+            plan=selected_plan,
 
             account_status=(
                 "pending_payment"
@@ -446,7 +528,6 @@ def register():
         except Exception:
 
             db.session.rollback()
-
             raise
 
         # ====================================================
@@ -471,7 +552,9 @@ def register():
         )
 
     return render_template(
-        "creator/register.html"
+        "creator/register.html",
+        selected_plan=selected_plan,
+        plan_prices=PLAN_PRICES,
     )
 
 
@@ -697,6 +780,11 @@ def pending():
     return render_template(
         "creator/pending.html",
         creator_account=creator,
+        selected_plan=normalize_plan(
+            creator.plan,
+            default=PLAN_PREMIUM,
+        ),
+        plan_prices=PLAN_PRICES,
     )
 
 
