@@ -1,0 +1,1550 @@
+{% extends "admin/base.html" %}
+
+
+{% block title %}
+    Analytics | Platform Control Centre
+{% endblock %}
+
+
+{% block content %}
+
+
+<!-- =========================================================
+     PAGE HEADER
+========================================================== -->
+
+<div class="page-header">
+
+    <div>
+
+        <p class="eyebrow">
+            PLATFORM ANALYTICS
+        </p>
+
+        <h1>
+            Analytics
+        </h1>
+
+        <p class="page-description">
+            Monitor creator growth, subscriptions,
+            publishing activity and audience engagement
+            across the platform.
+        </p>
+
+    </div>
+
+
+    <div>
+
+        <a
+            href="{{ url_for('admin.creators') }}"
+            class="create-button"
+        >
+            Manage creators
+        </a>
+
+    </div>
+
+</div>
+
+
+
+<!-- =========================================================
+     CREATOR ACCOUNTS
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Creator accounts
+        </h2>
+
+        <p>
+            Registration and account status across
+            the creator platform.
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="stats-grid">
+
+
+    <!-- TOTAL -->
+
+    <a
+        href="{{ url_for('admin.creators') }}"
+        class="stat-card"
+    >
+
+        <span>
+            Total creators
+        </span>
+
+        <strong>
+            {{ total_creators }}
+        </strong>
+
+        <small>
+            All registered creator accounts
+        </small>
+
+    </a>
+
+
+
+    <!-- ACTIVE -->
+
+    <a
+        href="{{
+            url_for(
+                'admin.creators',
+                status='active'
+            )
+        }}"
+        class="stat-card"
+    >
+
+        <span>
+            Active
+        </span>
+
+        <strong>
+            {{ active_creators }}
+        </strong>
+
+        <small>
+            Approved creator accounts
+        </small>
+
+    </a>
+
+
+
+    <!-- PENDING PAYMENT -->
+
+    <a
+        href="{{
+            url_for(
+                'admin.creators',
+                status='pending_payment'
+            )
+        }}"
+        class="stat-card"
+    >
+
+        <span>
+            Pending payment
+        </span>
+
+        <strong>
+            {{ pending_payment_creators }}
+        </strong>
+
+        <small>
+            Registration payment outstanding
+        </small>
+
+    </a>
+
+
+
+    <!-- PENDING APPROVAL -->
+
+    <a
+        href="{{
+            url_for(
+                'admin.creators',
+                status='pending_approval'
+            )
+        }}"
+        class="stat-card"
+    >
+
+        <span>
+            Pending approval
+        </span>
+
+        <strong>
+            {{ pending_approval_creators }}
+        </strong>
+
+        <small>
+            Waiting for platform approval
+        </small>
+
+    </a>
+
+
+
+    <!-- SUSPENDED -->
+
+    <a
+        href="{{
+            url_for(
+                'admin.creators',
+                status='suspended'
+            )
+        }}"
+        class="stat-card"
+    >
+
+        <span>
+            Suspended
+        </span>
+
+        <strong>
+            {{ suspended_creators }}
+        </strong>
+
+        <small>
+            Temporarily suspended accounts
+        </small>
+
+    </a>
+
+
+
+    <!-- REJECTED -->
+
+    <a
+        href="{{
+            url_for(
+                'admin.creators',
+                status='rejected'
+            )
+        }}"
+        class="stat-card"
+    >
+
+        <span>
+            Rejected
+        </span>
+
+        <strong>
+            {{ rejected_creators }}
+        </strong>
+
+        <small>
+            Rejected creator applications
+        </small>
+
+    </a>
+
+
+</div>
+
+
+
+<!-- =========================================================
+     CREATOR CONVERSION
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Creator conversion
+        </h2>
+
+        <p>
+            A simple view of how registered creators
+            are progressing toward active accounts.
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="stats-grid">
+
+
+    <!-- =====================================================
+         ACTIVE RATE
+    ====================================================== -->
+
+    <div class="stat-card">
+
+        <span>
+            Active creator rate
+        </span>
+
+        <strong>
+
+            {% if total_creators > 0 %}
+
+                {{
+                    (
+                        active_creators
+                        / total_creators
+                        * 100
+                    )
+                    | round(1)
+                }}%
+
+            {% else %}
+
+                0%
+
+            {% endif %}
+
+        </strong>
+
+        <small>
+            Active creators ÷ registrations
+        </small>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         PAYMENT WAITING RATE
+    ====================================================== -->
+
+    <div class="stat-card">
+
+        <span>
+            Waiting for payment
+        </span>
+
+        <strong>
+
+            {% if total_creators > 0 %}
+
+                {{
+                    (
+                        pending_payment_creators
+                        / total_creators
+                        * 100
+                    )
+                    | round(1)
+                }}%
+
+            {% else %}
+
+                0%
+
+            {% endif %}
+
+        </strong>
+
+        <small>
+            Share of registrations awaiting payment
+        </small>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         APPROVAL QUEUE RATE
+    ====================================================== -->
+
+    <div class="stat-card">
+
+        <span>
+            Approval queue
+        </span>
+
+        <strong>
+
+            {% if total_creators > 0 %}
+
+                {{
+                    (
+                        pending_approval_creators
+                        / total_creators
+                        * 100
+                    )
+                    | round(1)
+                }}%
+
+            {% else %}
+
+                0%
+
+            {% endif %}
+
+        </strong>
+
+        <small>
+            Paid creators waiting for approval
+        </small>
+
+    </div>
+
+
+</div>
+
+
+
+<!-- =========================================================
+     PLATFORM SUBSCRIPTIONS
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Platform subscriptions
+        </h2>
+
+        <p>
+            Creator subscription status controlling
+            access to Creator Studio.
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="stats-grid">
+
+
+    <!-- ACTIVE -->
+
+    <a
+        href="{{
+            url_for(
+                'admin.creators',
+                subscription='active'
+            )
+        }}"
+        class="stat-card"
+    >
+
+        <span>
+            Active
+        </span>
+
+        <strong>
+            {{ active_subscriptions }}
+        </strong>
+
+        <small>
+            Creators with active Studio access
+        </small>
+
+    </a>
+
+
+
+    <!-- EXPIRED -->
+
+    <a
+        href="{{
+            url_for(
+                'admin.creators',
+                subscription='expired'
+            )
+        }}"
+        class="stat-card"
+    >
+
+        <span>
+            Expired
+        </span>
+
+        <strong>
+            {{ expired_subscriptions }}
+        </strong>
+
+        <small>
+            Platform subscriptions expired
+        </small>
+
+    </a>
+
+
+
+    <!-- PAST DUE -->
+
+    <a
+        href="{{
+            url_for(
+                'admin.creators',
+                subscription='past_due'
+            )
+        }}"
+        class="stat-card"
+    >
+
+        <span>
+            Past due
+        </span>
+
+        <strong>
+            {{ past_due_subscriptions }}
+        </strong>
+
+        <small>
+            Subscription payment requires attention
+        </small>
+
+    </a>
+
+
+
+    <!-- CANCELLED -->
+
+    <a
+        href="{{
+            url_for(
+                'admin.creators',
+                subscription='cancelled'
+            )
+        }}"
+        class="stat-card"
+    >
+
+        <span>
+            Cancelled
+        </span>
+
+        <strong>
+            {{ cancelled_subscriptions }}
+        </strong>
+
+        <small>
+            Cancelled platform subscriptions
+        </small>
+
+    </a>
+
+
+</div>
+
+
+
+<!-- =========================================================
+     CONTENT
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Platform content
+        </h2>
+
+        <p>
+            Content created across all creator accounts.
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="stats-grid">
+
+
+    <div class="stat-card">
+
+        <span>
+            Total content
+        </span>
+
+        <strong>
+            {{ total_posts }}
+        </strong>
+
+        <small>
+            All creator posts
+        </small>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Published
+        </span>
+
+        <strong>
+            {{ published_posts }}
+        </strong>
+
+        <small>
+            Currently published
+        </small>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Drafts
+        </span>
+
+        <strong>
+            {{ draft_posts }}
+        </strong>
+
+        <small>
+            Work in progress
+        </small>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Archived
+        </span>
+
+        <strong>
+            {{ archived_posts }}
+        </strong>
+
+        <small>
+            Archived creator content
+        </small>
+
+    </div>
+
+
+</div>
+
+
+
+<!-- =========================================================
+     CONTENT TYPES
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Content mix
+        </h2>
+
+        <p>
+            How creators are using the different
+            publishing formats.
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="stats-grid">
+
+
+    <div class="stat-card">
+
+        <span>
+            Stories
+        </span>
+
+        <strong>
+            {{ story_count }}
+        </strong>
+
+        <small>
+
+            {% if total_posts > 0 %}
+
+                {{
+                    (
+                        story_count
+                        / total_posts
+                        * 100
+                    )
+                    | round(1)
+                }}%
+
+                of content
+
+            {% else %}
+
+                No content yet
+
+            {% endif %}
+
+        </small>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Reels
+        </span>
+
+        <strong>
+            {{ reel_count }}
+        </strong>
+
+        <small>
+
+            {% if total_posts > 0 %}
+
+                {{
+                    (
+                        reel_count
+                        / total_posts
+                        * 100
+                    )
+                    | round(1)
+                }}%
+
+                of content
+
+            {% else %}
+
+                No content yet
+
+            {% endif %}
+
+        </small>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Vlogs
+        </span>
+
+        <strong>
+            {{ vlog_count }}
+        </strong>
+
+        <small>
+
+            {% if total_posts > 0 %}
+
+                {{
+                    (
+                        vlog_count
+                        / total_posts
+                        * 100
+                    )
+                    | round(1)
+                }}%
+
+                of content
+
+            {% else %}
+
+                No content yet
+
+            {% endif %}
+
+        </small>
+
+    </div>
+
+
+</div>
+
+
+
+<!-- =========================================================
+     ACCESS LEVEL
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Content access
+        </h2>
+
+        <p>
+            Public versus subscriber-only content
+            across the platform.
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="stats-grid">
+
+
+    <div class="stat-card">
+
+        <span>
+            Public content
+        </span>
+
+        <strong>
+            {{ public_posts }}
+        </strong>
+
+        <small>
+
+            {% if total_posts > 0 %}
+
+                {{
+                    (
+                        public_posts
+                        / total_posts
+                        * 100
+                    )
+                    | round(1)
+                }}%
+
+                of content
+
+            {% else %}
+
+                No content yet
+
+            {% endif %}
+
+        </small>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Exclusive content
+        </span>
+
+        <strong>
+            {{ exclusive_posts }}
+        </strong>
+
+        <small>
+
+            {% if total_posts > 0 %}
+
+                {{
+                    (
+                        exclusive_posts
+                        / total_posts
+                        * 100
+                    )
+                    | round(1)
+                }}%
+
+                of content
+
+            {% else %}
+
+                No content yet
+
+            {% endif %}
+
+        </small>
+
+    </div>
+
+
+</div>
+
+
+
+<!-- =========================================================
+     AUDIENCE
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Audience
+        </h2>
+
+        <p>
+            Newsletter audience across all
+            creator profiles.
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="stats-grid">
+
+
+    <div class="stat-card">
+
+        <span>
+            Total subscribers
+        </span>
+
+        <strong>
+            {{ subscriber_count }}
+        </strong>
+
+        <small>
+            All newsletter records
+        </small>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Active subscribers
+        </span>
+
+        <strong>
+            {{ active_subscriber_count }}
+        </strong>
+
+        <small>
+            Verified active subscribers
+        </small>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Pending verification
+        </span>
+
+        <strong>
+            {{ pending_subscriber_count }}
+        </strong>
+
+        <small>
+            Awaiting email verification
+        </small>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Unsubscribed
+        </span>
+
+        <strong>
+            {{ unsubscribed_count }}
+        </strong>
+
+        <small>
+            Former subscribers
+        </small>
+
+    </div>
+
+
+</div>
+
+
+
+<!-- =========================================================
+     COMMENTS
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Community engagement
+        </h2>
+
+        <p>
+            Comments and discussion across
+            creator content.
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="stats-grid">
+
+
+    <div class="stat-card">
+
+        <span>
+            Total comments
+        </span>
+
+        <strong>
+            {{ comment_count }}
+        </strong>
+
+        <small>
+            Comments and replies
+        </small>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Approved
+        </span>
+
+        <strong>
+            {{ approved_comment_count }}
+        </strong>
+
+        <small>
+            Visible comments
+        </small>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Pending
+        </span>
+
+        <strong>
+            {{ pending_comment_count }}
+        </strong>
+
+        <small>
+            Awaiting moderation
+        </small>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Hidden
+        </span>
+
+        <strong>
+            {{ hidden_comment_count }}
+        </strong>
+
+        <small>
+            Hidden from public view
+        </small>
+
+    </div>
+
+
+</div>
+
+
+
+<!-- =========================================================
+     EMAIL DELIVERY
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Email delivery
+        </h2>
+
+        <p>
+            Newsletter delivery activity across
+            creator accounts.
+        </p>
+
+    </div>
+
+</div>
+
+
+<div class="stats-grid">
+
+
+    <div class="stat-card">
+
+        <span>
+            Total deliveries
+        </span>
+
+        <strong>
+            {{ total_email_deliveries }}
+        </strong>
+
+        <small>
+            Recorded email delivery attempts
+        </small>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Sent
+        </span>
+
+        <strong>
+            {{ sent_email_count }}
+        </strong>
+
+        <small>
+
+            {% if total_email_deliveries > 0 %}
+
+                {{
+                    (
+                        sent_email_count
+                        / total_email_deliveries
+                        * 100
+                    )
+                    | round(1)
+                }}%
+
+                delivery success
+
+            {% else %}
+
+                No deliveries yet
+
+            {% endif %}
+
+        </small>
+
+    </div>
+
+
+    <div class="stat-card">
+
+        <span>
+            Failed
+        </span>
+
+        <strong>
+            {{ failed_email_count }}
+        </strong>
+
+        <small>
+
+            {% if total_email_deliveries > 0 %}
+
+                {{
+                    (
+                        failed_email_count
+                        / total_email_deliveries
+                        * 100
+                    )
+                    | round(1)
+                }}%
+
+                failed
+
+            {% else %}
+
+                No deliveries yet
+
+            {% endif %}
+
+        </small>
+
+    </div>
+
+
+</div>
+
+
+
+<!-- =========================================================
+     MOST ACTIVE CREATORS
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Most active creators
+        </h2>
+
+        <p>
+            Creator accounts ranked by total
+            content created.
+        </p>
+
+    </div>
+
+</div>
+
+
+<section class="admin-card">
+
+
+    {% if most_active_creators %}
+
+        <div class="admin-list">
+
+
+            {% for creator, post_total in most_active_creators %}
+
+                <div class="content-row">
+
+
+                    <div>
+
+                        <p class="eyebrow">
+                            CREATOR #{{ creator.id }}
+                        </p>
+
+                        <strong>
+                            @{{ creator.username }}
+                        </strong>
+
+                        <p>
+                            {{ creator.email }}
+                        </p>
+
+                    </div>
+
+
+                    <div>
+
+                        <strong>
+                            {{ post_total }}
+                        </strong>
+
+                        <span>
+                            post{% if post_total != 1 %}s{% endif %}
+                        </span>
+
+
+                        <a
+                            href="{{
+                                url_for(
+                                    'admin.creator_detail',
+                                    creator_id=creator.id
+                                )
+                            }}"
+                        >
+                            Manage
+                        </a>
+
+                    </div>
+
+
+                </div>
+
+            {% endfor %}
+
+
+        </div>
+
+
+    {% else %}
+
+        <div class="empty-state">
+
+            <h3>
+                No creator activity yet
+            </h3>
+
+            <p>
+                Creator publishing activity will
+                appear here.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+
+</section>
+
+
+
+<!-- =========================================================
+     MOST DISCUSSED CONTENT
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Most discussed content
+        </h2>
+
+        <p>
+            Content ranked by comment activity.
+        </p>
+
+    </div>
+
+</div>
+
+
+<section class="admin-card">
+
+
+    {% if most_commented_posts %}
+
+        <div class="admin-list">
+
+
+            {% for post, comment_total in most_commented_posts %}
+
+                <div class="content-row">
+
+
+                    <div>
+
+                        <strong>
+                            {{ post.title }}
+                        </strong>
+
+                        <p>
+
+                            {{ post.content_type | title }}
+
+                            ·
+
+                            {{ post.status | title }}
+
+                            {% if post.creator_account_id %}
+
+                                · Creator #{{ post.creator_account_id }}
+
+                            {% endif %}
+
+                        </p>
+
+                    </div>
+
+
+                    <div>
+
+                        <strong>
+                            {{ comment_total }}
+                        </strong>
+
+                        <span>
+                            comment{% if comment_total != 1 %}s{% endif %}
+                        </span>
+
+                    </div>
+
+
+                </div>
+
+            {% endfor %}
+
+
+        </div>
+
+
+    {% else %}
+
+        <div class="empty-state">
+
+            <h3>
+                No discussions yet
+            </h3>
+
+            <p>
+                Comment activity will appear here
+                once audiences begin engaging.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+
+</section>
+
+
+
+<!-- =========================================================
+     RECENT CREATOR REGISTRATIONS
+========================================================== -->
+
+<div class="section-heading">
+
+    <div>
+
+        <h2>
+            Recent registrations
+        </h2>
+
+        <p>
+            Latest creators joining the platform.
+        </p>
+
+    </div>
+
+
+    <a
+        href="{{ url_for('admin.creators') }}"
+    >
+        View all
+    </a>
+
+</div>
+
+
+<section class="admin-card">
+
+
+    {% if recent_creators %}
+
+        <div class="admin-list">
+
+
+            {% for creator in recent_creators %}
+
+                <div class="content-row">
+
+
+                    <div>
+
+                        <p class="eyebrow">
+                            CREATOR #{{ creator.id }}
+                        </p>
+
+                        <strong>
+                            @{{ creator.username }}
+                        </strong>
+
+                        <p>
+                            {{ creator.email }}
+                        </p>
+
+                    </div>
+
+
+                    <div>
+
+                        <span class="meta-label">
+                            {{
+                                creator.account_status
+                                | replace("_", " ")
+                                | title
+                            }}
+                        </span>
+
+
+                        {% if creator.created_at %}
+
+                            <p>
+                                {{
+                                    creator.created_at.strftime(
+                                        "%d %b %Y"
+                                    )
+                                }}
+                            </p>
+
+                        {% endif %}
+
+
+                        <a
+                            href="{{
+                                url_for(
+                                    'admin.creator_detail',
+                                    creator_id=creator.id
+                                )
+                            }}"
+                        >
+                            Manage
+                        </a>
+
+                    </div>
+
+
+                </div>
+
+            {% endfor %}
+
+
+        </div>
+
+
+    {% else %}
+
+        <div class="empty-state">
+
+            <h3>
+                No creators yet
+            </h3>
+
+            <p>
+                New creator registrations will
+                appear here.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+
+</section>
+
+
+
+<!-- =========================================================
+     ANALYTICS NOTE
+========================================================== -->
+
+<section class="admin-card">
+
+    <div class="card-heading">
+
+        <div>
+
+            <p class="eyebrow">
+                CURRENT ANALYTICS
+            </p>
+
+            <h2>
+                Platform intelligence
+            </h2>
+
+        </div>
+
+    </div>
+
+
+    <p>
+        These analytics currently measure platform
+        database activity: creator registrations,
+        subscriptions, content, comments, newsletter
+        subscribers and email delivery.
+    </p>
+
+    <p>
+        Later we can add behavioural analytics such as
+        profile views, content views, unique visitors,
+        follower conversion, subscriber conversion,
+        creator retention, monthly recurring revenue
+        and creator earnings.
+    </p>
+
+</section>
+
+
+{% endblock %}
