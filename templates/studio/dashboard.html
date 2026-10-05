@@ -149,7 +149,7 @@
 
         <a
             href="{{ url_for(
-                'admin.content_new'
+                'studio.content_new'
             ) }}?type=story"
             class="quick-action"
         >
@@ -171,7 +171,7 @@
 
         <a
             href="{{ url_for(
-                'admin.content_new'
+                'studio.content_new'
             ) }}?type=reel"
             class="quick-action"
         >
@@ -193,7 +193,7 @@
 
         <a
             href="{{ url_for(
-                'admin.content_new'
+                'studio.content_new'
             ) }}?type=vlog"
             class="quick-action"
         >
@@ -215,7 +215,7 @@
 
         <a
             href="{{ url_for(
-                'admin.content_new'
+                'studio.content_new'
             ) }}?type=vlog"
             class="quick-action dark"
         >
@@ -262,7 +262,7 @@
         </div>
 
 
-        <a href="{{ url_for('admin.content_list') }}">
+        <a href="{{ url_for('studio.content_list') }}">
             View everything →
         </a>
 
@@ -277,7 +277,7 @@
 
                 <a
                     href="{{ url_for(
-                        'admin.content_edit',
+                        'studio.content_edit',
                         post_id=post.id
                     ) }}"
                     class="content-row"
