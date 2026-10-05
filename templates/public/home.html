@@ -1,424 +1,433 @@
 {% extends "base.html" %}
 
-
 {% block title %}
 
-    {% if creator %}
-        {{ creator.display_name }}
-    {% else %}
-        Creator
-    {% endif %}
+{% if creator %}
+    {{ creator.display_name }}
+{% else %}
+    Creator
+{% endif %}
 
 {% endblock %}
 
-
-
 {% block content %}
-
 
 <!-- =========================================================
      CREATOR PROFILE
-========================================================== -->
-
-<section class="creator-hero">
-
-    <div class="creator-profile">
+========================================================== --><section class="creator-hero"><div class="creator-profile">
 
 
-        {% if creator and creator.profile_image_url %}
+    {% if creator and creator.profile_image_url %}
 
-            <img
-                src="{{ creator.profile_image_url }}"
-                alt="{{ creator.display_name }}"
-                class="profile-image"
-            >
+        <img
+            src="{{ creator.profile_image_url }}"
+            alt="{{ creator.display_name }}"
+            class="profile-image"
+        >
 
-        {% else %}
+    {% else %}
 
-            <div class="profile-placeholder">
-                ♥
-            </div>
+        <div class="profile-placeholder">
+            ♥
+        </div>
+
+    {% endif %}
+
+
+    <div class="creator-info">
+
+        <span class="eyebrow">
+            CREATOR
+        </span>
+
+
+        <h1>
+
+            {% if creator %}
+                {{ creator.display_name }}
+            {% else %}
+                Your Creator Name
+            {% endif %}
+
+        </h1>
+
+
+        <p class="tagline">
+
+            {% if creator and creator.tagline %}
+
+                {{ creator.tagline }}
+
+            {% else %}
+
+                Stories, moments and experiences worth sharing.
+
+            {% endif %}
+
+        </p>
+
+
+        {% if creator and creator.bio %}
+
+            <p class="bio">
+                {{ creator.bio }}
+            </p>
 
         {% endif %}
 
 
-        <div class="creator-info">
-
-            <span class="eyebrow">
-                CREATOR
-            </span>
-
-
-            <h1>
-
-                {% if creator %}
-                    {{ creator.display_name }}
-                {% else %}
-                    Your Creator Name
-                {% endif %}
-
-            </h1>
-
-
-            <p class="tagline">
-
-                {% if creator and creator.tagline %}
-
-                    {{ creator.tagline }}
-
-                {% else %}
-
-                    Stories, moments and experiences worth sharing.
-
-                {% endif %}
-
-            </p>
-
-
-            {% if creator and creator.bio %}
-
-                <p class="bio">
-                    {{ creator.bio }}
-                </p>
-
-            {% endif %}
-
-
-            <div class="hero-actions">
-
-                <a
-                    href="#latest"
-                    class="primary-button"
-                >
-                    Explore my world
-                </a>
-
-                <a
-                    href="#newsletter"
-                    class="secondary-button"
-                >
-                    Subscribe
-                </a>
-
-            </div>
-
-        </div>
-
-    </div>
-
-
-    <!-- =====================================================
-         INTRO REEL
-    ====================================================== -->
-
-    {% if creator and creator.intro_reel_url %}
-
-        <div class="intro-reel">
-
-            <span class="eyebrow">
-                MEET ME
-            </span>
-
-            <video
-                controls
-                playsinline
-                preload="metadata"
-            >
-
-                <source
-                    src="{{ creator.intro_reel_url }}"
-                >
-
-            </video>
-
-        </div>
-
-    {% else %}
-
-        <div class="intro-placeholder">
-
-            <div class="play-icon">
-                ▶
-            </div>
-
-            <strong>
-                Meet Me
-            </strong>
-
-            <span>
-                Introduction reel coming soon.
-            </span>
-
-        </div>
-
-    {% endif %}
-
-</section>
-
-
-
-<!-- =========================================================
-     CATEGORIES / FOLDERS
-========================================================== -->
-
-{% if categories %}
-
-<section class="categories-section">
-
-    <div class="section-heading">
-
-        <span class="eyebrow">
-            EXPLORE
-        </span>
-
-        <h2>
-            My world
-        </h2>
-
-    </div>
-
-
-    <div class="category-row">
-
-        {% for category in categories %}
+        <div class="hero-actions">
 
             <a
-                href="#"
-                class="category-pill"
+                href="#latest"
+                class="primary-button"
             >
-                {{ category.name }}
+                Explore my world
             </a>
+
+            <a
+                href="#newsletter"
+                class="secondary-button"
+            >
+                Subscribe
+            </a>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =====================================================
+     INTRO REEL
+====================================================== -->
+
+{% if creator and creator.intro_reel_url %}
+
+    <div class="intro-reel">
+
+        <span class="eyebrow">
+            MEET ME
+        </span>
+
+        <video
+            controls
+            playsinline
+            preload="metadata"
+
+            {% if creator.intro_reel_thumbnail_url %}
+                poster="{{ creator.intro_reel_thumbnail_url }}"
+            {% endif %}
+        >
+
+            <source
+                src="{{ creator.intro_reel_url }}"
+            >
+
+            Your browser does not support video.
+
+        </video>
+
+    </div>
+
+{% else %}
+
+    <div class="intro-placeholder">
+
+        <div class="play-icon">
+            ▶
+        </div>
+
+        <strong>
+            Meet Me
+        </strong>
+
+        <span>
+            Introduction reel coming soon.
+        </span>
+
+    </div>
+
+{% endif %}
+
+</section><!-- =========================================================
+     CATEGORIES / FOLDERS
+========================================================== -->{% if categories %}
+
+<section class="categories-section"><div class="section-heading">
+
+    <span class="eyebrow">
+        EXPLORE
+    </span>
+
+    <h2>
+        My world
+    </h2>
+
+</div>
+
+
+<div class="category-row">
+
+    {% for category in categories %}
+
+        <a
+            href="#"
+            class="category-pill"
+        >
+            {{ category.name }}
+        </a>
+
+    {% endfor %}
+
+</div>
+
+</section>{% endif %}
+
+<!-- =========================================================
+     LATEST CONTENT
+========================================================== --><section
+    class="latest-section"
+    id="latest"
+><div class="section-heading">
+
+    <span class="eyebrow">
+        NEW
+    </span>
+
+    <h2>
+        Latest from me
+    </h2>
+
+    <p>
+        Stories, reels and vlogs from my world.
+    </p>
+
+</div>
+
+
+
+{% if posts %}
+
+    <div class="content-grid">
+
+        {% for post in posts %}
+
+            <article class="content-card">
+
+
+                <div class="content-cover">
+
+                    {% if post.cover_image_url %}
+
+                        <img
+                            src="{{ post.cover_image_url }}"
+                            alt="{{ post.title }}"
+                        >
+
+                    {% else %}
+
+                        <div class="cover-placeholder">
+                            {{ post.content_type|upper }}
+                        </div>
+
+                    {% endif %}
+
+
+                    <div class="content-badges">
+
+                        <span class="type-badge">
+                            {{ post.content_type }}
+                        </span>
+
+
+                        {% if post.access_level == "subscriber" %}
+
+                            <span class="premium-badge">
+                                🔒 Exclusive
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+
+                <div class="content-card-body">
+
+                    {% if post.category %}
+
+                        <span class="post-category">
+                            {{ post.category.name }}
+                        </span>
+
+                    {% endif %}
+
+
+                    <h3>
+                        {{ post.title }}
+                    </h3>
+
+
+                    {% if post.excerpt %}
+
+                        <p>
+                            {{ post.excerpt }}
+                        </p>
+
+                    {% endif %}
+
+
+                    <!-- =================================
+                         TENANT-AWARE CONTENT LINK
+                    ================================== -->
+
+                    {% if
+                        creator
+                        and creator.creator_account_id
+                    %}
+
+                        <a
+                            href="{{ url_for(
+                                'public.creator_content_detail',
+                                username=creator.username,
+                                slug=post.slug
+                            ) }}"
+                        >
+                            View
+                            <span>→</span>
+                        </a>
+
+                    {% else %}
+
+                        <a
+                            href="{{ url_for(
+                                'public.content_detail',
+                                slug=post.slug
+                            ) }}"
+                        >
+                            View
+                            <span>→</span>
+                        </a>
+
+                    {% endif %}
+
+                </div>
+
+            </article>
 
         {% endfor %}
 
     </div>
 
-</section>
+
+{% else %}
+
+    <div class="empty-content">
+
+        <strong>
+            The story starts here.
+        </strong>
+
+        <p>
+            New stories, reels and vlogs will appear here.
+        </p>
+
+    </div>
 
 {% endif %}
 
-
-
-<!-- =========================================================
-     LATEST CONTENT
-========================================================== -->
-
-<section
-    class="latest-section"
-    id="latest"
->
-
-    <div class="section-heading">
-
-        <span class="eyebrow">
-            NEW
-        </span>
-
-        <h2>
-            Latest from me
-        </h2>
-
-        <p>
-            Stories, reels and vlogs from my world.
-        </p>
-
-    </div>
-
-
-
-    {% if posts %}
-
-        <div class="content-grid">
-
-            {% for post in posts %}
-
-                <article class="content-card">
-
-
-                    <div class="content-cover">
-
-                        {% if post.cover_image_url %}
-
-                            <img
-                                src="{{ post.cover_image_url }}"
-                                alt="{{ post.title }}"
-                            >
-
-                        {% else %}
-
-                            <div class="cover-placeholder">
-                                {{ post.content_type|upper }}
-                            </div>
-
-                        {% endif %}
-
-
-                        <div class="content-badges">
-
-                            <span class="type-badge">
-                                {{ post.content_type }}
-                            </span>
-
-
-                            {% if post.access_level == "subscriber" %}
-
-                                <span class="premium-badge">
-                                    🔒 Exclusive
-                                </span>
-
-                            {% endif %}
-
-                        </div>
-
-                    </div>
-
-
-                    <div class="content-card-body">
-
-                        {% if post.category %}
-
-                            <span class="post-category">
-                                {{ post.category.name }}
-                            </span>
-
-                        {% endif %}
-
-
-                        <h3>
-                            {{ post.title }}
-                        </h3>
-
-
-                        {% if post.excerpt %}
-
-                            <p>
-                                {{ post.excerpt }}
-                            </p>
-
-                        {% endif %}
-
-
-                        <a
-                         href="{{ url_for(
-                          'public.content_detail',
-                          slug=post.slug
-                         ) }}"
-                        >
-                         View
-                         <span>→</span>
-                        </a>
-
-                    </div>
-
-                </article>
-
-            {% endfor %}
-
-        </div>
-
-
-    {% else %}
-
-        <div class="empty-content">
-
-            <strong>
-                The story starts here.
-            </strong>
-
-            <p>
-                New stories, reels and vlogs will appear here.
-            </p>
-
-        </div>
-
-    {% endif %}
-
-</section>
-
-
-
-<!-- =========================================================
+</section><!-- =========================================================
      EXCLUSIVE
-========================================================== -->
+========================================================== --><section class="exclusive-section"><div class="exclusive-inner">
 
-<section class="exclusive-section">
+    <span class="exclusive-label">
+        🔒 EXCLUSIVE
+    </span>
 
-    <div class="exclusive-inner">
 
-        <span class="exclusive-label">
-            🔒 EXCLUSIVE
+    <h2>
+        Come a little closer.
+    </h2>
+
+
+    <p>
+        Watch exclusive vlogs, behind-the-scenes moments
+        and content I only share with my members.
+    </p>
+
+
+    <div class="price">
+
+        <strong>
+            R30
+        </strong>
+
+        <span>
+            / month
         </span>
-
-
-        <h2>
-            Come a little closer.
-        </h2>
-
-
-        <p>
-            Watch exclusive vlogs, behind-the-scenes moments
-            and content I only share with my members.
-        </p>
-
-
-        <div class="price">
-
-            <strong>
-                R30
-            </strong>
-
-            <span>
-                / month
-            </span>
-
-        </div>
-
-
-        <a
-            href="#"
-            class="exclusive-button"
-        >
-            Become a member
-        </a>
-
-
-        <small>
-            Watch all exclusive content while your membership is active.
-        </small>
 
     </div>
 
-</section>
+
+    <a
+        href="#"
+        class="exclusive-button"
+    >
+        Become a member
+    </a>
 
 
+    <small>
+        Watch all exclusive content while your membership is active.
+    </small>
 
-<!-- =========================================================
+</div>
+
+</section><!-- =========================================================
      NEWSLETTER
-========================================================== -->
-
-<section
+========================================================== --><section
     class="newsletter-section"
     id="newsletter"
->
+><div class="newsletter-copy">
+
+    <span class="eyebrow">
+        STAY CLOSE
+    </span>
+
+    <h2>
+        Never miss a post.
+    </h2>
+
+    <p>
+        Enter your email and get notified
+        when a new story, reel or vlog drops.
+    </p>
+
+</div>
 
 
-    <div class="newsletter-copy">
+<!-- =====================================================
+     TENANT-AWARE NEWSLETTER FORM
+====================================================== -->
 
-        <span class="eyebrow">
-            STAY CLOSE
-        </span>
+{% if
+    creator
+    and creator.creator_account_id
+%}
 
-        <h2>
-            Never miss a post.
-        </h2>
+    <form
+        method="POST"
+        action="{{ url_for(
+            'public.creator_newsletter_subscribe',
+            username=creator.username
+        ) }}"
+        class="newsletter-form"
+    >
 
-        <p>
-            Enter your email and get notified
-            when a new story, reel or vlog drops.
-        </p>
-
-    </div>
-
+{% else %}
 
     <form
         method="POST"
@@ -428,86 +437,76 @@
         class="newsletter-form"
     >
 
+{% endif %}
 
-        <!-- =============================================
-             HONEYPOT
-        ============================================== -->
 
-        <div
-            class="newsletter-honeypot"
-            aria-hidden="true"
+    <!-- =============================================
+         HONEYPOT
+    ============================================== -->
+
+    <div
+        class="newsletter-honeypot"
+        aria-hidden="true"
+    >
+
+        <input
+            type="text"
+            name="website"
+            tabindex="-1"
+            autocomplete="off"
         >
 
-            <input
-                type="text"
-                name="website"
-                tabindex="-1"
-                autocomplete="off"
-            >
-
-        </div>
+    </div>
 
 
-        <label for="newsletter-email">
-            Email address
-        </label>
+    <label for="newsletter-email">
+        Email address
+    </label>
 
 
-        <div class="newsletter-input-row">
+    <div class="newsletter-input-row">
 
-            <input
-                type="email"
-                id="newsletter-email"
-                name="email"
-                maxlength="255"
-                autocomplete="email"
-                placeholder="you@example.com"
-                required
-            >
-
-
-            <button type="submit">
-                Subscribe
-            </button>
-
-        </div>
+        <input
+            type="email"
+            id="newsletter-email"
+            name="email"
+            maxlength="255"
+            autocomplete="email"
+            placeholder="you@example.com"
+            required
+        >
 
 
-        <small>
-            No spam. Unsubscribe whenever you want.
-        </small>
+        <button type="submit">
+            Subscribe
+        </button>
+
+    </div>
 
 
-    </form>
+    <small>
+        No spam. Unsubscribe whenever you want.
+    </small>
 
 
-</section>
+</form>
 
-
-
-<!-- =========================================================
+</section><!-- =========================================================
      SUPPORT
-========================================================== -->
+========================================================== --><section class="support-section"><span class="support-icon">
+    ☕
+</span>
 
-<section class="support-section">
+<h2>
+    Enjoying my content?
+</h2>
 
-    <span class="support-icon">
-        ☕
-    </span>
+<p>
+    You can support what I create with a small contribution.
+</p>
 
-    <h2>
-        Enjoying my content?
-    </h2>
+<a href="#">
+    Buy me a coffee
+</a>
 
-    <p>
-        You can support what I create with a small contribution.
-    </p>
-
-    <a href="#">
-        Buy me a coffee
-    </a>
-
-</section>
-
-
-{% endblock %}
+</section>{% endblock %}
