@@ -161,6 +161,24 @@ class CreatorAccount(db.Model):
     )
 
     # ========================================================
+    # CREATOR PLAN
+    # ========================================================
+    #
+    # Existing creator accounts should migrate to Premium
+    # so that current functionality is not unexpectedly lost.
+    #
+    # New registrations explicitly choose Standard/Premium
+    # inside creator_auth.py.
+    # ========================================================
+
+    plan = db.Column(
+        db.String(30),
+        default="premium",
+        nullable=False,
+        index=True,
+    )
+
+    # ========================================================
     # ACCOUNT APPROVAL
     # ========================================================
 
@@ -172,7 +190,13 @@ class CreatorAccount(db.Model):
     )
 
     # ========================================================
-    # REGISTRATION PAYMENT
+    # REGISTRATION / INITIAL PLATFORM PAYMENT
+    # ========================================================
+    #
+    # This remains for the current manual MVP flow.
+    #
+    # Later Yoco will become the source of truth for the
+    # creator -> Kalxa platform payment.
     # ========================================================
 
     payment_status = db.Column(
@@ -268,7 +292,6 @@ class CreatorAccount(db.Model):
             self.password_hash,
             password,
         )
-
 
 # ============================================================
 # CREATOR PROFILE
