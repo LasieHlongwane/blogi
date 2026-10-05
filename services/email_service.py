@@ -1,8 +1,12 @@
-# ============================================================
-# CREATOR BLOG
-# EMAIL SERVICE
-# ============================================================
+============================================================
 
+CREATOR PLATFORM
+
+TENANT-AWARE EMAIL SERVICE
+
+============================================================
+
+import html
 import smtplib
 import ssl
 
@@ -13,267 +17,414 @@ from flask import current_app
 from extensions import db
 
 from models import (
-    CreatorProfile,
-    EmailDelivery,
-    EmailSubscriber,
-    ContentPost,
-    utc_now,
+CreatorAccount,
+CreatorProfile,
+EmailDelivery,
+EmailSubscriber,
+ContentPost,
+utc_now,
 )
 
+============================================================
 
-# ============================================================
-# SMTP CONFIGURATION
-# ============================================================
+SMTP CONFIGURATION
+
+============================================================
 
 def smtp_configured():
 
-    required = [
-        current_app.config.get(
-            "SMTP_HOST"
-        ),
-        current_app.config.get(
-            "SMTP_PORT"
-        ),
-        current_app.config.get(
-            "SMTP_USERNAME"
-        ),
-        current_app.config.get(
-            "SMTP_PASSWORD"
-        ),
-        current_app.config.get(
-            "SMTP_FROM_EMAIL"
-        ),
-    ]
+required = [
+    current_app.config.get(
+        "SMTP_HOST"
+    ),
+    current_app.config.get(
+        "SMTP_PORT"
+    ),
+    current_app.config.get(
+        "SMTP_USERNAME"
+    ),
+    current_app.config.get(
+        "SMTP_PASSWORD"
+    ),
+    current_app.config.get(
+        "SMTP_FROM_EMAIL"
+    ),
+]
 
-    return all(required)
+return all(required)
 
+============================================================
 
-# ============================================================
-# SITE URL
-# ============================================================
+SITE URL
+
+============================================================
 
 def site_url():
 
-    return (
-        current_app.config.get(
-            "SITE_URL",
-            "http://127.0.0.1:5000",
-        )
-        .rstrip("/")
+return (
+    current_app.config.get(
+        "SITE_URL",
+        "http://127.0.0.1:5000",
     )
+    .rstrip("/")
+)
 
+============================================================
 
-# ============================================================
-# SEND SMTP EMAIL
-# ============================================================
+CREATOR RESOLUTION
 
-def send_email(
-    to_email,
-    subject,
-    text_body,
-    html_body=None,
+============================================================
+
+def get_creator_account(
+creator_account_id,
 ):
 
-    if not smtp_configured():
+if not creator_account_id:
 
-        raise RuntimeError(
-            "SMTP is not configured. "
-            "Check your SMTP environment variables."
-        )
+    return None
 
-    host = current_app.config[
-        "SMTP_HOST"
-    ]
+return db.session.get(
+    CreatorAccount,
+    creator_account_id,
+)
 
-    port = current_app.config[
-        "SMTP_PORT"
-    ]
-
-    username = current_app.config[
-        "SMTP_USERNAME"
-    ]
-
-    password = current_app.config[
-        "SMTP_PASSWORD"
-    ]
-
-    from_email = current_app.config[
-        "SMTP_FROM_EMAIL"
-    ]
-
-    from_name = current_app.config.get(
-        "SMTP_FROM_NAME",
-        "Creator Blog",
-    )
-
-    use_tls = current_app.config.get(
-        "SMTP_USE_TLS",
-        True,
-    )
-
-    # ========================================================
-    # MESSAGE
-    # ========================================================
-
-    message = EmailMessage()
-
-    message["Subject"] = subject
-
-    message["From"] = (
-        f"{from_name} <{from_email}>"
-    )
-
-    message["To"] = to_email
-
-    message.set_content(
-        text_body
-    )
-
-    if html_body:
-
-        message.add_alternative(
-            html_body,
-            subtype="html",
-        )
-
-    # ========================================================
-    # SMTP
-    # ========================================================
-
-    context = (
-        ssl.create_default_context()
-    )
-
-    with smtplib.SMTP(
-        host,
-        port,
-        timeout=30,
-    ) as smtp:
-
-        smtp.ehlo()
-
-        if use_tls:
-
-            smtp.starttls(
-                context=context
-            )
-
-            smtp.ehlo()
-
-        smtp.login(
-            username,
-            password,
-        )
-
-        smtp.send_message(
-            message
-        )
-
-
-# ============================================================
-# DELIVERY LOG
-# ============================================================
-
-def create_delivery_log(
-    subscriber,
-    email_type,
-    subject,
-    status,
-    post=None,
-    error_message=None,
+def get_creator_profile(
+creator_account_id,
 ):
 
-    delivery = EmailDelivery(
-        subscriber_id=(
-            subscriber.id
-            if subscriber
-            else None
-        ),
+if not creator_account_id:
 
-        post_id=(
-            post.id
-            if post
-            else None
-        ),
+    return None
 
-        email_type=email_type,
-
-        recipient_email=(
-            subscriber.email
-        ),
-
-        subject=subject,
-
-        status=status,
-
-        error_message=(
-            error_message
-        ),
-
-        sent_at=(
-            utc_now()
-            if status == "sent"
-            else None
-        ),
+return (
+    CreatorProfile.query
+    .filter_by(
+        creator_account_id=(
+            creator_account_id
+        )
     )
+    .first()
+)
 
-    db.session.add(
-        delivery
-    )
+def creator_identity(
+creator_account_id,
+):
+"""
+Return the account, profile and display name belonging
+to one creator tenant.
+"""
 
-    db.session.commit()
+account = get_creator_account(
+    creator_account_id
+)
 
-    return delivery
+profile = get_creator_profile(
+    creator_account_id
+)
 
+if profile and profile.display_name:
 
-# ============================================================
-# CREATOR NAME
-# ============================================================
+    name = profile.display_name
 
-def creator_name():
+elif account:
 
-    creator = (
-        CreatorProfile.query
-        .first()
-    )
+    name = account.username
 
-    if creator:
+else:
 
-        return creator.display_name
-
-    return current_app.config.get(
+    name = current_app.config.get(
         "SMTP_FROM_NAME",
         "Creator",
     )
 
+return (
+    account,
+    profile,
+    name,
+)
 
-# ============================================================
-# VERIFICATION EMAIL
-# ============================================================
+============================================================
 
-def send_verification_email(
-    subscriber,
+CREATOR PUBLIC URL
+
+============================================================
+
+def creator_public_url(
+creator_account_id,
 ):
 
-    verify_url = (
+account = get_creator_account(
+    creator_account_id
+)
+
+if not account:
+
+    return site_url()
+
+return (
+    f"{site_url()}"
+    f"/@{account.username}"
+)
+
+============================================================
+
+CREATOR POST URL
+
+============================================================
+
+def creator_post_url(
+post,
+):
+
+account = get_creator_account(
+    post.creator_account_id
+)
+
+if not account:
+
+    # Compatibility fallback for legacy data.
+    return (
         f"{site_url()}"
-        f"/newsletter/verify/"
-        f"{subscriber.verification_token}"
+        f"/content/{post.slug}"
     )
 
-    unsubscribe_url = (
-        f"{site_url()}"
-        f"/newsletter/unsubscribe/"
-        f"{subscriber.unsubscribe_token}"
+return (
+    f"{site_url()}"
+    f"/@{account.username}"
+    f"/content/{post.slug}"
+)
+
+============================================================
+
+SEND SMTP EMAIL
+
+============================================================
+
+def send_email(
+to_email,
+subject,
+text_body,
+html_body=None,
+):
+
+if not smtp_configured():
+
+    raise RuntimeError(
+        "SMTP is not configured. "
+        "Check your SMTP environment variables."
     )
 
-    name = creator_name()
+host = current_app.config[
+    "SMTP_HOST"
+]
 
-    subject = (
-        f"Confirm your subscription to {name}"
+port = int(
+    current_app.config[
+        "SMTP_PORT"
+    ]
+)
+
+username = current_app.config[
+    "SMTP_USERNAME"
+]
+
+password = current_app.config[
+    "SMTP_PASSWORD"
+]
+
+from_email = current_app.config[
+    "SMTP_FROM_EMAIL"
+]
+
+from_name = current_app.config.get(
+    "SMTP_FROM_NAME",
+    "Creator Platform",
+)
+
+use_tls = current_app.config.get(
+    "SMTP_USE_TLS",
+    True,
+)
+
+# ========================================================
+# MESSAGE
+# ========================================================
+
+message = EmailMessage()
+
+message["Subject"] = subject
+
+message["From"] = (
+    f"{from_name} <{from_email}>"
+)
+
+message["To"] = to_email
+
+message.set_content(
+    text_body
+)
+
+if html_body:
+
+    message.add_alternative(
+        html_body,
+        subtype="html",
     )
 
-    text_body = f"""
+# ========================================================
+# SMTP
+# ========================================================
+
+context = (
+    ssl.create_default_context()
+)
+
+with smtplib.SMTP(
+    host,
+    port,
+    timeout=30,
+) as smtp:
+
+    smtp.ehlo()
+
+    if use_tls:
+
+        smtp.starttls(
+            context=context
+        )
+
+        smtp.ehlo()
+
+    smtp.login(
+        username,
+        password,
+    )
+
+    smtp.send_message(
+        message
+    )
+
+============================================================
+
+DELIVERY LOG
+
+============================================================
+
+def create_delivery_log(
+subscriber,
+email_type,
+subject,
+status,
+post=None,
+error_message=None,
+):
+
+delivery = EmailDelivery(
+    subscriber_id=(
+        subscriber.id
+        if subscriber
+        else None
+    ),
+
+    post_id=(
+        post.id
+        if post
+        else None
+    ),
+
+    email_type=email_type,
+
+    recipient_email=(
+        subscriber.email
+    ),
+
+    subject=subject,
+
+    status=status,
+
+    error_message=(
+        error_message
+    ),
+
+    sent_at=(
+        utc_now()
+        if status == "sent"
+        else None
+    ),
+)
+
+db.session.add(
+    delivery
+)
+
+db.session.commit()
+
+return delivery
+
+============================================================
+
+VERIFICATION EMAIL
+
+============================================================
+
+def send_verification_email(
+subscriber,
+):
+
+if not subscriber.creator_account_id:
+
+    current_app.logger.error(
+        "Cannot send verification email: "
+        "subscriber %s has no creator_account_id.",
+        subscriber.id,
+    )
+
+    return False
+
+account, profile, name = (
+    creator_identity(
+        subscriber.creator_account_id
+    )
+)
+
+if not account:
+
+    current_app.logger.error(
+        "Cannot send verification email: "
+        "creator account %s does not exist.",
+        subscriber.creator_account_id,
+    )
+
+    return False
+
+verify_url = (
+    f"{site_url()}"
+    f"/newsletter/verify/"
+    f"{subscriber.verification_token}"
+)
+
+unsubscribe_url = (
+    f"{site_url()}"
+    f"/newsletter/unsubscribe/"
+    f"{subscriber.unsubscribe_token}"
+)
+
+public_url = (
+    creator_public_url(
+        subscriber.creator_account_id
+    )
+)
+
+safe_name = html.escape(
+    name
+)
+
+subject = (
+    f"Confirm your subscription to {name}"
+)
+
+text_body = f"""
+
 Hi,
 
 Thanks for subscribing to {name}.
@@ -282,14 +433,19 @@ Please confirm your email address:
 
 {verify_url}
 
+Creator page:
+{public_url}
+
 If you didn't request this, you can ignore this email.
 
 Unsubscribe:
 {unsubscribe_url}
 """.strip()
 
-    html_body = f"""
+html_body = f"""
+
 <!doctype html>
+
 <html>
 <body style="
     margin:0;
@@ -297,158 +453,180 @@ Unsubscribe:
     background:#f5f1e9;
     font-family:Arial,Helvetica,sans-serif;
     color:#17191d;
+"><div style="
+    max-width:600px;
+    margin:0 auto;
+    padding:40px 20px;
 ">
 
     <div style="
-        max-width:600px;
-        margin:0 auto;
-        padding:40px 20px;
+        background:#ffffff;
+        padding:40px;
+        border-radius:16px;
     ">
 
-        <div style="
-            background:#ffffff;
-            padding:40px;
-            border-radius:16px;
+        <p style="
+            margin:0 0 10px;
+            font-size:11px;
+            font-weight:bold;
+            letter-spacing:2px;
+            color:#858079;
         ">
+            ONE MORE STEP
+        </p>
 
-            <p style="
-                margin:0 0 10px;
-                font-size:11px;
-                font-weight:bold;
-                letter-spacing:2px;
-                color:#858079;
-            ">
-                ONE MORE STEP
-            </p>
+        <h1 style="
+            margin:0 0 20px;
+            font-family:Georgia,serif;
+            font-size:36px;
+            font-weight:normal;
+        ">
+            Never miss a post.
+        </h1>
 
-            <h1 style="
-                margin:0 0 20px;
-                font-family:Georgia,serif;
-                font-size:36px;
-                font-weight:normal;
-            ">
-                Never miss a post.
-            </h1>
+        <p style="
+            font-size:16px;
+            line-height:1.7;
+            color:#5c5852;
+        ">
+            Thanks for subscribing to
+            {safe_name}. Confirm your email
+            address to start receiving
+            new stories, reels and vlogs.
+        </p>
 
-            <p style="
-                font-size:16px;
-                line-height:1.7;
-                color:#5c5852;
-            ">
-                Thanks for subscribing to
-                {name}. Confirm your email
-                address to start receiving
-                new stories, reels and vlogs.
-            </p>
+        <p style="margin:30px 0;">
 
-            <p style="margin:30px 0;">
+            <a
+                href="{verify_url}"
+                style="
+                    display:inline-block;
+                    padding:14px 22px;
+                    background:#111318;
+                    color:#ffffff;
+                    text-decoration:none;
+                    border-radius:8px;
+                    font-weight:bold;
+                "
+            >
+                Confirm subscription
+            </a>
 
-                <a
-                    href="{verify_url}"
-                    style="
-                        display:inline-block;
-                        padding:14px 22px;
-                        background:#111318;
-                        color:#ffffff;
-                        text-decoration:none;
-                        border-radius:8px;
-                        font-weight:bold;
-                    "
-                >
-                    Confirm subscription
-                </a>
+        </p>
 
-            </p>
-
-            <p style="
-                margin-top:30px;
-                font-size:11px;
-                line-height:1.6;
-                color:#918c85;
-            ">
-                If you didn't request this,
-                simply ignore this email.
-            </p>
-
-        </div>
+        <p style="
+            margin-top:30px;
+            font-size:11px;
+            line-height:1.6;
+            color:#918c85;
+        ">
+            If you didn't request this,
+            simply ignore this email.
+        </p>
 
     </div>
 
+</div>
+
 </body>
 </html>
-""".strip()
+""".strip()try:
 
-    try:
+    send_email(
+        subscriber.email,
+        subject,
+        text_body,
+        html_body,
+    )
 
-        send_email(
-            subscriber.email,
-            subject,
-            text_body,
-            html_body,
-        )
+    create_delivery_log(
+        subscriber=subscriber,
+        email_type="verification",
+        subject=subject,
+        status="sent",
+    )
 
-        create_delivery_log(
-            subscriber=subscriber,
-            email_type="verification",
-            subject=subject,
-            status="sent",
-        )
+    return True
 
-        return True
+except Exception as exc:
 
-    except Exception as exc:
+    current_app.logger.exception(
+        "Verification email failed."
+    )
 
-        current_app.logger.exception(
-            "Verification email failed."
-        )
+    create_delivery_log(
+        subscriber=subscriber,
+        email_type="verification",
+        subject=subject,
+        status="failed",
+        error_message=str(exc)[:2000],
+    )
 
-        create_delivery_log(
-            subscriber=subscriber,
-            email_type="verification",
-            subject=subject,
-            status="failed",
-            error_message=str(exc)[:2000],
-        )
+    return False
 
-        return False
+============================================================
 
+WELCOME EMAIL
 
-# ============================================================
-# WELCOME EMAIL
-# ============================================================
+============================================================
 
 def send_welcome_email(
-    subscriber,
+subscriber,
 ):
 
-    unsubscribe_url = (
-        f"{site_url()}"
-        f"/newsletter/unsubscribe/"
-        f"{subscriber.unsubscribe_token}"
+if not subscriber.creator_account_id:
+
+    return False
+
+account, profile, name = (
+    creator_identity(
+        subscriber.creator_account_id
     )
+)
 
-    name = creator_name()
+if not account:
 
-    subject = (
-        f"You're subscribed to {name}"
+    return False
+
+unsubscribe_url = (
+    f"{site_url()}"
+    f"/newsletter/unsubscribe/"
+    f"{subscriber.unsubscribe_token}"
+)
+
+public_url = (
+    creator_public_url(
+        subscriber.creator_account_id
     )
+)
 
-    text_body = f"""
+safe_name = html.escape(
+    name
+)
+
+subject = (
+    f"You're subscribed to {name}"
+)
+
+text_body = f"""
+
 You're in!
 
 Your subscription to {name} is now active.
 
 You'll receive an email whenever new content is published.
 
-Visit the website:
-{site_url()}
+Visit {name}:
+{public_url}
 
 Unsubscribe:
 {unsubscribe_url}
 """.strip()
 
-    html_body = f"""
+html_body = f"""
+
 <!doctype html>
+
 <html>
 <body style="
     margin:0;
@@ -456,162 +634,211 @@ Unsubscribe:
     background:#f5f1e9;
     font-family:Arial,Helvetica,sans-serif;
     color:#17191d;
+"><div style="
+    max-width:600px;
+    margin:0 auto;
+    padding:40px 20px;
 ">
 
     <div style="
-        max-width:600px;
-        margin:0 auto;
-        padding:40px 20px;
+        background:#ffffff;
+        padding:40px;
+        border-radius:16px;
     ">
 
-        <div style="
-            background:#ffffff;
-            padding:40px;
-            border-radius:16px;
+        <p style="
+            font-size:11px;
+            font-weight:bold;
+            letter-spacing:2px;
+            color:#858079;
+        ">
+            WELCOME
+        </p>
+
+        <h1 style="
+            font-family:Georgia,serif;
+            font-weight:normal;
+            font-size:36px;
+        ">
+            You're in.
+        </h1>
+
+        <p style="
+            color:#5c5852;
+            line-height:1.7;
+        ">
+            Your subscription to
+            {safe_name} is active.
+            You'll receive an email whenever
+            something new is published.
+        </p>
+
+        <p style="margin:30px 0;">
+
+            <a
+                href="{public_url}"
+                style="
+                    display:inline-block;
+                    padding:14px 22px;
+                    background:#111318;
+                    color:#ffffff;
+                    text-decoration:none;
+                    border-radius:8px;
+                    font-weight:bold;
+                "
+            >
+                Visit {safe_name}
+            </a>
+
+        </p>
+
+        <p style="
+            margin-top:35px;
+            font-size:11px;
+            color:#918c85;
         ">
 
-            <p style="
-                font-size:11px;
-                font-weight:bold;
-                letter-spacing:2px;
-                color:#858079;
-            ">
-                WELCOME
-            </p>
+            Don't want these emails?
 
-            <h1 style="
-                font-family:Georgia,serif;
-                font-weight:normal;
-                font-size:36px;
-            ">
-                You're in.
-            </h1>
+            <a
+                href="{unsubscribe_url}"
+                style="color:#69645e;"
+            >
+                Unsubscribe
+            </a>
 
-            <p style="
-                color:#5c5852;
-                line-height:1.7;
-            ">
-                Your subscription to
-                {name} is active.
-                You'll hear from me whenever
-                something new is published.
-            </p>
-
-            <p style="margin:30px 0;">
-
-                <a
-                    href="{site_url()}"
-                    style="
-                        display:inline-block;
-                        padding:14px 22px;
-                        background:#111318;
-                        color:#ffffff;
-                        text-decoration:none;
-                        border-radius:8px;
-                        font-weight:bold;
-                    "
-                >
-                    Visit the website
-                </a>
-
-            </p>
-
-            <p style="
-                margin-top:35px;
-                font-size:11px;
-                color:#918c85;
-            ">
-
-                Don't want these emails?
-
-                <a
-                    href="{unsubscribe_url}"
-                    style="color:#69645e;"
-                >
-                    Unsubscribe
-                </a>
-
-            </p>
-
-        </div>
+        </p>
 
     </div>
 
+</div>
+
 </body>
 </html>
-""".strip()
+""".strip()try:
 
-    try:
+    send_email(
+        subscriber.email,
+        subject,
+        text_body,
+        html_body,
+    )
 
-        send_email(
-            subscriber.email,
-            subject,
-            text_body,
-            html_body,
-        )
+    create_delivery_log(
+        subscriber=subscriber,
+        email_type="welcome",
+        subject=subject,
+        status="sent",
+    )
 
-        create_delivery_log(
-            subscriber=subscriber,
-            email_type="welcome",
-            subject=subject,
-            status="sent",
-        )
+    return True
 
-        return True
+except Exception as exc:
 
-    except Exception as exc:
+    current_app.logger.exception(
+        "Welcome email failed."
+    )
 
-        current_app.logger.exception(
-            "Welcome email failed."
-        )
+    create_delivery_log(
+        subscriber=subscriber,
+        email_type="welcome",
+        subject=subject,
+        status="failed",
+        error_message=str(exc)[:2000],
+    )
 
-        create_delivery_log(
-            subscriber=subscriber,
-            email_type="welcome",
-            subject=subject,
-            status="failed",
-            error_message=str(exc)[:2000],
-        )
+    return False
 
-        return False
+============================================================
 
+NEW POST EMAIL
 
-# ============================================================
-# NEW POST EMAIL
-# ============================================================
+============================================================
 
 def send_new_post_email(
-    subscriber,
-    post,
+subscriber,
+post,
 ):
 
-    post_url = (
-        f"{site_url()}"
-        f"/content/{post.slug}"
+# ========================================================
+# TENANT SAFETY
+# ========================================================
+
+if not post.creator_account_id:
+
+    current_app.logger.error(
+        "Post %s has no creator_account_id.",
+        post.id,
     )
 
-    unsubscribe_url = (
-        f"{site_url()}"
-        f"/newsletter/unsubscribe/"
-        f"{subscriber.unsubscribe_token}"
+    return False
+
+if (
+    subscriber.creator_account_id
+    != post.creator_account_id
+):
+
+    current_app.logger.error(
+        "Blocked cross-tenant email. "
+        "Subscriber %s belongs to creator %s "
+        "but post %s belongs to creator %s.",
+        subscriber.id,
+        subscriber.creator_account_id,
+        post.id,
+        post.creator_account_id,
     )
 
-    name = creator_name()
+    return False
 
-    type_name = (
-        post.content_type.capitalize()
+account, profile, name = (
+    creator_identity(
+        post.creator_account_id
     )
+)
 
-    subject = (
-        f"New {type_name}: {post.title}"
+if not account:
+
+    return False
+
+post_url = (
+    creator_post_url(
+        post
     )
+)
 
-    excerpt = (
-        post.excerpt
-        or "Something new has just been published."
-    )
+unsubscribe_url = (
+    f"{site_url()}"
+    f"/newsletter/unsubscribe/"
+    f"{subscriber.unsubscribe_token}"
+)
 
-    text_body = f"""
+type_name = (
+    post.content_type.capitalize()
+)
+
+subject = (
+    f"New {type_name}: {post.title}"
+)
+
+excerpt = (
+    post.excerpt
+    or "Something new has just been published."
+)
+
+safe_name = html.escape(
+    name
+)
+
+safe_title = html.escape(
+    post.title
+)
+
+safe_excerpt = html.escape(
+    excerpt
+)
+
+text_body = f"""
+
 {name} just published a new {type_name.lower()}.
 
 {post.title}
@@ -625,27 +852,34 @@ Unsubscribe:
 {unsubscribe_url}
 """.strip()
 
-    cover_html = ""
+cover_html = ""
 
-    if post.cover_image_url:
+if post.cover_image_url:
 
-        cover_html = f"""
-        <img
-            src="{post.cover_image_url}"
-            alt=""
-            style="
-                display:block;
-                width:100%;
-                max-height:420px;
-                object-fit:cover;
-                margin:25px 0;
-                border-radius:12px;
-            "
-        >
-        """
+    safe_cover_url = html.escape(
+        post.cover_image_url,
+        quote=True,
+    )
 
-    html_body = f"""
+    cover_html = f"""
+    <img
+        src="{safe_cover_url}"
+        alt=""
+        style="
+            display:block;
+            width:100%;
+            max-height:420px;
+            object-fit:cover;
+            margin:25px 0;
+            border-radius:12px;
+        "
+    >
+    """
+
+html_body = f"""
+
 <!doctype html>
+
 <html>
 <body style="
     margin:0;
@@ -653,204 +887,231 @@ Unsubscribe:
     background:#f5f1e9;
     font-family:Arial,Helvetica,sans-serif;
     color:#17191d;
+"><div style="
+    max-width:620px;
+    margin:0 auto;
+    padding:40px 20px;
 ">
 
     <div style="
-        max-width:620px;
-        margin:0 auto;
-        padding:40px 20px;
+        background:#ffffff;
+        padding:40px;
+        border-radius:16px;
     ">
 
-        <div style="
-            background:#ffffff;
-            padding:40px;
-            border-radius:16px;
+        <p style="
+            margin:0 0 12px;
+            font-size:10px;
+            font-weight:bold;
+            letter-spacing:2px;
+            color:#858079;
+        ">
+            NEW {type_name.upper()}
+        </p>
+
+        <h1 style="
+            margin:0;
+            font-family:Georgia,serif;
+            font-size:38px;
+            line-height:1.1;
+            font-weight:normal;
+        ">
+            {safe_title}
+        </h1>
+
+        {cover_html}
+
+        <p style="
+            color:#5c5852;
+            font-size:16px;
+            line-height:1.7;
+        ">
+            {safe_excerpt}
+        </p>
+
+        <p style="margin:30px 0;">
+
+            <a
+                href="{post_url}"
+                style="
+                    display:inline-block;
+                    padding:14px 22px;
+                    background:#111318;
+                    color:#ffffff;
+                    text-decoration:none;
+                    border-radius:8px;
+                    font-weight:bold;
+                "
+            >
+                View {type_name}
+            </a>
+
+        </p>
+
+        <hr style="
+            margin:35px 0 20px;
+            border:0;
+            border-top:1px solid #e6e1d9;
         ">
 
-            <p style="
-                margin:0 0 12px;
-                font-size:10px;
-                font-weight:bold;
-                letter-spacing:2px;
-                color:#858079;
-            ">
-                NEW {type_name.upper()}
-            </p>
+        <p style="
+            font-size:11px;
+            line-height:1.6;
+            color:#918c85;
+        ">
 
-            <h1 style="
-                margin:0;
-                font-family:Georgia,serif;
-                font-size:38px;
-                line-height:1.1;
-                font-weight:normal;
-            ">
-                {post.title}
-            </h1>
+            You received this because you
+            subscribed to updates from
+            {safe_name}.
 
-            {cover_html}
+            <br><br>
 
-            <p style="
-                color:#5c5852;
-                font-size:16px;
-                line-height:1.7;
-            ">
-                {excerpt}
-            </p>
+            <a
+                href="{unsubscribe_url}"
+                style="color:#69645e;"
+            >
+                Unsubscribe
+            </a>
 
-            <p style="margin:30px 0;">
-
-                <a
-                    href="{post_url}"
-                    style="
-                        display:inline-block;
-                        padding:14px 22px;
-                        background:#111318;
-                        color:#ffffff;
-                        text-decoration:none;
-                        border-radius:8px;
-                        font-weight:bold;
-                    "
-                >
-                    View {type_name}
-                </a>
-
-            </p>
-
-            <hr style="
-                margin:35px 0 20px;
-                border:0;
-                border-top:1px solid #e6e1d9;
-            ">
-
-            <p style="
-                font-size:11px;
-                line-height:1.6;
-                color:#918c85;
-            ">
-
-                You received this because you
-                subscribed to updates from
-                {name}.
-
-                <br><br>
-
-                <a
-                    href="{unsubscribe_url}"
-                    style="color:#69645e;"
-                >
-                    Unsubscribe
-                </a>
-
-            </p>
-
-        </div>
+        </p>
 
     </div>
 
+</div>
+
 </body>
 </html>
-""".strip()
+""".strip()try:
 
-    try:
-
-        send_email(
-            subscriber.email,
-            subject,
-            text_body,
-            html_body,
-        )
-
-        create_delivery_log(
-            subscriber=subscriber,
-            email_type="new_post",
-            subject=subject,
-            status="sent",
-            post=post,
-        )
-
-        return True
-
-    except Exception as exc:
-
-        current_app.logger.exception(
-            "New post email failed."
-        )
-
-        create_delivery_log(
-            subscriber=subscriber,
-            email_type="new_post",
-            subject=subject,
-            status="failed",
-            post=post,
-            error_message=str(exc)[:2000],
-        )
-
-        return False
-
-
-# ============================================================
-# NOTIFY ALL ACTIVE SUBSCRIBERS
-# ============================================================
-
-def notify_subscribers_about_post(
-    post,
-):
-
-    # Do not email people about premium content yet.
-    # Membership email rules will come later.
-
-    if post.access_level != "public":
-
-        return {
-            "sent": 0,
-            "failed": 0,
-        }
-
-    subscribers = (
-        EmailSubscriber.query
-        .filter_by(
-            status="active"
-        )
-        .all()
+    send_email(
+        subscriber.email,
+        subject,
+        text_body,
+        html_body,
     )
 
-    sent = 0
-    failed = 0
+    create_delivery_log(
+        subscriber=subscriber,
+        email_type="new_post",
+        subject=subject,
+        status="sent",
+        post=post,
+    )
 
-    for subscriber in subscribers:
+    return True
 
-        # ----------------------------------------------------
-        # DUPLICATE PROTECTION
-        # ----------------------------------------------------
+except Exception as exc:
 
-        already_sent = (
-            EmailDelivery.query
-            .filter_by(
-                subscriber_id=subscriber.id,
-                post_id=post.id,
-                email_type="new_post",
-                status="sent",
-            )
-            .first()
-        )
+    current_app.logger.exception(
+        "New post email failed."
+    )
 
-        if already_sent:
+    create_delivery_log(
+        subscriber=subscriber,
+        email_type="new_post",
+        subject=subject,
+        status="failed",
+        post=post,
+        error_message=str(exc)[:2000],
+    )
 
-            continue
+    return False
 
-        success = (
-            send_new_post_email(
-                subscriber,
-                post,
-            )
-        )
+============================================================
 
-        if success:
-            sent += 1
-        else:
-            failed += 1
+NOTIFY CREATOR'S ACTIVE SUBSCRIBERS
+
+============================================================
+
+def notify_subscribers_about_post(
+post,
+):
+
+# --------------------------------------------------------
+# MEMBERSHIP EMAILS COME LATER
+# --------------------------------------------------------
+
+if post.access_level != "public":
 
     return {
-        "sent": sent,
-        "failed": failed,
+        "sent": 0,
+        "failed": 0,
     }
+
+# --------------------------------------------------------
+# MUST HAVE TENANT OWNER
+# --------------------------------------------------------
+
+if not post.creator_account_id:
+
+    current_app.logger.error(
+        "Cannot notify subscribers for post %s: "
+        "creator_account_id is missing.",
+        post.id,
+    )
+
+    return {
+        "sent": 0,
+        "failed": 0,
+    }
+
+# --------------------------------------------------------
+# STRICT TENANT FILTER
+# --------------------------------------------------------
+
+subscribers = (
+    EmailSubscriber.query
+    .filter_by(
+        creator_account_id=(
+            post.creator_account_id
+        ),
+        status="active",
+    )
+    .all()
+)
+
+sent = 0
+failed = 0
+
+for subscriber in subscribers:
+
+    # ====================================================
+    # DUPLICATE PROTECTION
+    # ====================================================
+
+    already_sent = (
+        EmailDelivery.query
+        .filter_by(
+            subscriber_id=(
+                subscriber.id
+            ),
+            post_id=post.id,
+            email_type="new_post",
+            status="sent",
+        )
+        .first()
+    )
+
+    if already_sent:
+
+        continue
+
+    success = (
+        send_new_post_email(
+            subscriber,
+            post,
+        )
+    )
+
+    if success:
+
+        sent += 1
+
+    else:
+
+        failed += 1
+
+return {
+    "sent": sent,
+    "failed": failed,
+}
