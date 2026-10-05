@@ -45,6 +45,13 @@ from services.email_service import (
     notify_subscribers_about_post,
 )
 
+from services.plan_service import (
+    FEATURE_EXCLUSIVE_CONTENT,
+    creator_has_feature,
+    creator_missing_feature_message,
+    creator_plan_summary,
+)
+
 
 # ============================================================
 # BLUEPRINT
@@ -150,6 +157,34 @@ def studio_required(view):
         )
 
     return wrapped_view
+
+def require_creator_feature(
+    creator,
+    feature,
+):
+    """
+    Server-side creator plan feature gate.
+
+    Returns True when access is allowed.
+
+    Routes must never rely only on hidden template buttons.
+    """
+
+    if creator_has_feature(
+        creator,
+        feature,
+    ):
+        return True
+
+    flash(
+        creator_missing_feature_message(
+            feature
+        ),
+        "warning",
+    )
+
+    return False
+
 
 
 def creator_profile(
