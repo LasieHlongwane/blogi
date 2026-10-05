@@ -20,6 +20,10 @@ from flask import (
     current_app,
 )
 
+from services.subscription_service import (
+    creator_subscription_is_current,
+)
+
 from extensions import db
 
 from models import (
@@ -140,17 +144,28 @@ def studio_required(view):
         # PLATFORM SUBSCRIPTION MUST BE ACTIVE
         # ----------------------------------------------------
 
-        if (
-            creator.subscription_status
-            != "active"
+        # ----------------------------------------------------
+# PLATFORM SUBSCRIPTION ACCESS
+# ----------------------------------------------------
+#
+# PlatformSubscription is now the preferred source.
+#
+# The service also understands the temporary legacy
+# CreatorAccount subscription fields during migration.
+        # ----------------------------------------------------
+
+        if not creator_subscription_is_current(
+         creator
         ):
 
-            return redirect(
-                url_for(
-                    "creator_auth.pending"
-                )
-            )
+         return redirect(
+          url_for(
+            "creator_auth.pending"
+          )
+         )
 
+
+        
         return view(
             *args,
             **kwargs,
