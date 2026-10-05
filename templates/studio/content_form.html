@@ -583,42 +583,78 @@
 
             <label class="field-label">
 
-                Who can see this?
+    Who can see this?
 
-                <select name="access_level">
+    <select
+        name="access_level"
+        id="access-level-select"
+    >
 
-                    <option
-                        value="public"
-
-                        {% if
-                            not post
-                            or post.access_level
-                            == "public"
-                        %}
-                            selected
-                        {% endif %}
-                    >
-                        Everyone — Public
-                    </option>
+        <option
+            value="public"
+            {% if
+                not post
+                or post.access_level == "public"
+            %}
+                selected
+            {% endif %}
+        >
+            Everyone — Public
+        </option>
 
 
-                    <option
-                        value="subscriber"
+        {% if creator_account.plan == "premium" %}
 
-                        {% if
-                            post
-                            and post.access_level
-                            == "subscriber"
-                        %}
-                            selected
-                        {% endif %}
-                    >
-                        🔒 Members only
-                    </option>
+            <option
+                value="subscriber"
+                {% if
+                    post
+                    and post.access_level
+                    == "subscriber"
+                %}
+                    selected
+                {% endif %}
+            >
+                🔒 Members only
+            </option>
 
-                </select>
+        {% else %}
 
-            </label>
+            <option
+                value="subscriber"
+                disabled
+            >
+                🔒 Members only — Premium
+            </option>
+
+        {% endif %}
+
+    </select>
+
+</label>
+
+
+{% if creator_account.plan != "premium" %}
+
+    <div class="premium-feature-notice">
+
+        <strong>
+            Want to publish exclusive content?
+        </strong>
+
+        <p>
+            Upgrade to Premium for R149/month
+            to publish members-only content and
+            earn from your audience.
+        </p>
+
+        <a href="#premium-features">
+            Explore Premium →
+        </a>
+
+    </div>
+
+{% endif %}
 
 
             <label class="field-label">
