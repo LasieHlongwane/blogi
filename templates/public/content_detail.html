@@ -1,307 +1,316 @@
 {% extends "base.html" %}
 
-
 {% block title %}
-    {{ post.title }} | {{ creator.display_name if creator else "Creator" }}
+{{ post.title }} | {{ creator.display_name if creator else "Creator" }}
 {% endblock %}
-
 
 {% block content %}
 
-
 <!-- =========================================================
      ARTICLE HEADER
-========================================================== -->
-
-<main class="content-detail-page">
+========================================================== --><main class="content-detail-page"><article class="content-detail">
 
 
-    <article class="content-detail">
+    <header class="content-detail-header">
 
 
-        <header class="content-detail-header">
+        <div class="content-detail-meta">
+
+            <span class="content-type-pill">
+                {{ post.content_type|upper }}
+            </span>
 
 
-            <div class="content-detail-meta">
+            {% if post.category %}
 
-                <span class="content-type-pill">
-                    {{ post.content_type|upper }}
+                <span>
+                    {{ post.category.name }}
                 </span>
-
-
-                {% if post.category %}
-
-                    <span>
-                        {{ post.category.name }}
-                    </span>
-
-                {% endif %}
-
-
-                {% if post.published_at %}
-
-                    <span>
-                        {{ post.published_at.strftime(
-                            "%d %b %Y"
-                        ) }}
-                    </span>
-
-                {% endif %}
-
-
-                {% if post.access_level == "subscriber" %}
-
-                    <span class="exclusive-pill">
-                        🔒 MEMBERS
-                    </span>
-
-                {% endif %}
-
-            </div>
-
-
-            <h1>
-                {{ post.title }}
-            </h1>
-
-
-            {% if post.excerpt %}
-
-                <p class="content-detail-excerpt">
-                    {{ post.excerpt }}
-                </p>
 
             {% endif %}
 
 
-        </header>
+            {% if post.published_at %}
+
+                <span>
+                    {{ post.published_at.strftime(
+                        "%d %b %Y"
+                    ) }}
+                </span>
+
+            {% endif %}
 
 
+            {% if post.access_level == "subscriber" %}
 
-        <!-- =================================================
-             COVER
-        ================================================== -->
+                <span class="exclusive-pill">
+                    🔒 MEMBERS
+                </span>
 
-        {% if post.cover_image_url %}
+            {% endif %}
 
-            <div class="content-detail-cover">
+        </div>
 
-                <img
-                    src="{{ post.cover_image_url }}"
-                    alt="{{ post.title }}"
-                >
 
-            </div>
+        <h1>
+            {{ post.title }}
+        </h1>
+
+
+        {% if post.excerpt %}
+
+            <p class="content-detail-excerpt">
+                {{ post.excerpt }}
+            </p>
 
         {% endif %}
 
 
+    </header>
 
-        <!-- =================================================
-             VIDEO
-        ================================================== -->
 
-        {% if
-            post.content_type in ["reel", "vlog"]
-            and video
-        %}
 
-            <div
-                class="
-                    public-video-player
-                    {% if post.content_type == 'reel' %}
-                        reel-player
-                    {% endif %}
-                "
+    <!-- =================================================
+         COVER
+    ================================================== -->
+
+    {% if post.cover_image_url %}
+
+        <div class="content-detail-cover">
+
+            <img
+                src="{{ post.cover_image_url }}"
+                alt="{{ post.title }}"
             >
 
-                <video
-                    controls
-                    playsinline
-                    preload="metadata"
+        </div>
 
-                    {% if video.thumbnail_url %}
-                        poster="{{ video.thumbnail_url }}"
-                    {% endif %}
+    {% endif %}
+
+
+
+    <!-- =================================================
+         VIDEO
+    ================================================== -->
+
+    {% if
+        post.content_type in ["reel", "vlog"]
+        and video
+    %}
+
+        <div
+            class="
+                public-video-player
+                {% if post.content_type == 'reel' %}
+                    reel-player
+                {% endif %}
+            "
+        >
+
+            <video
+                controls
+                playsinline
+                preload="metadata"
+
+                {% if video.thumbnail_url %}
+                    poster="{{ video.thumbnail_url }}"
+                {% endif %}
+            >
+
+                <source
+                    src="{{ video.media_url }}"
                 >
 
-                    <source
-                        src="{{ video.media_url }}"
-                    >
+                Your browser does not support video.
 
-                    Your browser does not support video.
+            </video>
 
-                </video>
+        </div>
 
-            </div>
-
-        {% endif %}
+    {% endif %}
 
 
 
-        <!-- =================================================
-             BODY
-        ================================================== -->
+    <!-- =================================================
+         BODY
+    ================================================== -->
 
-        {% if post.body %}
+    {% if post.body %}
 
-            <div class="content-body">
+        <div class="content-body">
 
-                {% for paragraph in post.body.split('\n') %}
+            {% for paragraph in post.body.split('\n') %}
 
-                    {% if paragraph.strip() %}
+                {% if paragraph.strip() %}
 
-                        <p>
-                            {{ paragraph }}
-                        </p>
-
-                    {% endif %}
-
-                {% endfor %}
-
-            </div>
-
-        {% endif %}
-
-
-
-        <!-- =================================================
-             STORY GALLERY
-        ================================================== -->
-
-        {% if
-            post.content_type == "story"
-            and gallery_images
-        %}
-
-            <div class="public-story-gallery">
-
-                {% for image in gallery_images %}
-
-                    <figure>
-
-                        <img
-                            src="{{ image.media_url }}"
-                            alt="{{ image.caption or post.title }}"
-                            loading="lazy"
-                        >
-
-                        {% if image.caption %}
-
-                            <figcaption>
-                                {{ image.caption }}
-                            </figcaption>
-
-                        {% endif %}
-
-                    </figure>
-
-                {% endfor %}
-
-            </div>
-
-        {% endif %}
-
-
-
-        <!-- =================================================
-             CREATOR
-        ================================================== -->
-
-        {% if creator %}
-
-            <section class="post-creator-card">
-
-
-                {% if creator.profile_image_url %}
-
-                    <img
-                        src="{{ creator.profile_image_url }}"
-                        alt="{{ creator.display_name }}"
-                    >
-
-                {% else %}
-
-                    <div class="creator-mini-placeholder">
-
-                        {{ creator.display_name[:1] }}
-
-                    </div>
+                    <p>
+                        {{ paragraph }}
+                    </p>
 
                 {% endif %}
 
+            {% endfor %}
 
-                <div>
+        </div>
 
-                    <small>
-                        CREATED BY
-                    </small>
+    {% endif %}
 
-                    <strong>
-                        {{ creator.display_name }}
-                    </strong>
 
-                    {% if creator.tagline %}
 
-                        <p>
-                            {{ creator.tagline }}
-                        </p>
+    <!-- =================================================
+         STORY GALLERY
+    ================================================== -->
+
+    {% if
+        post.content_type == "story"
+        and gallery_images
+    %}
+
+        <div class="public-story-gallery">
+
+            {% for image in gallery_images %}
+
+                <figure>
+
+                    <img
+                        src="{{ image.media_url }}"
+                        alt="{{ image.caption or post.title }}"
+                        loading="lazy"
+                    >
+
+                    {% if image.caption %}
+
+                        <figcaption>
+                            {{ image.caption }}
+                        </figcaption>
 
                     {% endif %}
 
+                </figure>
+
+            {% endfor %}
+
+        </div>
+
+    {% endif %}
+
+
+
+    <!-- =================================================
+         CREATOR
+    ================================================== -->
+
+    {% if creator %}
+
+        <section class="post-creator-card">
+
+
+            {% if creator.profile_image_url %}
+
+                <img
+                    src="{{ creator.profile_image_url }}"
+                    alt="{{ creator.display_name }}"
+                >
+
+            {% else %}
+
+                <div class="creator-mini-placeholder">
+
+                    {{ creator.display_name[:1] }}
+
                 </div>
 
-
-            </section>
-
-        {% endif %}
+            {% endif %}
 
 
+            <div>
 
-        <!-- =================================================
-             COMMENTS
-        ================================================== -->
+                <small>
+                    CREATED BY
+                </small>
 
-        <section
-            class="comments-section"
-            id="comments"
-        >
+                <strong>
+                    {{ creator.display_name }}
+                </strong>
 
+                {% if creator.tagline %}
 
-            <div class="comments-heading">
+                    <p>
+                        {{ creator.tagline }}
+                    </p>
 
-                <div>
-
-                    <span class="comments-eyebrow">
-                        CONVERSATION
-                    </span>
-
-                    <h2>
-                        Comments
-                    </h2>
-
-                </div>
-
-
-                <span class="comment-count">
-
-                    {{ comment_count }}
-
-                    {% if comment_count == 1 %}
-                        comment
-                    {% else %}
-                        comments
-                    {% endif %}
-
-                </span>
+                {% endif %}
 
             </div>
 
 
+        </section>
 
-            <!-- =============================================
-                 NEW COMMENT
-            ============================================== -->
+    {% endif %}
+
+
+
+    <!-- =================================================
+         COMMENTS
+    ================================================== -->
+
+    <section
+        class="comments-section"
+        id="comments"
+    >
+
+
+        <div class="comments-heading">
+
+            <div>
+
+                <span class="comments-eyebrow">
+                    CONVERSATION
+                </span>
+
+                <h2>
+                    Comments
+                </h2>
+
+            </div>
+
+
+            <span class="comment-count">
+
+                {{ comment_count }}
+
+                {% if comment_count == 1 %}
+                    comment
+                {% else %}
+                    comments
+                {% endif %}
+
+            </span>
+
+        </div>
+
+
+
+        <!-- =============================================
+             NEW COMMENT
+        ============================================== -->
+
+        {% if
+            creator
+            and creator.creator_account_id
+        %}
+
+            <form
+                method="POST"
+                action="{{ url_for(
+                    'public.creator_add_comment',
+                    username=creator.username,
+                    post_id=post.id
+                ) }}"
+                class="comment-form"
+            >
+
+        {% else %}
 
             <form
                 method="POST"
@@ -312,151 +321,171 @@
                 class="comment-form"
             >
 
+        {% endif %}
 
-                <!-- HONEYPOT -->
 
-                <div
-                    class="comment-honeypot"
-                    aria-hidden="true"
-                >
+            <!-- HONEYPOT -->
 
-                    <label>
-
-                        Website
-
-                        <input
-                            type="text"
-                            name="website"
-                            tabindex="-1"
-                            autocomplete="off"
-                        >
-
-                    </label>
-
-                </div>
-
+            <div
+                class="comment-honeypot"
+                aria-hidden="true"
+            >
 
                 <label>
 
-                    Your name
+                    Website
 
                     <input
                         type="text"
-                        name="author_name"
-                        maxlength="80"
-                        required
-                        placeholder="How should we call you?"
+                        name="website"
+                        tabindex="-1"
+                        autocomplete="off"
                     >
 
                 </label>
 
-
-                <label>
-
-                    Join the conversation
-
-                    <textarea
-                        name="body"
-                        maxlength="1500"
-                        rows="4"
-                        required
-                        placeholder="Share your thoughts..."
-                    ></textarea>
-
-                </label>
+            </div>
 
 
-                <div class="comment-form-footer">
+            <label>
 
-                    <small>
-                        No account required.
-                    </small>
+                Your name
 
-                    <button type="submit">
-                        Post comment
+                <input
+                    type="text"
+                    name="author_name"
+                    maxlength="80"
+                    required
+                    placeholder="How should we call you?"
+                >
+
+            </label>
+
+
+            <label>
+
+                Join the conversation
+
+                <textarea
+                    name="body"
+                    maxlength="1500"
+                    rows="4"
+                    required
+                    placeholder="Share your thoughts..."
+                ></textarea>
+
+            </label>
+
+
+            <div class="comment-form-footer">
+
+                <small>
+                    No account required.
+                </small>
+
+                <button type="submit">
+                    Post comment
+                </button>
+
+            </div>
+
+
+        </form>
+
+
+
+        <!-- =============================================
+             COMMENTS LIST
+        ============================================== -->
+
+        <div class="comments-list">
+
+
+            {% for comment in comments %}
+
+                <article
+                    class="comment-card"
+                    id="comment-{{ comment.id }}"
+                >
+
+
+                    <div class="comment-author-row">
+
+
+                        <div class="comment-avatar">
+
+                            {{ comment.author_name[:1]|upper }}
+
+                        </div>
+
+
+                        <div>
+
+                            <strong>
+                                {{ comment.author_name }}
+                            </strong>
+
+                            {% if comment.is_creator %}
+
+                                <span class="creator-badge">
+                                    CREATOR
+                                </span>
+
+                            {% endif %}
+
+
+                            <small>
+
+                                {{ comment.created_at.strftime(
+                                    "%d %b %Y · %H:%M"
+                                ) }}
+
+                            </small>
+
+                        </div>
+
+
+                    </div>
+
+
+                    <div class="comment-body">
+
+                        {{ comment.body }}
+
+                    </div>
+
+
+                    <button
+                        type="button"
+                        class="reply-toggle"
+                        data-reply-target="reply-form-{{ comment.id }}"
+                    >
+                        Reply
                     </button>
 
-                </div>
 
 
-            </form>
+                    <!-- =================================
+                         REPLY FORM
+                    ================================== -->
 
+                    {% if
+                        creator
+                        and creator.creator_account_id
+                    %}
 
-
-            <!-- =============================================
-                 COMMENTS LIST
-            ============================================== -->
-
-            <div class="comments-list">
-
-
-                {% for comment in comments %}
-
-                    <article
-                        class="comment-card"
-                        id="comment-{{ comment.id }}"
-                    >
-
-
-                        <div class="comment-author-row">
-
-
-                            <div class="comment-avatar">
-
-                                {{ comment.author_name[:1]|upper }}
-
-                            </div>
-
-
-                            <div>
-
-                                <strong>
-                                    {{ comment.author_name }}
-                                </strong>
-
-                                {% if comment.is_creator %}
-
-                                    <span class="creator-badge">
-                                        CREATOR
-                                    </span>
-
-                                {% endif %}
-
-
-                                <small>
-
-                                    {{ comment.created_at.strftime(
-                                        "%d %b %Y · %H:%M"
-                                    ) }}
-
-                                </small>
-
-                            </div>
-
-
-                        </div>
-
-
-                        <div class="comment-body">
-
-                            {{ comment.body }}
-
-                        </div>
-
-
-                        <button
-                            type="button"
-                            class="reply-toggle"
-                            data-reply-target="reply-form-{{ comment.id }}"
+                        <form
+                            method="POST"
+                            action="{{ url_for(
+                                'public.creator_add_reply',
+                                username=creator.username,
+                                comment_id=comment.id
+                            ) }}"
+                            class="reply-form"
+                            id="reply-form-{{ comment.id }}"
                         >
-                            Reply
-                        </button>
 
-
-
-                        <!-- =================================
-                             REPLY FORM
-                        ================================== -->
+                    {% else %}
 
                         <form
                             method="POST"
@@ -468,187 +497,182 @@
                             id="reply-form-{{ comment.id }}"
                         >
 
+                    {% endif %}
 
-                            <div
-                                class="comment-honeypot"
-                                aria-hidden="true"
+
+                        <div
+                            class="comment-honeypot"
+                            aria-hidden="true"
+                        >
+
+                            <input
+                                type="text"
+                                name="website"
+                                tabindex="-1"
+                                autocomplete="off"
                             >
 
-                                <input
-                                    type="text"
-                                    name="website"
-                                    tabindex="-1"
-                                    autocomplete="off"
-                                >
-
-                            </div>
+                        </div>
 
 
-                            <label>
+                        <label>
 
-                                Your name
+                            Your name
 
-                                <input
-                                    type="text"
-                                    name="author_name"
-                                    maxlength="80"
-                                    required
-                                    placeholder="Your name"
-                                >
+                            <input
+                                type="text"
+                                name="author_name"
+                                maxlength="80"
+                                required
+                                placeholder="Your name"
+                            >
 
-                            </label>
-
-
-                            <label>
-
-                                Reply
-
-                                <textarea
-                                    name="body"
-                                    maxlength="1500"
-                                    rows="3"
-                                    required
-                                    placeholder="Write a reply..."
-                                ></textarea>
-
-                            </label>
+                        </label>
 
 
-                            <button type="submit">
-                                Post reply
-                            </button>
+                        <label>
+
+                            Reply
+
+                            <textarea
+                                name="body"
+                                maxlength="1500"
+                                rows="3"
+                                required
+                                placeholder="Write a reply..."
+                            ></textarea>
+
+                        </label>
 
 
-                        </form>
+                        <button type="submit">
+                            Post reply
+                        </button>
+
+
+                    </form>
 
 
 
-                        <!-- =================================
-                             REPLIES
-                        ================================== -->
+                    <!-- =================================
+                         REPLIES
+                    ================================== -->
 
-                        {% if comment.replies %}
+                    {% if comment.replies %}
 
-                            <div class="comment-replies">
-
-
-                                {% for reply in comment.replies %}
+                        <div class="comment-replies">
 
 
-                                    {% if reply.status == "approved" %}
-
-                                        <article
-                                            class="comment-reply"
-                                            id="comment-{{ reply.id }}"
-                                        >
+                            {% for reply in comment.replies %}
 
 
-                                            <div class="comment-author-row">
+                                {% if reply.status == "approved" %}
+
+                                    <article
+                                        class="comment-reply"
+                                        id="comment-{{ reply.id }}"
+                                    >
 
 
-                                                <div class="comment-avatar small">
-
-                                                    {{ reply.author_name[:1]|upper }}
-
-                                                </div>
+                                        <div class="comment-author-row">
 
 
-                                                <div>
+                                            <div class="comment-avatar small">
 
-                                                    <strong>
-                                                        {{ reply.author_name }}
-                                                    </strong>
+                                                {{ reply.author_name[:1]|upper }}
 
-
-                                                    {% if reply.is_creator %}
-
-                                                        <span class="creator-badge">
-                                                            CREATOR
-                                                        </span>
-
-                                                    {% endif %}
+                                            </div>
 
 
-                                                    <small>
+                                            <div>
 
-                                                        {{ reply.created_at.strftime(
-                                                            "%d %b %Y · %H:%M"
-                                                        ) }}
-
-                                                    </small>
+                                                <strong>
+                                                    {{ reply.author_name }}
+                                                </strong>
 
 
-                                                </div>
+                                                {% if reply.is_creator %}
+
+                                                    <span class="creator-badge">
+                                                        CREATOR
+                                                    </span>
+
+                                                {% endif %}
+
+
+                                                <small>
+
+                                                    {{ reply.created_at.strftime(
+                                                        "%d %b %Y · %H:%M"
+                                                    ) }}
+
+                                                </small>
 
 
                                             </div>
 
 
-                                            <div class="comment-body">
-
-                                                {{ reply.body }}
-
-                                            </div>
+                                        </div>
 
 
-                                        </article>
+                                        <div class="comment-body">
 
-                                    {% endif %}
+                                            {{ reply.body }}
 
-
-                                {% endfor %}
-
-
-                            </div>
-
-                        {% endif %}
+                                        </div>
 
 
-                    </article>
+                                    </article>
+
+                                {% endif %}
 
 
-                {% else %}
+                            {% endfor %}
 
 
-                    <div class="comments-empty">
+                        </div>
 
-                        <span>
-                            💬
-                        </span>
-
-                        <h3>
-                            Start the conversation.
-                        </h3>
-
-                        <p>
-                            Be the first person to leave
-                            a comment on this post.
-                        </p>
-
-                    </div>
+                    {% endif %}
 
 
-                {% endfor %}
+                </article>
 
 
-            </div>
+            {% else %}
 
 
-        </section>
+                <div class="comments-empty">
+
+                    <span>
+                        💬
+                    </span>
+
+                    <h3>
+                        Start the conversation.
+                    </h3>
+
+                    <p>
+                        Be the first person to leave
+                        a comment on this post.
+                    </p>
+
+                </div>
 
 
-    </article>
+            {% endfor %}
 
 
-</main>
+        </div>
 
 
+    </section>
 
-<!-- =========================================================
+
+</article>
+
+</main><!-- =========================================================
      REPLY TOGGLE
-========================================================== -->
-
-<script>
+========================================================== --><script>
 
 document.addEventListener(
     "DOMContentLoaded",
@@ -710,7 +734,4 @@ document.addEventListener(
     }
 );
 
-</script>
-
-
-{% endblock %}
+</script>{% endblock %}
