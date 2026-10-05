@@ -1028,6 +1028,322 @@ def dashboard():
 
 
 # ============================================================
+# ANALYTICS
+# ============================================================
+
+@admin_bp.route(
+    "/analytics"
+)
+@admin_required
+def analytics():
+
+    # ========================================================
+    # CONTENT COUNTS
+    # ========================================================
+
+    total_posts = (
+        ContentPost.query
+        .count()
+    )
+
+    published_posts = (
+        ContentPost.query
+        .filter_by(
+            status="published"
+        )
+        .count()
+    )
+
+    draft_posts = (
+        ContentPost.query
+        .filter_by(
+            status="draft"
+        )
+        .count()
+    )
+
+    archived_posts = (
+        ContentPost.query
+        .filter_by(
+            status="archived"
+        )
+        .count()
+    )
+
+    # ========================================================
+    # ACCESS LEVEL
+    # ========================================================
+
+    public_posts = (
+        ContentPost.query
+        .filter_by(
+            access_level="public"
+        )
+        .count()
+    )
+
+    exclusive_posts = (
+        ContentPost.query
+        .filter_by(
+            access_level="subscriber"
+        )
+        .count()
+    )
+
+    # ========================================================
+    # CONTENT TYPES
+    # ========================================================
+
+    story_count = (
+        ContentPost.query
+        .filter_by(
+            content_type="story"
+        )
+        .count()
+    )
+
+    reel_count = (
+        ContentPost.query
+        .filter_by(
+            content_type="reel"
+        )
+        .count()
+    )
+
+    vlog_count = (
+        ContentPost.query
+        .filter_by(
+            content_type="vlog"
+        )
+        .count()
+    )
+
+    # ========================================================
+    # COMMENTS
+    # ========================================================
+
+    comment_count = (
+        Comment.query
+        .count()
+    )
+
+    approved_comment_count = (
+        Comment.query
+        .filter_by(
+            status="approved"
+        )
+        .count()
+    )
+
+    pending_comment_count = (
+        Comment.query
+        .filter_by(
+            status="pending"
+        )
+        .count()
+    )
+
+    hidden_comment_count = (
+        Comment.query
+        .filter_by(
+            status="hidden"
+        )
+        .count()
+    )
+
+    # ========================================================
+    # NEWSLETTER SUBSCRIBERS
+    # ========================================================
+
+    subscriber_count = (
+        EmailSubscriber.query
+        .count()
+    )
+
+    active_subscriber_count = (
+        EmailSubscriber.query
+        .filter_by(
+            status="active"
+        )
+        .count()
+    )
+
+    pending_subscriber_count = (
+        EmailSubscriber.query
+        .filter_by(
+            status="pending"
+        )
+        .count()
+    )
+
+    unsubscribed_count = (
+        EmailSubscriber.query
+        .filter_by(
+            status="unsubscribed"
+        )
+        .count()
+    )
+
+    # ========================================================
+    # EMAIL DELIVERY
+    # ========================================================
+
+    total_email_deliveries = (
+        EmailDelivery.query
+        .count()
+    )
+
+    sent_email_count = (
+        EmailDelivery.query
+        .filter_by(
+            status="sent"
+        )
+        .count()
+    )
+
+    failed_email_count = (
+        EmailDelivery.query
+        .filter_by(
+            status="failed"
+        )
+        .count()
+    )
+
+    # ========================================================
+    # RECENT CONTENT
+    # ========================================================
+
+    recent_posts = (
+        ContentPost.query
+        .order_by(
+            ContentPost
+            .created_at
+            .desc()
+        )
+        .limit(10)
+        .all()
+    )
+
+    # ========================================================
+    # MOST DISCUSSED CONTENT
+    # ========================================================
+    #
+    # Count comments/replies belonging to each post.
+    #
+    # This is useful now because comments are one of the
+    # engagement signals the platform already records.
+    # ========================================================
+
+    most_commented_posts = (
+        db.session.query(
+            ContentPost,
+            db.func.count(
+                Comment.id
+            ).label(
+                "comment_total"
+            ),
+        )
+        .outerjoin(
+            Comment,
+            Comment.post_id
+            == ContentPost.id,
+        )
+        .group_by(
+            ContentPost.id
+        )
+        .order_by(
+            db.func.count(
+                Comment.id
+            ).desc(),
+
+            ContentPost
+            .created_at
+            .desc(),
+        )
+        .limit(5)
+        .all()
+    )
+
+    # ========================================================
+    # CREATOR
+    # ========================================================
+
+    creator = (
+        CreatorProfile.query
+        .first()
+    )
+
+    # ========================================================
+    # TEMPLATE
+    # ========================================================
+
+    return render_template(
+        "admin/analytics.html",
+
+        creator=creator,
+
+        # Content
+        total_posts=total_posts,
+        published_posts=published_posts,
+        draft_posts=draft_posts,
+        archived_posts=archived_posts,
+
+        # Access
+        public_posts=public_posts,
+        exclusive_posts=exclusive_posts,
+
+        # Types
+        story_count=story_count,
+        reel_count=reel_count,
+        vlog_count=vlog_count,
+
+        # Comments
+        comment_count=comment_count,
+        approved_comment_count=(
+            approved_comment_count
+        ),
+        pending_comment_count=(
+            pending_comment_count
+        ),
+        hidden_comment_count=(
+            hidden_comment_count
+        ),
+
+        # Newsletter
+        subscriber_count=(
+            subscriber_count
+        ),
+        active_subscriber_count=(
+            active_subscriber_count
+        ),
+        pending_subscriber_count=(
+            pending_subscriber_count
+        ),
+        unsubscribed_count=(
+            unsubscribed_count
+        ),
+
+        # Email
+        total_email_deliveries=(
+            total_email_deliveries
+        ),
+        sent_email_count=(
+            sent_email_count
+        ),
+        failed_email_count=(
+            failed_email_count
+        ),
+
+        # Content activity
+        recent_posts=recent_posts,
+
+        most_commented_posts=(
+            most_commented_posts
+        ),
+    )
+
+
+# ============================================================
 # CONTENT LIST
 # ============================================================
 
