@@ -1,0 +1,1028 @@
+{% extends "admin/base.html" %}
+
+
+{% block title %}
+    Analytics | Creator Studio
+{% endblock %}
+
+
+{% block content %}
+
+
+<!-- =========================================================
+     PAGE HEADER
+========================================================== -->
+
+<section class="analytics-page">
+
+    <div class="analytics-header">
+
+        <div>
+
+            <p class="analytics-eyebrow">
+                PERFORMANCE
+            </p>
+
+            <h1>
+                Analytics
+            </h1>
+
+            <p class="analytics-intro">
+                Understand your content, audience and
+                community activity.
+            </p>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         PRIMARY METRICS
+    ====================================================== -->
+
+    <div class="analytics-grid analytics-grid-primary">
+
+
+        <article class="analytics-card">
+
+            <div class="analytics-card-label">
+                Total content
+            </div>
+
+            <div class="analytics-card-value">
+                {{ total_posts|default(0) }}
+            </div>
+
+            <div class="analytics-card-note">
+                All stories, reels and vlogs
+            </div>
+
+        </article>
+
+
+        <article class="analytics-card">
+
+            <div class="analytics-card-label">
+                Published
+            </div>
+
+            <div class="analytics-card-value">
+                {{ published_posts|default(0) }}
+            </div>
+
+            <div class="analytics-card-note">
+                Content currently live
+            </div>
+
+        </article>
+
+
+        <article class="analytics-card">
+
+            <div class="analytics-card-label">
+                Public
+            </div>
+
+            <div class="analytics-card-value">
+                {{ public_posts|default(0) }}
+            </div>
+
+            <div class="analytics-card-note">
+                Available to everyone
+            </div>
+
+        </article>
+
+
+        <article class="analytics-card">
+
+            <div class="analytics-card-label">
+                Exclusive
+            </div>
+
+            <div class="analytics-card-value">
+                {{ exclusive_posts|default(0) }}
+            </div>
+
+            <div class="analytics-card-note">
+                Member-only content
+            </div>
+
+        </article>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         CONTENT BREAKDOWN
+    ====================================================== -->
+
+    <section class="analytics-section">
+
+        <div class="analytics-section-header">
+
+            <div>
+
+                <p class="analytics-eyebrow">
+                    LIBRARY
+                </p>
+
+                <h2>
+                    Content breakdown
+                </h2>
+
+            </div>
+
+        </div>
+
+
+        <div class="analytics-grid analytics-grid-three">
+
+
+            <article class="analytics-card">
+
+                <div class="analytics-icon">
+                    ✎
+                </div>
+
+                <div class="analytics-card-label">
+                    Stories
+                </div>
+
+                <div class="analytics-card-value">
+                    {{ story_count|default(0) }}
+                </div>
+
+            </article>
+
+
+            <article class="analytics-card">
+
+                <div class="analytics-icon">
+                    ▶
+                </div>
+
+                <div class="analytics-card-label">
+                    Reels
+                </div>
+
+                <div class="analytics-card-value">
+                    {{ reel_count|default(0) }}
+                </div>
+
+            </article>
+
+
+            <article class="analytics-card">
+
+                <div class="analytics-icon">
+                    ▣
+                </div>
+
+                <div class="analytics-card-label">
+                    Vlogs
+                </div>
+
+                <div class="analytics-card-value">
+                    {{ vlog_count|default(0) }}
+                </div>
+
+            </article>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =====================================================
+         COMMUNITY
+    ====================================================== -->
+
+    <section class="analytics-section">
+
+        <div class="analytics-section-header">
+
+            <div>
+
+                <p class="analytics-eyebrow">
+                    COMMUNITY
+                </p>
+
+                <h2>
+                    Audience activity
+                </h2>
+
+            </div>
+
+        </div>
+
+
+        <div class="analytics-grid analytics-grid-three">
+
+
+            <article class="analytics-card">
+
+                <div class="analytics-card-label">
+                    Comments
+                </div>
+
+                <div class="analytics-card-value">
+                    {{ comment_count|default(0) }}
+                </div>
+
+                <div class="analytics-card-note">
+                    Community conversations
+                </div>
+
+            </article>
+
+
+            <article class="analytics-card">
+
+                <div class="analytics-card-label">
+                    Email subscribers
+                </div>
+
+                <div class="analytics-card-value">
+                    {{ subscriber_count|default(0) }}
+                </div>
+
+                <div class="analytics-card-note">
+                    All newsletter signups
+                </div>
+
+            </article>
+
+
+            <article class="analytics-card">
+
+                <div class="analytics-card-label">
+                    Active subscribers
+                </div>
+
+                <div class="analytics-card-value">
+                    {{ active_subscriber_count|default(0) }}
+                </div>
+
+                <div class="analytics-card-note">
+                    Verified newsletter readers
+                </div>
+
+            </article>
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =====================================================
+         PUBLISHING STATUS
+    ====================================================== -->
+
+    <section class="analytics-section">
+
+        <div class="analytics-section-header">
+
+            <div>
+
+                <p class="analytics-eyebrow">
+                    PUBLISHING
+                </p>
+
+                <h2>
+                    Content status
+                </h2>
+
+            </div>
+
+        </div>
+
+
+        <div class="analytics-status-panel">
+
+
+            <div class="analytics-status-row">
+
+                <div>
+
+                    <strong>
+                        Published
+                    </strong>
+
+                    <span>
+                        Visible content
+                    </span>
+
+                </div>
+
+                <strong class="analytics-status-number">
+                    {{ published_posts|default(0) }}
+                </strong>
+
+            </div>
+
+
+            <div class="analytics-status-row">
+
+                <div>
+
+                    <strong>
+                        Drafts
+                    </strong>
+
+                    <span>
+                        Content still being prepared
+                    </span>
+
+                </div>
+
+                <strong class="analytics-status-number">
+                    {{ draft_posts|default(0) }}
+                </strong>
+
+            </div>
+
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =====================================================
+         RECENT CONTENT
+    ====================================================== -->
+
+    <section class="analytics-section">
+
+        <div class="analytics-section-header">
+
+            <div>
+
+                <p class="analytics-eyebrow">
+                    RECENT
+                </p>
+
+                <h2>
+                    Latest content
+                </h2>
+
+            </div>
+
+
+            <a
+                href="{{ url_for('admin.content_list') }}"
+                class="analytics-text-link"
+            >
+                View all content →
+            </a>
+
+        </div>
+
+
+        <div class="analytics-table-card">
+
+
+            {% if recent_posts %}
+
+                <div class="analytics-table-wrap">
+
+                    <table class="analytics-table">
+
+                        <thead>
+
+                            <tr>
+
+                                <th>
+                                    Content
+                                </th>
+
+                                <th>
+                                    Type
+                                </th>
+
+                                <th>
+                                    Access
+                                </th>
+
+                                <th>
+                                    Status
+                                </th>
+
+                                <th>
+                                    Published
+                                </th>
+
+                            </tr>
+
+                        </thead>
+
+
+                        <tbody>
+
+                            {% for post in recent_posts %}
+
+                                <tr>
+
+                                    <td>
+
+                                        <a
+                                            href="{{ url_for(
+                                                'admin.content_edit',
+                                                post_id=post.id
+                                            ) }}"
+                                            class="analytics-post-link"
+                                        >
+                                            {{ post.title }}
+                                        </a>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <span class="analytics-badge">
+
+                                            {{
+                                                post.content_type
+                                                |default("content")
+                                                |title
+                                            }}
+
+                                        </span>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if post.access_level == "subscriber" %}
+
+                                            <span
+                                                class="
+                                                    analytics-badge
+                                                    analytics-badge-exclusive
+                                                "
+                                            >
+                                                Exclusive
+                                            </span>
+
+                                        {% else %}
+
+                                            <span class="analytics-badge">
+                                                Public
+                                            </span>
+
+                                        {% endif %}
+
+                                    </td>
+
+
+                                    <td>
+
+                                        <span class="analytics-badge">
+
+                                            {{
+                                                post.status
+                                                |default("draft")
+                                                |title
+                                            }}
+
+                                        </span>
+
+                                    </td>
+
+
+                                    <td>
+
+                                        {% if post.published_at %}
+
+                                            {{
+                                                post.published_at.strftime(
+                                                    "%d %b %Y"
+                                                )
+                                            }}
+
+                                        {% else %}
+
+                                            —
+                                        {% endif %}
+
+                                    </td>
+
+                                </tr>
+
+                            {% endfor %}
+
+                        </tbody>
+
+                    </table>
+
+                </div>
+
+
+            {% else %}
+
+                <div class="analytics-empty">
+
+                    <div class="analytics-empty-icon">
+                        ◌
+                    </div>
+
+                    <h3>
+                        No content yet
+                    </h3>
+
+                    <p>
+                        Publish your first story, reel or vlog
+                        and your content activity will appear here.
+                    </p>
+
+                    <a
+                        href="{{ url_for('admin.content_new') }}"
+                        class="analytics-primary-button"
+                    >
+                        Create content
+                    </a>
+
+                </div>
+
+            {% endif %}
+
+
+        </div>
+
+    </section>
+
+
+
+    <!-- =====================================================
+         FUTURE INSIGHTS
+    ====================================================== -->
+
+    <section class="analytics-section">
+
+        <div class="analytics-future-card">
+
+            <div>
+
+                <p class="analytics-eyebrow">
+                    COMING NEXT
+                </p>
+
+                <h2>
+                    Deeper audience insights
+                </h2>
+
+                <p>
+                    As the platform grows, this dashboard can
+                    track content views, unique visitors,
+                    popular posts, member conversions and
+                    revenue.
+                </p>
+
+            </div>
+
+
+            <div class="analytics-future-list">
+
+                <span>
+                    Page views
+                </span>
+
+                <span>
+                    Unique visitors
+                </span>
+
+                <span>
+                    Popular content
+                </span>
+
+                <span>
+                    Membership conversion
+                </span>
+
+                <span>
+                    Revenue
+                </span>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+</section>
+
+
+
+<!-- =========================================================
+     PAGE-SPECIFIC STYLES
+========================================================== -->
+
+<style>
+
+    .analytics-page {
+        width: 100%;
+    }
+
+
+    .analytics-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 24px;
+        margin-bottom: 30px;
+    }
+
+
+    .analytics-header h1 {
+        margin: 4px 0 8px;
+        font-size: clamp(30px, 4vw, 46px);
+        line-height: 1;
+        letter-spacing: -1.5px;
+        color: #17191d;
+    }
+
+
+    .analytics-intro {
+        margin: 0;
+        color: #6b7078;
+        font-size: 15px;
+        line-height: 1.6;
+    }
+
+
+    .analytics-eyebrow {
+        margin: 0 0 7px;
+        color: #888d95;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 1.5px;
+    }
+
+
+    .analytics-grid {
+        display: grid;
+        gap: 16px;
+    }
+
+
+    .analytics-grid-primary {
+        grid-template-columns:
+            repeat(4, minmax(0, 1fr));
+    }
+
+
+    .analytics-grid-three {
+        grid-template-columns:
+            repeat(3, minmax(0, 1fr));
+    }
+
+
+    .analytics-card {
+        background: #ffffff;
+        border: 1px solid #e1e3e6;
+        border-radius: 16px;
+        padding: 22px;
+        min-width: 0;
+    }
+
+
+    .analytics-card-label {
+        color: #666c74;
+        font-size: 13px;
+        font-weight: 700;
+        margin-bottom: 12px;
+    }
+
+
+    .analytics-card-value {
+        color: #15171a;
+        font-size: 36px;
+        font-weight: 800;
+        line-height: 1;
+        letter-spacing: -1px;
+    }
+
+
+    .analytics-card-note {
+        margin-top: 12px;
+        color: #92969d;
+        font-size: 12px;
+        line-height: 1.5;
+    }
+
+
+    .analytics-icon {
+        display: flex;
+        width: 34px;
+        height: 34px;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 16px;
+        border-radius: 9px;
+        background: #f0f1f2;
+        color: #22252a;
+        font-size: 16px;
+        font-weight: 800;
+    }
+
+
+    .analytics-section {
+        margin-top: 38px;
+    }
+
+
+    .analytics-section-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 20px;
+        margin-bottom: 16px;
+    }
+
+
+    .analytics-section-header h2,
+    .analytics-future-card h2 {
+        margin: 0;
+        color: #191b1f;
+        font-size: 21px;
+        letter-spacing: -0.4px;
+    }
+
+
+    .analytics-status-panel {
+        overflow: hidden;
+        background: #ffffff;
+        border: 1px solid #e1e3e6;
+        border-radius: 16px;
+    }
+
+
+    .analytics-status-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        padding: 20px 22px;
+        border-bottom: 1px solid #eceef0;
+    }
+
+
+    .analytics-status-row:last-child {
+        border-bottom: 0;
+    }
+
+
+    .analytics-status-row > div {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+
+
+    .analytics-status-row strong {
+        color: #24272c;
+        font-size: 14px;
+    }
+
+
+    .analytics-status-row span {
+        color: #898e96;
+        font-size: 12px;
+    }
+
+
+    .analytics-status-number {
+        font-size: 24px !important;
+    }
+
+
+    .analytics-text-link {
+        color: #272a2f;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+
+    .analytics-text-link:hover {
+        text-decoration: underline;
+    }
+
+
+    .analytics-table-card {
+        overflow: hidden;
+        background: #ffffff;
+        border: 1px solid #e1e3e6;
+        border-radius: 16px;
+    }
+
+
+    .analytics-table-wrap {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+
+    .analytics-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 700px;
+    }
+
+
+    .analytics-table th {
+        padding: 13px 18px;
+        background: #f7f8f9;
+        border-bottom: 1px solid #e5e7e9;
+        color: #858a92;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.9px;
+        text-align: left;
+        text-transform: uppercase;
+    }
+
+
+    .analytics-table td {
+        padding: 16px 18px;
+        border-bottom: 1px solid #eceef0;
+        color: #666b73;
+        font-size: 13px;
+        vertical-align: middle;
+    }
+
+
+    .analytics-table tbody tr:last-child td {
+        border-bottom: 0;
+    }
+
+
+    .analytics-post-link {
+        color: #22252a;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+
+    .analytics-post-link:hover {
+        text-decoration: underline;
+    }
+
+
+    .analytics-badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 25px;
+        padding: 4px 9px;
+        background: #f0f1f2;
+        border-radius: 999px;
+        color: #5f646c;
+        font-size: 10px;
+        font-weight: 800;
+    }
+
+
+    .analytics-badge-exclusive {
+        background: #22252a;
+        color: #ffffff;
+    }
+
+
+    .analytics-empty {
+        padding: 52px 25px;
+        text-align: center;
+    }
+
+
+    .analytics-empty-icon {
+        margin-bottom: 12px;
+        color: #9da1a7;
+        font-size: 35px;
+    }
+
+
+    .analytics-empty h3 {
+        margin: 0 0 8px;
+        color: #25282d;
+        font-size: 18px;
+    }
+
+
+    .analytics-empty p {
+        max-width: 470px;
+        margin: 0 auto 20px;
+        color: #7e838b;
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+
+    .analytics-primary-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 42px;
+        padding: 0 17px;
+        background: #17191d;
+        border-radius: 9px;
+        color: #ffffff;
+        font-size: 13px;
+        font-weight: 700;
+        text-decoration: none;
+    }
+
+
+    .analytics-future-card {
+        display: grid;
+        grid-template-columns:
+            minmax(0, 1.3fr)
+            minmax(250px, 0.7fr);
+        gap: 40px;
+        padding: 28px;
+        background: #202328;
+        border-radius: 18px;
+        color: #ffffff;
+    }
+
+
+    .analytics-future-card h2 {
+        color: #ffffff;
+        margin-bottom: 12px;
+    }
+
+
+    .analytics-future-card > div > p:last-child {
+        max-width: 600px;
+        margin: 0;
+        color: #b9bdc3;
+        font-size: 13px;
+        line-height: 1.7;
+    }
+
+
+    .analytics-future-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+
+    .analytics-future-list span {
+        padding: 10px 12px;
+        background: #2c3036;
+        border-radius: 8px;
+        color: #d9dce0;
+        font-size: 12px;
+        font-weight: 700;
+    }
+
+
+    @media (max-width: 1000px) {
+
+        .analytics-grid-primary {
+            grid-template-columns:
+                repeat(2, minmax(0, 1fr));
+        }
+
+    }
+
+
+    @media (max-width: 760px) {
+
+        .analytics-header,
+        .analytics-section-header {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+
+        .analytics-grid-primary,
+        .analytics-grid-three {
+            grid-template-columns: 1fr;
+        }
+
+
+        .analytics-future-card {
+            grid-template-columns: 1fr;
+        }
+
+
+        .analytics-card-value {
+            font-size: 32px;
+        }
+
+    }
+
+</style>
+
+
+{% endblock %}
