@@ -1,10 +1,7 @@
 from flask import Flask
 
 from config import Config
-from extensions import (
-    db,
-    migrate,
-)
+from extensions import db, migrate
 
 
 # ============================================================
@@ -49,13 +46,8 @@ def create_app():
     # BLUEPRINTS
     # ========================================================
 
-    from routes.public import (
-        public_bp,
-    )
-
-    from routes.admin import (
-        admin_bp,
-    )
+    from routes.public import public_bp
+    from routes.admin import admin_bp
 
     app.register_blueprint(
         public_bp
@@ -72,7 +64,7 @@ def create_app():
     from seed import (
         seed_command,
         create_admin_command,
-        backfill_existing_creator_command,
+        backfill_creator_account_command,
         initialize_production_identity,
     )
 
@@ -85,28 +77,27 @@ def create_app():
     )
 
     app.cli.add_command(
-        backfill_existing_creator_command
+        backfill_creator_account_command
     )
 
     # ========================================================
     # PRODUCTION BOOTSTRAP
     # ========================================================
     #
-    # This bootstrap remains deliberately limited.
+    # The platform administrator and legacy creator profile
+    # can still be bootstrapped from environment variables.
     #
-    # It can:
+    # IMPORTANT:
     #
-    # - Create the initial platform AdminUser.
-    # - Preserve/create the legacy CreatorProfile.
+    # CreatorAccount ownership is NOT automatically backfilled
+    # here.
     #
-    # It does NOT automatically create CreatorAccount records.
+    # That operation is intentionally explicit:
     #
-    # CreatorAccount backfill is performed explicitly through:
+    # python -m flask --app app backfill-creator-account
     #
-    #     flask backfill-existing-creator
-    #
-    # New SaaS creators will eventually register through the
-    # creator registration flow.
+    # This prevents application startup from unexpectedly
+    # changing ownership of production data.
     # ========================================================
 
     with app.app_context():
@@ -117,17 +108,13 @@ def create_app():
                 initialize_production_identity()
             )
 
-            if result[
-                "admin_created"
-            ]:
+            if result["admin_created"]:
 
                 app.logger.info(
                     "Initial production admin created."
                 )
 
-            if result[
-                "creator_created"
-            ]:
+            if result["creator_created"]:
 
                 app.logger.info(
                     "Initial creator profile created."
@@ -136,9 +123,11 @@ def create_app():
         except Exception:
 
             # =================================================
-            # Bootstrap failure should be visible in Render
-            # logs without preventing the Flask application
-            # itself from starting.
+            # IMPORTANT
+            # =================================================
+            #
+            # Log bootstrap problems instead of preventing
+            # the Flask application from starting.
             # =================================================
 
             app.logger.exception(
