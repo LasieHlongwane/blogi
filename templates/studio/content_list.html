@@ -29,7 +29,7 @@
 
 
     <a
-        href="{{ url_for('admin.content_new') }}"
+        href="{{ url_for('studio.content_new') }}"
         class="primary-action"
     >
         + Create content
@@ -46,7 +46,7 @@
 <div class="filter-bar">
 
     <a
-        href="{{ url_for('admin.content_list') }}"
+        href="{{ url_for('studio.content_list') }}"
         class="{% if not selected_status and not selected_type %}active{% endif %}"
     >
         All
@@ -54,7 +54,7 @@
 
     <a
         href="{{ url_for(
-            'admin.content_list',
+            'studio.content_list',
             status='published'
         ) }}"
         class="{% if selected_status == 'published' %}active{% endif %}"
@@ -64,7 +64,7 @@
 
     <a
         href="{{ url_for(
-            'admin.content_list',
+            'studio.content_list',
             status='draft'
         ) }}"
         class="{% if selected_status == 'draft' %}active{% endif %}"
@@ -74,7 +74,7 @@
 
     <a
         href="{{ url_for(
-            'admin.content_list',
+            'studio.content_list',
             type='story'
         ) }}"
         class="{% if selected_type == 'story' %}active{% endif %}"
@@ -84,7 +84,7 @@
 
     <a
         href="{{ url_for(
-            'admin.content_list',
+            'studio.content_list',
             type='reel'
         ) }}"
         class="{% if selected_type == 'reel' %}active{% endif %}"
@@ -94,7 +94,7 @@
 
     <a
         href="{{ url_for(
-            'admin.content_list',
+            'studio.content_list',
             type='vlog'
         ) }}"
         class="{% if selected_type == 'vlog' %}active{% endif %}"
@@ -158,7 +158,7 @@
 
                 <a
                     href="{{ url_for(
-                        'admin.content_edit',
+                        'studio.content_edit',
                         post_id=post.id
                     ) }}"
                 >
@@ -171,7 +171,7 @@
                     <form
                         method="POST"
                         action="{{ url_for(
-                            'admin.content_publish',
+                            'studio.content_publish',
                             post_id=post.id
                         ) }}"
                     >
@@ -190,7 +190,7 @@
                     <form
                         method="POST"
                         action="{{ url_for(
-                            'admin.content_archive',
+                            'studio.content_archive',
                             post_id=post.id
                         ) }}"
                     >
@@ -207,7 +207,7 @@
                 <form
                     method="POST"
                     action="{{ url_for(
-                        'admin.content_delete',
+                        'studio.content_delete',
                         post_id=post.id
                     ) }}"
                     onsubmit="
