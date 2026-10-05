@@ -872,6 +872,10 @@ def dashboard():
         .all()
     )
 
+    plan_summary = creator_plan_summary(
+        account
+    )
+
     return render_template(
         "studio/dashboard.html",
         creator=creator,
@@ -882,6 +886,7 @@ def dashboard():
         exclusive_posts=exclusive_posts,
         email_subscribers=email_subscribers,
         categories_count=categories_count,
+        plan_summary=plan_summary,
         recent_posts=recent_posts,
     )
 
@@ -1082,6 +1087,24 @@ def content_new():
             "public",
             "subscriber",
         }:
+
+           # ====================================================
+        # PREMIUM: EXCLUSIVE CONTENT
+        # ====================================================
+
+        if (
+            access_level == "subscriber"
+            and not require_creator_feature(
+                account,
+                FEATURE_EXCLUSIVE_CONTENT,
+            )
+        ):
+
+            return render_template(
+                "studio/content_form.html",
+                post=None,
+                categories=categories,
+            )         
 
             abort(400)
 
@@ -1368,6 +1391,24 @@ def content_edit(
             "subscriber",
         }:
 
+        
+        # ====================================================
+        # PREMIUM: EXCLUSIVE CONTENT
+        # ====================================================
+
+        if (
+            access_level == "subscriber"
+            and not require_creator_feature(
+                account,
+                FEATURE_EXCLUSIVE_CONTENT,
+            )
+        ):
+
+            return render_template(
+                "studio/content_form.html",
+                post=post,
+                categories=categories,
+            )
             abort(400)
 
         if status not in {
