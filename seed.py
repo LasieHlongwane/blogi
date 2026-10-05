@@ -1,3 +1,5 @@
+import os
+
 from datetime import datetime, timezone, timedelta
 
 import click
@@ -40,7 +42,9 @@ def create_post(
     Create and return a published development post.
     """
 
-    published_at = utc_now() - timedelta(days=days_ago)
+    published_at = utc_now() - timedelta(
+        days=days_ago
+    )
 
     post = ContentPost(
         title=title,
@@ -56,40 +60,329 @@ def create_post(
         category=category,
     )
 
-    db.session.add(post)
+    db.session.add(
+        post
+    )
 
     return post
 
 
 # ============================================================
-# SEED COMMAND
+# PRODUCTION IDENTITY INITIALIZATION
 # ============================================================
 
 
-@click.command("seed")
+def initialize_production_identity():
+    """
+    Create the initial production AdminUser and CreatorProfile
+    from environment variables.
+
+    Existing records are never overwritten.
+
+    Required environment variables:
+
+        ADMIN_USERNAME
+        ADMIN_EMAIL
+        ADMIN_PASSWORD
+        CREATOR_NAME
+        CREATOR_USERNAME
+
+    Returns a dictionary describing what happened.
+    """
+
+    result = {
+        "admin_created": False,
+        "creator_created": False,
+        "admin_configured": False,
+        "creator_configured": False,
+    }
+
+    # ========================================================
+    # ADMIN ENVIRONMENT VARIABLES
+    # ========================================================
+
+    admin_username = (
+        os.getenv(
+            "ADMIN_USERNAME",
+            "",
+        )
+        .strip()
+    )
+
+    admin_email = (
+        os.getenv(
+            "ADMIN_EMAIL",
+            "",
+        )
+        .strip()
+        .lower()
+    )
+
+    admin_password = os.getenv(
+        "ADMIN_PASSWORD",
+        "",
+    )
+
+    # ========================================================
+    # CREATOR ENVIRONMENT VARIABLES
+    # ========================================================
+
+    creator_name = (
+        os.getenv(
+            "CREATOR_NAME",
+            "",
+        )
+        .strip()
+    )
+
+    creator_username = (
+        os.getenv(
+            "CREATOR_USERNAME",
+            "",
+        )
+        .strip()
+    )
+
+    # ========================================================
+    # ADMIN
+    # ========================================================
+
+    if (
+        admin_username
+        and admin_email
+        and admin_password
+    ):
+
+        result["admin_configured"] = True
+
+        existing_admin = (
+            AdminUser.query
+            .filter_by(
+                username=admin_username
+            )
+            .first()
+        )
+
+        existing_admin_email = (
+            AdminUser.query
+            .filter_by(
+                email=admin_email
+            )
+            .first()
+        )
+
+        if (
+            existing_admin is None
+            and existing_admin_email is None
+        ):
+
+            admin = AdminUser(
+                username=admin_username,
+                email=admin_email,
+                is_active=True,
+            )
+
+            admin.set_password(
+                admin_password
+            )
+
+            db.session.add(
+                admin
+            )
+
+            result["admin_created"] = True
+
+    # ========================================================
+    # CREATOR PROFILE
+    # ========================================================
+
+    if (
+        creator_name
+        and creator_username
+    ):
+
+        result["creator_configured"] = True
+
+        existing_creator = (
+            CreatorProfile.query.first()
+        )
+
+        if existing_creator is None:
+
+            creator = CreatorProfile(
+                display_name=creator_name,
+                username=creator_username,
+                tagline="",
+                bio="",
+                profile_image_url=None,
+                intro_reel_url=None,
+                instagram_url=None,
+                tiktok_url=None,
+                youtube_url=None,
+            )
+
+            db.session.add(
+                creator
+            )
+
+            result["creator_created"] = True
+
+    # ========================================================
+    # SAVE
+    # ========================================================
+
+    if (
+        result["admin_created"]
+        or result["creator_created"]
+    ):
+
+        try:
+
+            db.session.commit()
+
+        except Exception:
+
+            db.session.rollback()
+
+            raise
+
+    return result
+
+
+# ============================================================
+# CREATE ADMIN CLI COMMAND
+# ============================================================
+
+
+@click.command(
+    "create-admin"
+)
+@with_appcontext
+def create_admin_command():
+    """
+    Create the production admin and creator profile using
+    environment variables.
+
+    Usage:
+
+        python -m flask --app app create-admin
+    """
+
+    click.echo("")
+    click.echo(
+        "========================================"
+    )
+    click.echo(
+        " Creator Platform Production Setup"
+    )
+    click.echo(
+        "========================================"
+    )
+    click.echo("")
+
+    result = (
+        initialize_production_identity()
+    )
+
+    # ========================================================
+    # ADMIN RESULT
+    # ========================================================
+
+    if not result["admin_configured"]:
+
+        click.echo(
+            "Admin not created."
+        )
+
+        click.echo(
+            "Set ADMIN_USERNAME, ADMIN_EMAIL "
+            "and ADMIN_PASSWORD."
+        )
+
+    elif result["admin_created"]:
+
+        click.echo(
+            "Production admin created successfully."
+        )
+
+    else:
+
+        click.echo(
+            "Admin already exists. No changes made."
+        )
+
+    # ========================================================
+    # CREATOR RESULT
+    # ========================================================
+
+    if not result["creator_configured"]:
+
+        click.echo(
+            "Creator profile not created."
+        )
+
+        click.echo(
+            "Set CREATOR_NAME and CREATOR_USERNAME."
+        )
+
+    elif result["creator_created"]:
+
+        click.echo(
+            "Creator profile created successfully."
+        )
+
+    else:
+
+        click.echo(
+            "Creator profile already exists. "
+            "No changes made."
+        )
+
+    click.echo("")
+
+
+# ============================================================
+# DEVELOPMENT SEED COMMAND
+# ============================================================
+
+
+@click.command(
+    "seed"
+)
 @click.option(
     "--reset",
     is_flag=True,
-    help="Delete existing development data before seeding.",
+    help=(
+        "Delete existing development data "
+        "before seeding."
+    ),
 )
 @with_appcontext
 def seed_command(reset):
     """
-    Seed the application with development content.
+    Seed the application with DEVELOPMENT content.
+
+    Do not use this command against the production database.
 
     Usage:
 
-        flask --app app seed
+        python -m flask --app app seed
 
     Reset and seed:
 
-        flask --app app seed --reset
+        python -m flask --app app seed --reset
     """
 
     click.echo("")
-    click.echo("========================================")
-    click.echo(" Creator Platform Development Seed")
-    click.echo("========================================")
+    click.echo(
+        "========================================"
+    )
+    click.echo(
+        " Creator Platform Development Seed"
+    )
+    click.echo(
+        "========================================"
+    )
     click.echo("")
 
     # ========================================================
@@ -98,7 +391,9 @@ def seed_command(reset):
 
     if reset:
 
-        click.echo("Resetting existing development data...")
+        click.echo(
+            "Resetting existing development data..."
+        )
 
         ContentMedia.query.delete()
         ContentPost.query.delete()
@@ -108,58 +403,77 @@ def seed_command(reset):
 
         db.session.commit()
 
-        click.echo("Existing development data removed.")
+        click.echo(
+            "Existing development data removed."
+        )
+
         click.echo("")
 
     # ========================================================
     # PROTECT AGAINST DUPLICATE SEEDING
     # ========================================================
 
-    existing_creator = CreatorProfile.query.first()
+    existing_creator = (
+        CreatorProfile.query.first()
+    )
 
     if existing_creator:
 
         click.echo(
-            "Seed skipped: a creator profile already exists."
+            "Seed skipped: a creator profile "
+            "already exists."
         )
 
         click.echo("")
+
         click.echo(
-            "Use the following command if you want to "
-            "replace the development data:"
+            "WARNING: Do not use --reset against "
+            "your production Neon database."
         )
 
         click.echo("")
-        click.echo(
-            "flask --app app seed --reset"
-        )
 
         return
-        
-        
-            # ========================================================
+
+    # ========================================================
     # ADMIN USER
     # ========================================================
 
-    click.echo("Creating creator admin account...")
-
-    admin = AdminUser(
-        username="naledi",
-        email="naledi@example.com",
-        is_active=True,
+    click.echo(
+        "Creating development admin account..."
     )
 
-    admin.set_password(
-        "Creator123!"
+    existing_admin = (
+        AdminUser.query
+        .filter_by(
+            username="naledi"
+        )
+        .first()
     )
 
-    db.session.add(admin)
+    if existing_admin is None:
+
+        admin = AdminUser(
+            username="naledi",
+            email="naledi@example.com",
+            is_active=True,
+        )
+
+        admin.set_password(
+            "Creator123!"
+        )
+
+        db.session.add(
+            admin
+        )
 
     # ========================================================
     # CREATOR PROFILE
     # ========================================================
 
-    click.echo("Creating creator profile...")
+    click.echo(
+        "Creating creator profile..."
+    )
 
     creator = CreatorProfile(
         display_name="Naledi M.",
@@ -175,24 +489,24 @@ def seed_command(reset):
             "moments that do not always make it onto "
             "social media."
         ),
-
-        # Intentionally blank for Stage 1.
-        # The Creator Studio will eventually manage these.
         profile_image_url=None,
         intro_reel_url=None,
-
         instagram_url=None,
         tiktok_url=None,
         youtube_url=None,
     )
 
-    db.session.add(creator)
+    db.session.add(
+        creator
+    )
 
     # ========================================================
     # CATEGORIES / FOLDERS
     # ========================================================
 
-    click.echo("Creating content folders...")
+    click.echo(
+        "Creating content folders..."
+    )
 
     lifestyle = ContentCategory(
         name="Lifestyle",
@@ -249,21 +563,26 @@ def seed_command(reset):
         ]
     )
 
-    # Flush now so categories exist before posts are created.
     db.session.flush()
 
     # ========================================================
     # STORY 1
     # ========================================================
 
-    click.echo("Creating sample stories...")
+    click.echo(
+        "Creating sample stories..."
+    )
 
     create_post(
-        title="Learning to Enjoy the Quiet Seasons",
-        slug="learning-to-enjoy-the-quiet-seasons",
+        title=(
+            "Learning to Enjoy the Quiet Seasons"
+        ),
+        slug=(
+            "learning-to-enjoy-the-quiet-seasons"
+        ),
         excerpt=(
-            "Not every season of life needs to be loud, "
-            "busy or visible."
+            "Not every season of life needs to be "
+            "loud, busy or visible."
         ),
         body="""
 There are moments when life becomes quieter than we expected.
@@ -300,11 +619,15 @@ Some chapters are simply preparing us for what comes next.
     # ========================================================
 
     create_post(
-        title="Five Things Making Me Happy Right Now",
-        slug="five-things-making-me-happy-right-now",
+        title=(
+            "Five Things Making Me Happy Right Now"
+        ),
+        slug=(
+            "five-things-making-me-happy-right-now"
+        ),
         excerpt=(
-            "A small collection of things bringing a little "
-            "more joy into my days."
+            "A small collection of things bringing "
+            "a little more joy into my days."
         ),
         body="""
 I wanted to share something simple today.
@@ -337,8 +660,8 @@ Sometimes happiness really is hidden inside ordinary moments.
         title="The Weekend I Needed",
         slug="the-weekend-i-needed",
         excerpt=(
-            "Sometimes getting away for a little while is "
-            "enough to reset everything."
+            "Sometimes getting away for a little while "
+            "is enough to reset everything."
         ),
         body="""
 This weekend reminded me why changing your environment can be
@@ -364,17 +687,20 @@ ourselves space away from our normal routines.
     # PUBLIC REEL
     # ========================================================
 
-    click.echo("Creating sample reels...")
+    click.echo(
+        "Creating sample reels..."
+    )
 
     reel = create_post(
         title="A Little Sunday Reset",
         slug="a-little-sunday-reset",
         excerpt=(
-            "Cleaning, coffee, planning and getting ready "
-            "for another week."
+            "Cleaning, coffee, planning and getting "
+            "ready for another week."
         ),
         body=(
-            "A few moments from my Sunday reset routine."
+            "A few moments from my Sunday "
+            "reset routine."
         ),
         content_type="reel",
         category=lifestyle,
@@ -386,18 +712,20 @@ ourselves space away from our normal routines.
     # PUBLIC VLOG
     # ========================================================
 
-    click.echo("Creating sample vlogs...")
+    click.echo(
+        "Creating sample vlogs..."
+    )
 
     vlog = create_post(
         title="Spend the Day With Me",
         slug="spend-the-day-with-me",
         excerpt=(
-            "Come with me through an ordinary day of work, "
-            "food, errands and creating."
+            "Come with me through an ordinary day "
+            "of work, food, errands and creating."
         ),
         body=(
-            "An everyday vlog showing a little more of what "
-            "my days actually look like."
+            "An everyday vlog showing a little more "
+            "of what my days actually look like."
         ),
         content_type="vlog",
         category=behind_scenes,
@@ -409,18 +737,20 @@ ourselves space away from our normal routines.
     # EXCLUSIVE VLOG 1
     # ========================================================
 
-    click.echo("Creating exclusive content...")
+    click.echo(
+        "Creating exclusive content..."
+    )
 
     exclusive_one = create_post(
         title="Life Update: Let's Talk",
         slug="exclusive-life-update-lets-talk",
         excerpt=(
-            "A more personal conversation about what has "
-            "been happening behind the scenes."
+            "A more personal conversation about what "
+            "has been happening behind the scenes."
         ),
         body=(
-            "This vlog is available exclusively to active "
-            "members."
+            "This vlog is available exclusively "
+            "to active members."
         ),
         content_type="vlog",
         category=personal,
@@ -441,7 +771,8 @@ ourselves space away from our normal routines.
             "before anything gets posted."
         ),
         body=(
-            "An exclusive behind-the-scenes vlog for members."
+            "An exclusive behind-the-scenes vlog "
+            "for members."
         ),
         content_type="vlog",
         category=behind_scenes,
@@ -454,11 +785,15 @@ ourselves space away from our normal routines.
     # ========================================================
 
     create_post(
-        title="What I Don't Usually Share Online",
-        slug="what-i-dont-usually-share-online",
+        title=(
+            "What I Don't Usually Share Online"
+        ),
+        slug=(
+            "what-i-dont-usually-share-online"
+        ),
         excerpt=(
-            "A more personal story for the people supporting "
-            "this space."
+            "A more personal story for the people "
+            "supporting this space."
         ),
         body="""
 Some things are difficult to fit into a thirty-second video.
@@ -476,17 +811,7 @@ community to exist.
     )
 
     # ========================================================
-    # DEVELOPMENT MEDIA RECORDS
-    # ========================================================
-    #
-    # We don't attach fake URLs.
-    #
-    # Stage 2 will give the creator proper media upload tools.
-    # These objects are intentionally left without ContentMedia
-    # rows until real files exist.
-    #
-    # Keeping the references here makes it obvious which posts
-    # will receive media during the next stage.
+    # DEVELOPMENT MEDIA PLACEHOLDERS
     # ========================================================
 
     _ = (
@@ -500,17 +825,23 @@ community to exist.
     # SAMPLE EMAIL SUBSCRIBER
     # ========================================================
 
-    click.echo("Creating development email subscriber...")
+    click.echo(
+        "Creating development email subscriber..."
+    )
 
     email_subscriber = EmailSubscriber(
         email="demo@example.com",
         status="active",
         verification_token=None,
-        unsubscribe_token="development-unsubscribe-token",
+        unsubscribe_token=(
+            "development-unsubscribe-token"
+        ),
         verified_at=utc_now(),
     )
 
-    db.session.add(email_subscriber)
+    db.session.add(
+        email_subscriber
+    )
 
     # ========================================================
     # COMMIT
@@ -522,43 +853,74 @@ community to exist.
     # SUMMARY
     # ========================================================
 
-    post_count = ContentPost.query.count()
-    category_count = ContentCategory.query.count()
-    subscriber_count = EmailSubscriber.query.count()
+    post_count = (
+        ContentPost.query.count()
+    )
 
-    public_count = ContentPost.query.filter_by(
-        access_level="public",
-    ).count()
+    category_count = (
+        ContentCategory.query.count()
+    )
 
-    exclusive_count = ContentPost.query.filter_by(
-        access_level="subscriber",
-    ).count()
+    subscriber_count = (
+        EmailSubscriber.query.count()
+    )
+
+    public_count = (
+        ContentPost.query
+        .filter_by(
+            access_level="public"
+        )
+        .count()
+    )
+
+    exclusive_count = (
+        ContentPost.query
+        .filter_by(
+            access_level="subscriber"
+        )
+        .count()
+    )
 
     click.echo("")
-    click.echo("========================================")
-    click.echo(" Seed completed successfully")
-    click.echo("========================================")
+    click.echo(
+        "========================================"
+    )
+    click.echo(
+        " Seed completed successfully"
+    )
+    click.echo(
+        "========================================"
+    )
     click.echo("")
+
     click.echo(
         f"Creator: {creator.display_name}"
     )
+
     click.echo(
         f"Folders: {category_count}"
     )
+
     click.echo(
         f"Posts: {post_count}"
     )
+
     click.echo(
         f"Public content: {public_count}"
     )
+
     click.echo(
         f"Exclusive content: {exclusive_count}"
     )
+
     click.echo(
         f"Email subscribers: {subscriber_count}"
     )
+
     click.echo("")
+
     click.echo(
         "Open: http://127.0.0.1:5000"
     )
+
     click.echo("")
