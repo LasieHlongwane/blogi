@@ -67,7 +67,6 @@ def get_logged_in_creator():
     )
 
     if not creator_id:
-
         return None
 
     return db.session.get(
@@ -129,32 +128,130 @@ def _get_event_type(
 def _get_event_data(
     payload,
 ):
-    """
-    Return the payment object contained inside the Yoco
-    webhook.
 
-    Standard Yoco payment webhook payloads contain the
-    payment information inside:
+    # --------------------------------------------------------
+    # SAFE PAYLOAD STRUCTURE DIAGNOSTIC
+    # --------------------------------------------------------
+    #
+    # IMPORTANT:
+    #
+    # Log KEYS ONLY.
+    #
+    # Do NOT log the complete Yoco webhook payload because
+    # payment objects can contain transaction information.
+    #
+    # We already know:
+    #
+    #     signature verification works
+    #     payment.succeeded reaches this application
+    #
+    # What we are determining now is exactly where Yoco puts
+    # the Checkout payment object inside the webhook payload.
+    # --------------------------------------------------------
 
-        payload["data"]
+    try:
 
-    We deliberately require a dictionary here rather than
-    falling back to arbitrary top-level fields for payment
-    confirmation.
-    """
+        current_app.logger.warning(
+            (
+                "Yoco webhook payload structure: "
+                "top_level_keys=%s"
+            ),
+            sorted(
+                payload.keys()
+            ),
+        )
+
+        for key, value in payload.items():
+
+            if isinstance(
+                value,
+                dict,
+            ):
+
+                current_app.logger.warning(
+                    (
+                        "Yoco webhook nested structure: "
+                        "key=%s nested_keys=%s"
+                    ),
+                    key,
+                    sorted(
+                        value.keys()
+                    ),
+                )
+
+                # --------------------------------------------
+                # ONE EXTRA NESTING LEVEL
+                # --------------------------------------------
+                #
+                # Still log KEYS ONLY.
+                # This helps if Yoco uses something such as:
+                #
+                #     payload
+                #       └── payload
+                #             └── payment
+                #
+                # or:
+                #
+                #     payload
+                #       └── data
+                #             └── object
+                #
+                # --------------------------------------------
+
+                for (
+                    nested_key,
+                    nested_value,
+                ) in value.items():
+
+                    if isinstance(
+                        nested_value,
+                        dict,
+                    ):
+
+                        current_app.logger.warning(
+                            (
+                                "Yoco webhook deep structure: "
+                                "parent=%s key=%s "
+                                "nested_keys=%s"
+                            ),
+                            key,
+                            nested_key,
+                            sorted(
+                                nested_value.keys()
+                            ),
+                        )
+
+    except Exception:
+
+        current_app.logger.exception(
+            (
+                "Unable to inspect Yoco webhook "
+                "payload structure."
+            )
+        )
+
+    # --------------------------------------------------------
+    # CURRENT EXPECTED LOCATION
+    # --------------------------------------------------------
+    #
+    # Keep the current parser intentionally strict until the
+    # real Checkout webhook structure has been observed.
+    #
+    # Do NOT guess another payment object location yet.
+    # --------------------------------------------------------
 
     data = payload.get(
         "data"
     )
 
-    if not isinstance(
+    if isinstance(
         data,
         dict,
     ):
 
-        return None
+        return data
 
-    return data
+    return None
 
 
 def _get_checkout_id(
@@ -171,7 +268,6 @@ def _get_checkout_id(
     )
 
     if checkout_id is None:
-
         return None
 
     checkout_id = (
@@ -204,7 +300,6 @@ def _get_provider_payment_id(
     )
 
     if payment_id is None:
-
         return None
 
     payment_id = (
@@ -306,7 +401,6 @@ def _get_payment_amount(
             amount = total_amount
 
     if amount is None:
-
         return None
 
     try:
@@ -664,18 +758,10 @@ def creator_checkout():
     #
     # provider_reference stores the Yoco Checkout ID.
     #
-    # Example:
+    # This is created BEFORE the browser leaves Kalxa.
     #
-    #     ch_...
-    #
-    # Later:
-    #
-    #     payment.succeeded
-    #             ↓
-    #     data.checkoutId
-    #             ↓
-    #     provider_reference
-    #
+    # The signed Yoco webhook later needs to match back to
+    # this server-created pending payment.
     # --------------------------------------------------------
 
     try:
@@ -744,11 +830,10 @@ def yoco_webhook():
     #
     # IMPORTANT:
     #
-    # The webhook signature is calculated from the exact
-    # bytes sent by Yoco.
+    # Signature verification must use the exact bytes sent
+    # by Yoco.
     #
-    # Signature verification MUST therefore happen before
-    # JSON parsing.
+    # Do not parse/rebuild the JSON before verification.
     # --------------------------------------------------------
 
     raw_body = request.get_data(
@@ -874,6 +959,10 @@ def yoco_webhook():
     # --------------------------------------------------------
     # PAYMENT DATA
     # --------------------------------------------------------
+    #
+    # During this diagnostic deployment, this call also logs
+    # the safe KEY STRUCTURE of the verified Yoco payload.
+    # --------------------------------------------------------
 
     payment_data = _get_event_data(
         payload
@@ -942,10 +1031,6 @@ def yoco_webhook():
     # --------------------------------------------------------
     # FIND LOCAL PAYMENT
     # --------------------------------------------------------
-    #
-    # The Checkout ID was stored BEFORE redirecting the
-    # creator to Yoco.
-    # --------------------------------------------------------
 
     local_payment = (
         PlatformSubscriptionPayment.query
@@ -984,7 +1069,7 @@ def yoco_webhook():
     if event_type == "payment.failed":
 
         # ----------------------------------------------------
-        # DO NOT OVERWRITE A PAYMENT ALREADY CONFIRMED PAID
+        # NEVER OVERWRITE A CONFIRMED PAYMENT
         # ----------------------------------------------------
 
         if local_payment.status == "paid":
@@ -1008,10 +1093,6 @@ def yoco_webhook():
                     ),
                 }
             ), 200
-
-        # ----------------------------------------------------
-        # MARK FAILED
-        # ----------------------------------------------------
 
         local_payment.status = (
             "failed"
@@ -1068,11 +1149,11 @@ def yoco_webhook():
     # PAYMENT.SUCCEEDED
     # ========================================================
     #
-    # From this point forward we are handling only:
+    # From this point forward:
     #
-    #     payment.succeeded
+    #     event_type == payment.succeeded
     #
-    # The webhook has already passed signature verification.
+    # and the webhook signature has already been verified.
     # ========================================================
 
     # --------------------------------------------------------
@@ -1251,12 +1332,6 @@ def yoco_webhook():
     # --------------------------------------------------------
     # PROVIDER STATUS
     # --------------------------------------------------------
-    #
-    # payment.succeeded is already a successful event.
-    #
-    # If Yoco additionally provides a status field, it must
-    # represent a successful state.
-    # --------------------------------------------------------
 
     provider_status = (
         _get_payment_status(
@@ -1410,8 +1485,8 @@ def yoco_webhook():
     # FIRST CREATOR PAYMENT
     # --------------------------------------------------------
     #
-    # Successful payment does NOT automatically approve a
-    # brand-new creator.
+    # Payment does NOT automatically approve a brand-new
+    # creator.
     #
     # Platform admin approval remains required.
     # --------------------------------------------------------
@@ -1545,11 +1620,8 @@ def yoco_success():
     #
     # Reaching this URL is NOT proof of payment.
     #
-    # A user can reach a browser return URL without that URL
-    # being authoritative evidence that money was received.
-    #
-    # Only the signed payment.succeeded webhook may mark the
-    # local payment as paid.
+    # Only the verified server-to-server Yoco webhook may
+    # change a payment to paid.
     # --------------------------------------------------------
 
     flash(
@@ -1589,12 +1661,10 @@ def yoco_cancel():
         )
 
     # --------------------------------------------------------
-    # IMPORTANT
+    # DO NOT MUTATE PAYMENT STATE HERE
     # --------------------------------------------------------
     #
-    # We do not mutate the database here.
-    #
-    # The browser redirect is not authoritative payment state.
+    # Browser redirects are not authoritative payment state.
     # --------------------------------------------------------
 
     flash(
@@ -1633,13 +1703,11 @@ def yoco_failure():
         )
 
     # --------------------------------------------------------
-    # IMPORTANT
+    # DO NOT MUTATE PAYMENT STATE HERE
     # --------------------------------------------------------
     #
-    # We do not mark a local payment failed merely because
-    # the browser reached this URL.
-    #
-    # payment.failed is the server-to-server source.
+    # payment.failed from the verified Yoco webhook is the
+    # authoritative server-to-server failure event.
     # --------------------------------------------------------
 
     flash(
