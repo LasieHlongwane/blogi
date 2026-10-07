@@ -148,7 +148,7 @@ def _get_event_data(
             }
         }
 
-    The actual payment object therefore lives at:
+    Payment data therefore lives at:
 
         payload["payload"]
     """
@@ -417,7 +417,7 @@ def creator_checkout():
     # PLAN
     # --------------------------------------------------------
     #
-    # The creator's stored plan is authoritative.
+    # The stored creator plan is authoritative.
     #
     # Never trust plan, price, or amount supplied by the
     # browser.
@@ -684,10 +684,8 @@ def creator_checkout():
     #
     # provider_reference contains the Yoco Checkout ID.
     #
-    # This allows:
+    # Webhook:
     #
-    # webhook payload
-    #       ↓
     # metadata.checkoutId
     #       ↓
     # PlatformSubscriptionPayment.provider_reference
@@ -757,11 +755,8 @@ def yoco_webhook():
     # RAW REQUEST BODY
     # --------------------------------------------------------
     #
-    # The webhook signature is calculated using the exact
-    # request body.
-    #
-    # Therefore signature verification happens BEFORE we
-    # trust the JSON payload.
+    # Signature verification must use the exact bytes sent
+    # by Yoco.
     # --------------------------------------------------------
 
     raw_body = request.get_data(
@@ -916,11 +911,6 @@ def yoco_webhook():
     # --------------------------------------------------------
     # CHECKOUT ID
     # --------------------------------------------------------
-    #
-    # Confirmed Yoco location:
-    #
-    #     payload.metadata.checkoutId
-    # --------------------------------------------------------
 
     checkout_id = _get_checkout_id(
         payment_data
@@ -948,7 +938,7 @@ def yoco_webhook():
         ), 400
 
     # --------------------------------------------------------
-    # PAYMENT ID
+    # PROVIDER PAYMENT ID
     # --------------------------------------------------------
 
     provider_payment_id = (
@@ -958,19 +948,87 @@ def yoco_webhook():
     )
 
     # --------------------------------------------------------
-    # FIND LOCAL PAYMENT
+    # FIND + LOCK LOCAL PAYMENT
+    # --------------------------------------------------------
+    #
+    # IMPORTANT:
+    #
+    # Yoco/Svix may deliver two payment.succeeded events at
+    # almost exactly the same time.
+    #
+    # A simple:
+    #
+    #     if payment.status == "paid"
+    #
+    # is not enough if two workers read "pending" before
+    # either worker commits.
+    #
+    # PostgreSQL SELECT ... FOR UPDATE solves this.
+    #
+    # Worker A:
+    #
+    #     obtains row lock
+    #     sees pending
+    #     processes payment
+    #     marks paid
+    #     commits
+    #
+    # Worker B:
+    #
+    #     waits for Worker A
+    #     obtains row lock after commit
+    #     sees paid
+    #     returns duplicate=True
+    #
+    # This prevents one checkout from renewing a
+    # subscription twice.
     # --------------------------------------------------------
 
-    local_payment = (
-        PlatformSubscriptionPayment.query
-        .filter_by(
-            provider="yoco",
-            provider_reference=checkout_id,
+    try:
+
+        local_payment = (
+            db.session.query(
+                PlatformSubscriptionPayment
+            )
+            .filter(
+                PlatformSubscriptionPayment.provider
+                == "yoco",
+                PlatformSubscriptionPayment.provider_reference
+                == checkout_id,
+            )
+            .with_for_update()
+            .first()
         )
-        .first()
-    )
+
+    except Exception:
+
+        db.session.rollback()
+
+        current_app.logger.exception(
+            (
+                "Unable to lock Yoco payment. "
+                "checkout_id=%s"
+            ),
+            checkout_id,
+        )
+
+        return jsonify(
+            {
+                "ok": False,
+                "error": (
+                    "Payment processing failed."
+                ),
+            }
+        ), 500
+
+    # --------------------------------------------------------
+    # LOCAL PAYMENT MUST EXIST
+    # --------------------------------------------------------
 
     if not local_payment:
+
+        # Release transaction.
+        db.session.rollback()
 
         current_app.logger.error(
             (
@@ -998,7 +1056,7 @@ def yoco_webhook():
     if event_type == "payment.failed":
 
         # ----------------------------------------------------
-        # NEVER OVERWRITE A CONFIRMED PAID PAYMENT
+        # NEVER OVERWRITE A CONFIRMED PAYMENT
         # ----------------------------------------------------
 
         if local_payment.status == "paid":
@@ -1013,6 +1071,9 @@ def yoco_webhook():
                 checkout_id,
             )
 
+            # Release SELECT ... FOR UPDATE lock.
+            db.session.rollback()
+
             return jsonify(
                 {
                     "ok": True,
@@ -1022,6 +1083,10 @@ def yoco_webhook():
                     ),
                 }
             ), 200
+
+        # ----------------------------------------------------
+        # RECORD FAILED PAYMENT
+        # ----------------------------------------------------
 
         local_payment.status = (
             "failed"
@@ -1082,11 +1147,9 @@ def yoco_webhook():
     # IDEMPOTENCY
     # --------------------------------------------------------
     #
-    # Yoco/Svix may deliver the same event more than once.
-    #
-    # Once our local payment has been marked paid, repeated
-    # payment.succeeded events must not extend the
-    # subscription again.
+    # Because local_payment is currently protected by
+    # SELECT ... FOR UPDATE, this check is now safe against
+    # concurrent duplicate webhook requests.
     # --------------------------------------------------------
 
     if local_payment.status == "paid":
@@ -1099,6 +1162,9 @@ def yoco_webhook():
             ),
             checkout_id,
         )
+
+        # Release SELECT ... FOR UPDATE lock.
+        db.session.rollback()
 
         return jsonify(
             {
@@ -1117,6 +1183,8 @@ def yoco_webhook():
     )
 
     if not creator:
+
+        db.session.rollback()
 
         current_app.logger.error(
             (
@@ -1143,6 +1211,8 @@ def yoco_webhook():
     )
 
     if payment_plan not in VALID_PLANS:
+
+        db.session.rollback()
 
         current_app.logger.error(
             (
@@ -1187,6 +1257,8 @@ def yoco_webhook():
         ValueError,
     ):
 
+        db.session.rollback()
+
         current_app.logger.error(
             (
                 "Invalid local payment amount. "
@@ -1205,6 +1277,8 @@ def yoco_webhook():
         ), 400
 
     if local_amount != expected_amount:
+
+        db.session.rollback()
 
         current_app.logger.error(
             (
@@ -1239,6 +1313,8 @@ def yoco_webhook():
     )
 
     if local_currency != "ZAR":
+
+        db.session.rollback()
 
         current_app.logger.error(
             (
@@ -1279,6 +1355,8 @@ def yoco_webhook():
         }
     ):
 
+        db.session.rollback()
+
         current_app.logger.error(
             (
                 "Yoco payment.succeeded event has "
@@ -1310,6 +1388,8 @@ def yoco_webhook():
 
     if provider_currency != "ZAR":
 
+        db.session.rollback()
+
         current_app.logger.error(
             (
                 "Yoco currency mismatch. "
@@ -1340,6 +1420,8 @@ def yoco_webhook():
 
     if provider_amount is None:
 
+        db.session.rollback()
+
         current_app.logger.error(
             (
                 "Yoco payment.succeeded event has "
@@ -1363,6 +1445,8 @@ def yoco_webhook():
 
     if provider_amount != expected_amount:
 
+        db.session.rollback()
+
         current_app.logger.error(
             (
                 "Yoco amount mismatch. "
@@ -1382,15 +1466,19 @@ def yoco_webhook():
         ), 400
 
     # --------------------------------------------------------
-    # OPTIONAL METADATA CROSS-CHECKS
+    # METADATA CROSS-CHECKS
     # --------------------------------------------------------
     #
-    # These fields came from metadata we supplied when
-    # creating the Yoco Checkout.
+    # These fields came from metadata supplied by our server
+    # when creating the checkout.
     #
-    # They are useful as additional consistency checks.
-    # The local database remains authoritative for plan and
-    # price.
+    # They provide an additional consistency check.
+    #
+    # The local database remains authoritative for:
+    #
+    #     creator
+    #     plan
+    #     price
     # --------------------------------------------------------
 
     metadata = _get_payment_metadata(
@@ -1411,6 +1499,8 @@ def yoco_webhook():
                 creator.id
             )
         ):
+
+            db.session.rollback()
 
             current_app.logger.error(
                 (
@@ -1441,6 +1531,8 @@ def yoco_webhook():
         )
 
         if metadata_plan != payment_plan:
+
+            db.session.rollback()
 
             current_app.logger.error(
                 (
@@ -1475,6 +1567,12 @@ def yoco_webhook():
     # --------------------------------------------------------
     # MARK LOCAL PAYMENT PAID
     # --------------------------------------------------------
+    #
+    # This status change happens while the payment row is
+    # still locked.
+    #
+    # The lock is released only by COMMIT or ROLLBACK.
+    # --------------------------------------------------------
 
     local_payment.status = (
         "paid"
@@ -1492,17 +1590,27 @@ def yoco_webhook():
         payment_plan
     )
 
-    # --------------------------------------------------------
+    # ========================================================
     # FIRST CREATOR PAYMENT
-    # --------------------------------------------------------
+    # ========================================================
     #
-    # A successful first payment moves the creator to:
+    # A brand-new creator must NOT automatically become
+    # active simply because payment succeeded.
     #
-    #     pending_approval
+    # Flow:
     #
-    # The platform administrator still decides whether the
-    # creator account becomes active.
-    # --------------------------------------------------------
+    # payment.succeeded
+    #       ↓
+    # payment_status = paid
+    #       ↓
+    # account_status = pending_approval
+    #       ↓
+    # platform admin approves
+    #       ↓
+    # account_status = active
+    #       ↓
+    # subscription activated
+    # ========================================================
 
     if not already_approved:
 
@@ -1523,9 +1631,9 @@ def yoco_webhook():
             provider_payment_id,
         )
 
-    # --------------------------------------------------------
+    # ========================================================
     # EXISTING APPROVED CREATOR / RENEWAL
-    # --------------------------------------------------------
+    # ========================================================
 
     else:
 
@@ -1551,6 +1659,9 @@ def yoco_webhook():
 
     # --------------------------------------------------------
     # COMMIT PAYMENT + ACCOUNT UPDATE
+    # --------------------------------------------------------
+    #
+    # COMMIT also releases the PostgreSQL row lock.
     # --------------------------------------------------------
 
     try:
@@ -1676,6 +1787,9 @@ def yoco_cancel():
     # --------------------------------------------------------
     # DO NOT MUTATE PAYMENT STATE HERE
     # --------------------------------------------------------
+    #
+    # Browser redirects are not authoritative payment state.
+    # --------------------------------------------------------
 
     flash(
         (
@@ -1716,8 +1830,8 @@ def yoco_failure():
     # DO NOT MUTATE PAYMENT STATE HERE
     # --------------------------------------------------------
     #
-    # A verified payment.failed webhook is the authoritative
-    # server-to-server failure event.
+    # payment.failed from the verified Yoco webhook is the
+    # authoritative server-to-server failure event.
     # --------------------------------------------------------
 
     flash(
