@@ -32,16 +32,14 @@ def upgrade():
     #
     # This is the SaaS tenant/account table.
     #
-    # Existing creator data is NOT migrated into this table
-    # here. That will be handled separately by a controlled
-    # backfill after the schema has been created.
+    # Existing creator data is NOT assigned to a creator
+    # account here. That remains a controlled backfill.
     #
-    # For that reason, creator_account_id remains nullable on
-    # existing tables during this migration.
+    # Existing tenant-owned tables therefore receive a
+    # nullable creator_account_id.
     #
-    # Existing/legacy creators default to Premium so that
-    # introducing SaaS plans does not unexpectedly remove
-    # functionality from the original creator.
+    # Existing/legacy creators default to Premium so the SaaS
+    # migration does not unexpectedly remove functionality.
     # ========================================================
 
     op.create_table(
@@ -143,6 +141,7 @@ def upgrade():
         ),
     )
 
+
     # ========================================================
     # CREATOR ACCOUNT INDEXES
     # ========================================================
@@ -189,93 +188,110 @@ def upgrade():
         unique=True,
     )
 
+
     # ========================================================
     # CONTENT CATEGORIES
     # ========================================================
+    #
+    # batch_alter_table is intentionally used here.
+    #
+    # SQLite cannot add foreign-key constraints to an existing
+    # table with ALTER TABLE in the same way PostgreSQL can.
+    # Alembic batch mode safely rebuilds the table on SQLite.
+    # ========================================================
 
-    op.add_column(
+    with op.batch_alter_table(
         "content_categories",
-        sa.Column(
-            "creator_account_id",
-            sa.Integer(),
-            nullable=True,
-        ),
-    )
+        schema=None,
+    ) as batch_op:
 
-    op.create_index(
-        "ix_content_categories_creator_account_id",
-        "content_categories",
-        ["creator_account_id"],
-        unique=False,
-    )
+        batch_op.add_column(
+            sa.Column(
+                "creator_account_id",
+                sa.Integer(),
+                nullable=True,
+            )
+        )
 
-    op.create_foreign_key(
-        "fk_content_categories_creator_account_id",
-        "content_categories",
-        "creator_accounts",
-        ["creator_account_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
+        batch_op.create_index(
+            "ix_content_categories_creator_account_id",
+            ["creator_account_id"],
+            unique=False,
+        )
+
+        batch_op.create_foreign_key(
+            "fk_content_categories_creator_account_id",
+            "creator_accounts",
+            ["creator_account_id"],
+            ["id"],
+            ondelete="CASCADE",
+        )
+
 
     # ========================================================
     # CONTENT POSTS
     # ========================================================
 
-    op.add_column(
+    with op.batch_alter_table(
         "content_posts",
-        sa.Column(
-            "creator_account_id",
-            sa.Integer(),
-            nullable=True,
-        ),
-    )
+        schema=None,
+    ) as batch_op:
 
-    op.create_index(
-        "ix_content_posts_creator_account_id",
-        "content_posts",
-        ["creator_account_id"],
-        unique=False,
-    )
+        batch_op.add_column(
+            sa.Column(
+                "creator_account_id",
+                sa.Integer(),
+                nullable=True,
+            )
+        )
 
-    op.create_foreign_key(
-        "fk_content_posts_creator_account_id",
-        "content_posts",
-        "creator_accounts",
-        ["creator_account_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
+        batch_op.create_index(
+            "ix_content_posts_creator_account_id",
+            ["creator_account_id"],
+            unique=False,
+        )
+
+        batch_op.create_foreign_key(
+            "fk_content_posts_creator_account_id",
+            "creator_accounts",
+            ["creator_account_id"],
+            ["id"],
+            ondelete="CASCADE",
+        )
+
 
     # ========================================================
     # CREATOR PROFILES
     # ========================================================
 
-    op.add_column(
+    with op.batch_alter_table(
         "creator_profiles",
-        sa.Column(
-            "creator_account_id",
-            sa.Integer(),
-            nullable=True,
-        ),
-    )
+        schema=None,
+    ) as batch_op:
 
-    # One profile per creator account.
-    op.create_index(
-        "ix_creator_profiles_creator_account_id",
-        "creator_profiles",
-        ["creator_account_id"],
-        unique=True,
-    )
+        batch_op.add_column(
+            sa.Column(
+                "creator_account_id",
+                sa.Integer(),
+                nullable=True,
+            )
+        )
 
-    op.create_foreign_key(
-        "fk_creator_profiles_creator_account_id",
-        "creator_profiles",
-        "creator_accounts",
-        ["creator_account_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
+        # One profile per creator account.
+        batch_op.create_index(
+            "ix_creator_profiles_creator_account_id",
+            ["creator_account_id"],
+            unique=True,
+        )
+
+        batch_op.create_foreign_key(
+            "fk_creator_profiles_creator_account_id",
+            "creator_accounts",
+            ["creator_account_id"],
+            ["id"],
+            ondelete="CASCADE",
+        )
+
 
     # ========================================================
     # EMAIL SUBSCRIBERS
@@ -287,69 +303,69 @@ def upgrade():
     #
     # SaaS behavior:
     #
-    #     the same email may subscribe to Creator A
-    #     and Creator B.
+    #     the same email can subscribe to multiple creators.
     #
-    # But the same email cannot subscribe twice to the
-    # same creator.
+    # But:
     #
-    # Therefore uniqueness becomes:
+    #     creator + email
     #
-    #     creator_account_id + email
+    # must remain unique.
     #
-    # verification_token and unsubscribe_token remain
-    # globally unique.
+    # verification_token and unsubscribe_token remain globally
+    # unique.
+    #
+    # Batch mode is required for SQLite because we are changing
+    # indexes and adding constraints to an existing table.
     # ========================================================
 
-    op.add_column(
+    with op.batch_alter_table(
         "email_subscribers",
-        sa.Column(
-            "creator_account_id",
-            sa.Integer(),
-            nullable=True,
-        ),
-    )
+        schema=None,
+    ) as batch_op:
 
-    # Remove old globally unique email index.
-    op.drop_index(
-        "ix_email_subscribers_email",
-        table_name="email_subscribers",
-    )
+        batch_op.add_column(
+            sa.Column(
+                "creator_account_id",
+                sa.Integer(),
+                nullable=True,
+            )
+        )
 
-    # Re-create email as a normal lookup index.
-    op.create_index(
-        "ix_email_subscribers_email",
-        "email_subscribers",
-        ["email"],
-        unique=False,
-    )
+        # Remove the old globally unique email index.
+        batch_op.drop_index(
+            "ix_email_subscribers_email"
+        )
 
-    op.create_index(
-        "ix_email_subscribers_creator_account_id",
-        "email_subscribers",
-        ["creator_account_id"],
-        unique=False,
-    )
+        # Re-create email as a normal lookup index.
+        batch_op.create_index(
+            "ix_email_subscribers_email",
+            ["email"],
+            unique=False,
+        )
 
-    # Same email can exist for multiple creators,
-    # but only once per individual creator.
-    op.create_unique_constraint(
-        "uq_email_subscriber_creator_email",
-        "email_subscribers",
-        [
-            "creator_account_id",
-            "email",
-        ],
-    )
+        batch_op.create_index(
+            "ix_email_subscribers_creator_account_id",
+            ["creator_account_id"],
+            unique=False,
+        )
 
-    op.create_foreign_key(
-        "fk_email_subscribers_creator_account_id",
-        "email_subscribers",
-        "creator_accounts",
-        ["creator_account_id"],
-        ["id"],
-        ondelete="CASCADE",
-    )
+        # Same email may subscribe to different creators,
+        # but only once to the same creator.
+        batch_op.create_unique_constraint(
+            "uq_email_subscriber_creator_email",
+            [
+                "creator_account_id",
+                "email",
+            ],
+        )
+
+        batch_op.create_foreign_key(
+            "fk_email_subscribers_creator_account_id",
+            "creator_accounts",
+            ["creator_account_id"],
+            ["id"],
+            ondelete="CASCADE",
+        )
 
 
 # ============================================================
@@ -362,100 +378,109 @@ def downgrade():
     # EMAIL SUBSCRIBERS
     # ========================================================
 
-    op.drop_constraint(
-        "fk_email_subscribers_creator_account_id",
+    with op.batch_alter_table(
         "email_subscribers",
-        type_="foreignkey",
-    )
+        schema=None,
+    ) as batch_op:
 
-    op.drop_constraint(
-        "uq_email_subscriber_creator_email",
-        "email_subscribers",
-        type_="unique",
-    )
+        batch_op.drop_constraint(
+            "fk_email_subscribers_creator_account_id",
+            type_="foreignkey",
+        )
 
-    op.drop_index(
-        "ix_email_subscribers_creator_account_id",
-        table_name="email_subscribers",
-    )
+        batch_op.drop_constraint(
+            "uq_email_subscriber_creator_email",
+            type_="unique",
+        )
 
-    op.drop_index(
-        "ix_email_subscribers_email",
-        table_name="email_subscribers",
-    )
+        batch_op.drop_index(
+            "ix_email_subscribers_creator_account_id"
+        )
 
-    # Restore original globally unique email index.
-    op.create_index(
-        "ix_email_subscribers_email",
-        "email_subscribers",
-        ["email"],
-        unique=True,
-    )
+        batch_op.drop_index(
+            "ix_email_subscribers_email"
+        )
 
-    op.drop_column(
-        "email_subscribers",
-        "creator_account_id",
-    )
+        # Restore original globally unique email index.
+        batch_op.create_index(
+            "ix_email_subscribers_email",
+            ["email"],
+            unique=True,
+        )
+
+        batch_op.drop_column(
+            "creator_account_id"
+        )
+
 
     # ========================================================
     # CREATOR PROFILES
     # ========================================================
 
-    op.drop_constraint(
-        "fk_creator_profiles_creator_account_id",
+    with op.batch_alter_table(
         "creator_profiles",
-        type_="foreignkey",
-    )
+        schema=None,
+    ) as batch_op:
 
-    op.drop_index(
-        "ix_creator_profiles_creator_account_id",
-        table_name="creator_profiles",
-    )
+        batch_op.drop_constraint(
+            "fk_creator_profiles_creator_account_id",
+            type_="foreignkey",
+        )
 
-    op.drop_column(
-        "creator_profiles",
-        "creator_account_id",
-    )
+        batch_op.drop_index(
+            "ix_creator_profiles_creator_account_id"
+        )
+
+        batch_op.drop_column(
+            "creator_account_id"
+        )
+
 
     # ========================================================
     # CONTENT POSTS
     # ========================================================
 
-    op.drop_constraint(
-        "fk_content_posts_creator_account_id",
+    with op.batch_alter_table(
         "content_posts",
-        type_="foreignkey",
-    )
+        schema=None,
+    ) as batch_op:
 
-    op.drop_index(
-        "ix_content_posts_creator_account_id",
-        table_name="content_posts",
-    )
+        batch_op.drop_constraint(
+            "fk_content_posts_creator_account_id",
+            type_="foreignkey",
+        )
 
-    op.drop_column(
-        "content_posts",
-        "creator_account_id",
-    )
+        batch_op.drop_index(
+            "ix_content_posts_creator_account_id"
+        )
+
+        batch_op.drop_column(
+            "creator_account_id"
+        )
+
 
     # ========================================================
     # CONTENT CATEGORIES
     # ========================================================
 
-    op.drop_constraint(
-        "fk_content_categories_creator_account_id",
+    with op.batch_alter_table(
         "content_categories",
-        type_="foreignkey",
-    )
+        schema=None,
+    ) as batch_op:
 
-    op.drop_index(
-        "ix_content_categories_creator_account_id",
-        table_name="content_categories",
-    )
+        batch_op.drop_constraint(
+            "fk_content_categories_creator_account_id",
+            type_="foreignkey",
+        )
 
-    op.drop_column(
-        "content_categories",
-        "creator_account_id",
-    )
+        batch_op.drop_index(
+            "ix_content_categories_creator_account_id"
+        )
+
+        batch_op.drop_column(
+            "creator_account_id"
+        )
+
 
     # ========================================================
     # CREATOR ACCOUNTS
@@ -492,5 +517,5 @@ def downgrade():
     )
 
     op.drop_table(
-        "creator_accounts",
+        "creator_accounts"
     )
