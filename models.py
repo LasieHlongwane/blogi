@@ -1564,6 +1564,172 @@ class FundraisingCampaign(db.Model):
     )
 
 
+
+class CreatorBranding(db.Model):
+
+    __tablename__ = "creator_brandings"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    creator_account_id = db.Column(
+        db.Integer,
+        db.ForeignKey("creator_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    site_title = db.Column(db.String(180))
+    site_tagline = db.Column(db.String(255))
+
+    logo_url = db.Column(db.Text)
+    logo_public_id = db.Column(db.String(500))
+
+    favicon_url = db.Column(db.Text)
+    favicon_public_id = db.Column(db.String(500))
+
+    cover_image_url = db.Column(db.Text)
+    cover_image_public_id = db.Column(db.String(500))
+
+    primary_color = db.Column(
+        db.String(20), nullable=False, default="#111318"
+    )
+
+    accent_color = db.Column(
+        db.String(20), nullable=False, default="#d4a75d"
+    )
+
+    background_color = db.Column(
+        db.String(20), nullable=False, default="#ffffff"
+    )
+
+    text_color = db.Column(
+        db.String(20), nullable=False, default="#17191d"
+    )
+
+    theme = db.Column(
+        db.String(40), nullable=False, default="default"
+    )
+
+    font_family = db.Column(
+        db.String(80), nullable=False, default="system"
+    )
+
+    footer_text = db.Column(db.String(255))
+
+    show_platform_branding = db.Column(
+        db.Boolean, nullable=False, default=True
+    )
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
+
+    creator_account = db.relationship(
+        "CreatorAccount",
+        backref=db.backref(
+            "branding",
+            uselist=False,
+            cascade="all, delete-orphan",
+            single_parent=True,
+        ),
+    )
+
+
+class CreatorDomain(db.Model):
+
+    __tablename__ = "creator_domains"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    creator_account_id = db.Column(
+        db.Integer,
+        db.ForeignKey("creator_accounts.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    hostname = db.Column(
+        db.String(253),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    # subdomain / custom
+    domain_type = db.Column(
+        db.String(30),
+        nullable=False,
+        default="subdomain",
+        index=True,
+    )
+
+    # pending / verified / failed
+    verification_status = db.Column(
+        db.String(30),
+        nullable=False,
+        default="pending",
+        index=True,
+    )
+
+    verification_token = db.Column(
+        db.String(255),
+        unique=True,
+    )
+
+    is_primary = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=False,
+    )
+
+    is_active = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=False,
+        index=True,
+    )
+
+    verified_at = db.Column(db.DateTime(timezone=True))
+    activated_at = db.Column(db.DateTime(timezone=True))
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
+
+    creator_account = db.relationship(
+        "CreatorAccount",
+        backref=db.backref(
+            "domains",
+            lazy=True,
+            cascade="all, delete-orphan",
+        ),
+    )
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "domain_type IN ('subdomain', 'custom')",
+            name="ck_creator_domain_type",
+        ),
+    )
 # ============================================================
 # FAN PAYMENT
 # ============================================================
