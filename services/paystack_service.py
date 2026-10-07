@@ -286,3 +286,142 @@ def verify_paystack_webhook(
         expected,
         signature,
     )
+
+# ============================================================
+# SOUTH AFRICAN PAYOUT ONBOARDING
+# ============================================================
+
+def list_south_african_banks(
+    verification_only=True,
+):
+
+    params = {
+        "currency": "ZAR",
+        "country": "south africa",
+        "perPage": 100,
+    }
+
+    if verification_only:
+
+        params[
+            "enabled_for_verification"
+        ] = "true"
+
+    payload = _request(
+        "GET",
+        "/bank",
+        params=params,
+    )
+
+    banks = (
+        payload.get("data")
+        or []
+    )
+
+    banks.sort(
+        key=lambda bank: (
+            bank.get("name")
+            or ""
+        ).lower()
+    )
+
+    return banks
+
+
+def validate_south_african_account(
+    *,
+    bank_code,
+    account_number,
+    account_name,
+    account_type,
+    document_type,
+    document_number,
+):
+
+    if account_type not in {
+        "personal",
+        "business",
+    }:
+
+        raise PaystackError(
+            "Invalid bank account type."
+        )
+
+    if document_type not in {
+        "identityNumber",
+        "passportNumber",
+        "businessRegistrationNumber",
+    }:
+
+        raise PaystackError(
+            "Invalid identity document type."
+        )
+
+    data = {
+        "bank_code": bank_code,
+        "country_code": "ZA",
+        "account_number": account_number,
+        "account_name": account_name,
+        "account_type": account_type,
+        "document_type": document_type,
+        "document_number": document_number,
+    }
+
+    payload = _request(
+        "POST",
+        "/bank/validate",
+        json_data=data,
+    )
+
+    return (
+        payload.get("data")
+        or {}
+    )
+
+
+def create_creator_subaccount(
+    *,
+    business_name,
+    bank_code,
+    account_number,
+    creator_email=None,
+    creator_name=None,
+):
+
+    data = {
+        "business_name": business_name,
+        "settlement_bank": bank_code,
+        "account_number": account_number,
+
+        # Paystack defines percentage_charge as
+        # the percentage received by the main
+        # Paystack account.
+        #
+        # Kalxa takes 0% platform commission.
+        "percentage_charge": 0,
+
+        "description": (
+            "Creator payout account for "
+            f"{business_name}"
+        ),
+    }
+
+    if creator_email:
+
+        data[
+            "primary_contact_email"
+        ] = creator_email
+
+    if creator_name:
+
+        data[
+            "primary_contact_name"
+        ] = creator_name
+
+    payload = _request(
+        "POST",
+        "/subaccount",
+        json_data=data,
+    )
+
+    return payload["data"]
