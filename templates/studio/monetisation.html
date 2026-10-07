@@ -1,0 +1,72 @@
+{% extends "studio/base.html" %}
+
+{% block title %}Monetisation | Creator Studio{% endblock %}
+
+{% block content %}
+<style>
+.monetisation-shell{max-width:1100px;margin:0 auto}.page-heading{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:26px}.page-heading h1{margin:0 0 8px;font-size:30px}.page-heading p{margin:0;color:#69707a;line-height:1.6}.plan-pill{padding:8px 12px;border-radius:999px;background:#111318;color:#fff;font-size:11px;font-weight:800;white-space:nowrap}.money-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:24px}.money-card,.feature-card,.payment-panel{background:#fff;border:1px solid #e2e5e9;border-radius:16px;padding:20px}.money-card span{display:block;font-size:11px;color:#737983;text-transform:uppercase;letter-spacing:.08em;font-weight:800}.money-card strong{display:block;margin-top:8px;font-size:26px}.feature-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-bottom:26px}.feature-card h2{margin:0 0 8px;font-size:18px}.feature-card p{margin:0 0 18px;color:#69707a;line-height:1.55;font-size:13px}.feature-status{display:inline-block;margin-bottom:16px;padding:5px 9px;border-radius:999px;background:#f0f2f4;font-size:10px;font-weight:800;text-transform:uppercase}.feature-status.ready{background:#eaf8ef;color:#19733e}.feature-status.premium{background:#111318;color:#fff}.action-link{display:inline-block;padding:10px 13px;border-radius:10px;background:#111318;color:#fff;text-decoration:none;font-size:12px;font-weight:800}.action-link.secondary{background:#f1f3f5;color:#111318}.payment-panel h2{margin-top:0}.payment-table{width:100%;border-collapse:collapse}.payment-table th,.payment-table td{text-align:left;padding:12px 8px;border-bottom:1px solid #eceef1;font-size:13px}.payment-table th{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#747b84}.empty-state{padding:24px 0;color:#747b84;font-size:13px}@media(max-width:850px){.money-grid,.feature-grid{grid-template-columns:1fr}.page-heading{flex-direction:column}.payment-panel{overflow-x:auto}}
+</style>
+
+<div class="monetisation-shell">
+    <div class="page-heading">
+        <div>
+            <h1>Monetisation</h1>
+            <p>Manage how supporters can contribute to your work. Kalxa takes 0% platform commission on fan support; payment processing fees may apply.</p>
+        </div>
+        <span class="plan-pill">{{ creator_account.plan|default('standard', true)|upper }}</span>
+    </div>
+
+    <div class="money-grid">
+        <div class="money-card"><span>Confirmed support</span><strong>R{{ '%.2f'|format((support_total_cents|default(0, true)) / 100) }}</strong></div>
+        <div class="money-card"><span>Paid contributions</span><strong>{{ paid_payment_count|default(0, true) }}</strong></div>
+        <div class="money-card"><span>Campaigns</span><strong>{{ campaign_count|default(0, true) }}</strong></div>
+    </div>
+
+    <div class="feature-grid">
+        <section class="feature-card">
+            <span class="feature-status {% if payout_account and payout_account.status == 'active' %}ready{% endif %}">{% if payout_account and payout_account.status == 'active' %}Connected{% elif payout_account %}{{ payout_account.status|replace('_',' ')|title }}{% else %}Not connected{% endif %}</span>
+            <h2>Payout account</h2>
+            <p>Connect the account where your fan support and eligible campaign contributions will be settled.</p>
+            <a class="action-link" href="{{ url_for('studio.payout_setup') }}">{% if payout_account %}Manage payout{% else %}Set up payout{% endif %} →</a>
+        </section>
+
+        <section class="feature-card">
+            <span class="feature-status ready">Standard + Premium</span>
+            <h2>Buy me a coffee</h2>
+            <p>Accept voluntary support from fans without locking content behind a payment.</p>
+            <a class="action-link" href="{{ url_for('studio.support_setup') }}">Support settings →</a>
+        </section>
+
+        <section class="feature-card">
+            {% if creator_account.plan == 'premium' %}<span class="feature-status ready">Available</span>{% else %}<span class="feature-status premium">Premium</span>{% endif %}
+            <h2>Fundraising</h2>
+            <p>Create goal-based campaigns for specific projects, equipment, events or other creator initiatives.</p>
+            {% if creator_account.plan == 'premium' %}
+                <a class="action-link" href="{{ url_for('studio.fundraising_campaigns') }}">Manage campaigns →</a>
+            {% else %}
+                <a class="action-link secondary" href="#premium-features">Premium required</a>
+            {% endif %}
+        </section>
+    </div>
+
+    <section class="payment-panel">
+        <h2>Recent fan payments</h2>
+        {% if recent_fan_payments %}
+        <table class="payment-table">
+            <thead><tr><th>Supporter</th><th>Type</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody>
+            {% for payment in recent_fan_payments %}
+                <tr>
+                    <td>{% if payment.is_anonymous %}Anonymous{% else %}{{ payment.supporter_name or payment.supporter_email or 'Supporter' }}{% endif %}</td>
+                    <td>{{ payment.payment_type|replace('_',' ')|title }}</td>
+                    <td>R{{ '%.2f'|format(payment.amount_cents / 100) }}</td>
+                    <td>{{ payment.status|title }}</td>
+                    <td>{{ payment.created_at.strftime('%d %b %Y') if payment.created_at else '—' }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}<div class="empty-state">No fan payments yet. Once Paystack checkout is connected, confirmed support will appear here.</div>{% endif %}
+    </section>
+</div>
+{% endblock %}
