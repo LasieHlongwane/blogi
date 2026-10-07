@@ -6,6 +6,7 @@
 import re
 
 from datetime import datetime, timezone
+from decimal import Decimal, InvalidOperation
 from functools import wraps
 
 from flask import (
@@ -110,34 +111,6 @@ def current_creator_account():
 # ============================================================
 
 def studio_required(view):
-    """
-    Protect Creator Studio routes.
-
-    Access rules:
-
-        account not logged in
-            -> creator login
-
-        account not active
-            -> pending/account-status page
-
-        subscription active
-            -> Studio access
-
-        subscription past_due
-            -> Studio access during grace period
-
-        subscription expired
-            -> renewal/account-status page
-
-        subscription inactive/cancelled
-            -> renewal/account-status page
-
-    Subscription lifecycle transitions are evaluated whenever
-    a protected Studio route is requested.
-
-    Public creator pages are NOT affected by this decorator.
-    """
 
     @wraps(view)
     def wrapped_view(
@@ -148,10 +121,6 @@ def studio_required(view):
         creator = (
             current_creator_account()
         )
-
-        # ----------------------------------------------------
-        # LOGIN REQUIRED
-        # ----------------------------------------------------
 
         if not creator:
 
@@ -171,10 +140,6 @@ def studio_required(view):
                 )
             )
 
-        # ----------------------------------------------------
-        # ACCOUNT MUST BE ACTIVE
-        # ----------------------------------------------------
-
         if (
             creator.account_status
             != "active"
@@ -185,10 +150,6 @@ def studio_required(view):
                     "creator_auth.pending"
                 )
             )
-
-        # ----------------------------------------------------
-        # ENFORCE SUBSCRIPTION LIFECYCLE
-        # ----------------------------------------------------
 
         try:
 
@@ -228,10 +189,6 @@ def studio_required(view):
                 )
             )
 
-        # ----------------------------------------------------
-        # STORE SUBSCRIPTION CONTEXT
-        # ----------------------------------------------------
-
         g.creator_subscription = (
             subscription
         )
@@ -251,10 +208,6 @@ def studio_required(view):
             )
         )
 
-        # ----------------------------------------------------
-        # SUBSCRIPTION ACCESS
-        # ----------------------------------------------------
-
         if not creator_subscription_is_current(
             creator
         ):
@@ -263,10 +216,7 @@ def studio_required(view):
                 g.creator_subscription_status
             )
 
-            if (
-                subscription_status
-                == "expired"
-            ):
+            if subscription_status == "expired":
 
                 flash(
                     (
@@ -279,10 +229,7 @@ def studio_required(view):
                     "warning",
                 )
 
-            elif (
-                subscription_status
-                == "cancelled"
-            ):
+            elif subscription_status == "cancelled":
 
                 flash(
                     (
@@ -309,18 +256,10 @@ def studio_required(view):
                 )
             )
 
-        # ----------------------------------------------------
-        # PAST-DUE GRACE PERIOD
-        # ----------------------------------------------------
-
         if (
             g.creator_subscription_status
             == "past_due"
         ):
-
-            days_remaining = (
-                g.creator_grace_days_remaining
-            )
 
             current_app.logger.info(
                 (
@@ -330,7 +269,7 @@ def studio_required(view):
                     "days_remaining=%s"
                 ),
                 creator.id,
-                days_remaining,
+                g.creator_grace_days_remaining,
             )
 
         return view(
@@ -349,11 +288,6 @@ def require_creator_feature(
     creator,
     feature,
 ):
-    """
-    Server-side creator plan feature gate.
-
-    Routes must never rely only on hidden template buttons.
-    """
 
     if creator_has_feature(
         creator,
@@ -521,10 +455,7 @@ def unique_post_slug(
     post_id=None,
 ):
 
-    base_slug = (
-        slugify(title)
-        or "post"
-    )
+    base_slug = slugify(title) or "post"
 
     candidate = base_slug
     counter = 2
@@ -534,9 +465,7 @@ def unique_post_slug(
         query = (
             ContentPost.query
             .filter_by(
-                creator_account_id=(
-                    creator.id
-                ),
+                creator_account_id=creator.id,
                 slug=candidate,
             )
         )
@@ -544,8 +473,7 @@ def unique_post_slug(
         if post_id is not None:
 
             query = query.filter(
-                ContentPost.id
-                != post_id
+                ContentPost.id != post_id
             )
 
         if not query.first():
@@ -568,10 +496,7 @@ def unique_category_slug(
     name,
 ):
 
-    base_slug = (
-        slugify(name)
-        or "folder"
-    )
+    base_slug = slugify(name) or "folder"
 
     candidate = base_slug
     counter = 2
@@ -581,9 +506,7 @@ def unique_category_slug(
         existing = (
             ContentCategory.query
             .filter_by(
-                creator_account_id=(
-                    creator.id
-                ),
+                creator_account_id=creator.id,
                 slug=candidate,
             )
             .first()
@@ -623,9 +546,7 @@ def unique_campaign_slug(
         query = (
             FundraisingCampaign.query
             .filter_by(
-                creator_account_id=(
-                    creator.id
-                ),
+                creator_account_id=creator.id,
                 slug=candidate,
             )
         )
@@ -649,7 +570,86 @@ def unique_campaign_slug(
 
 
 # ============================================================
-# CLOUDINARY FOLDER
+# MONEY
+# ============================================================
+
+def parse_money_to_cents(
+    value,
+):
+
+    value = (
+        str(value or "")
+        .strip()
+        .replace(",", "")
+    )
+
+    if not value:
+
+        return None
+
+    try:
+
+        amount = Decimal(value)
+
+    except (
+        InvalidOperation,
+        TypeError,
+        ValueError,
+    ):
+
+        return None
+
+    if amount <= 0:
+
+        return None
+
+    amount = amount.quantize(
+        Decimal("0.01")
+    )
+
+    return int(
+        amount * 100
+    )
+
+
+# ============================================================
+# DATETIME INPUT
+# ============================================================
+
+def parse_datetime_local(
+    value,
+):
+
+    value = (
+        str(value or "")
+        .strip()
+    )
+
+    if not value:
+
+        return None
+
+    try:
+
+        parsed = datetime.fromisoformat(
+            value
+        )
+
+    except ValueError:
+
+        return None
+
+    if parsed.tzinfo is None:
+
+        parsed = parsed.replace(
+            tzinfo=timezone.utc
+        )
+
+    return parsed
+
+
+# ============================================================
+# CLOUDINARY FOLDERS
 # ============================================================
 
 def post_cloudinary_folder(
@@ -671,8 +671,115 @@ def post_cloudinary_folder(
     )
 
 
+def campaign_cloudinary_folder(
+    creator,
+    campaign,
+):
+
+    root = current_app.config.get(
+        "CLOUDINARY_FOLDER",
+        "creator-blog",
+    )
+
+    return (
+        f"{root}/creators/"
+        f"{creator.id}/fundraising/"
+        f"{campaign.id}/covers"
+    )
+
+
 # ============================================================
-# COVER IMAGE
+# CAMPAIGN COVER IMAGE
+# ============================================================
+
+def process_campaign_cover_image(
+    creator,
+    campaign,
+    file,
+):
+
+    if (
+        not file
+        or not file.filename
+    ):
+
+        return True, None
+
+    valid, error = (
+        validate_image(
+            file
+        )
+    )
+
+    if not valid:
+
+        return False, error
+
+    try:
+
+        result = upload_image(
+            file,
+            folder=(
+                campaign_cloudinary_folder(
+                    creator,
+                    campaign,
+                )
+            ),
+        )
+
+    except Exception:
+
+        current_app.logger.exception(
+            (
+                "Fundraising campaign "
+                "cover upload failed. "
+                "creator_account_id=%s "
+                "campaign_id=%s"
+            ),
+            creator.id,
+            campaign.id,
+        )
+
+        return (
+            False,
+            "Campaign cover image upload failed.",
+        )
+
+    old_public_id = (
+        campaign.cover_image_public_id
+    )
+
+    campaign.cover_image_url = (
+        result["url"]
+    )
+
+    campaign.cover_image_public_id = (
+        result["public_id"]
+    )
+
+    if old_public_id:
+
+        try:
+
+            delete_media(
+                old_public_id,
+                resource_type="image",
+            )
+
+        except Exception:
+
+            current_app.logger.exception(
+                (
+                    "Old campaign cover "
+                    "deletion failed."
+                )
+            )
+
+    return True, None
+
+
+# ============================================================
+# POST COVER IMAGE
 # ============================================================
 
 def process_cover_image(
@@ -688,10 +795,8 @@ def process_cover_image(
 
         return True, None
 
-    valid, error = (
-        validate_image(
-            file
-        )
+    valid, error = validate_image(
+        file
     )
 
     if not valid:
@@ -752,15 +857,11 @@ def process_cover_image(
         )
 
         existing.width = (
-            result.get(
-                "width"
-            )
+            result.get("width")
         )
 
         existing.height = (
-            result.get(
-                "height"
-            )
+            result.get("height")
         )
 
     else:
@@ -771,12 +872,8 @@ def process_cover_image(
             media_url=result["url"],
             public_id=result["public_id"],
             resource_type="image",
-            width=result.get(
-                "width"
-            ),
-            height=result.get(
-                "height"
-            ),
+            width=result.get("width"),
+            height=result.get("height"),
             media_order=0,
         )
 
@@ -826,10 +923,8 @@ def process_post_video(
 
         return True, None
 
-    valid, error = (
-        validate_video(
-            file
-        )
+    valid, error = validate_video(
+        file
     )
 
     if not valid:
@@ -902,15 +997,11 @@ def process_post_video(
         )
 
         existing.width = (
-            result.get(
-                "width"
-            )
+            result.get("width")
         )
 
         existing.height = (
-            result.get(
-                "height"
-            )
+            result.get("height")
         )
 
     else:
@@ -927,12 +1018,8 @@ def process_post_video(
             duration_seconds=result.get(
                 "duration"
             ),
-            width=result.get(
-                "width"
-            ),
-            height=result.get(
-                "height"
-            ),
+            width=result.get("width"),
+            height=result.get("height"),
             media_order=0,
         )
 
@@ -1046,27 +1133,13 @@ def process_story_gallery(
             db.session.add(
                 ContentMedia(
                     post_id=post.id,
-                    media_type=(
-                        "gallery_image"
-                    ),
-                    media_url=(
-                        result["url"]
-                    ),
-                    public_id=(
-                        result[
-                            "public_id"
-                        ]
-                    ),
+                    media_type="gallery_image",
+                    media_url=result["url"],
+                    public_id=result["public_id"],
                     resource_type="image",
-                    width=result.get(
-                        "width"
-                    ),
-                    height=result.get(
-                        "height"
-                    ),
-                    media_order=(
-                        next_order
-                    ),
+                    width=result.get("width"),
+                    height=result.get("height"),
+                    media_order=next_order,
                 )
             )
 
@@ -1100,6 +1173,136 @@ def process_story_gallery(
 
 
 # ============================================================
+# CAMPAIGN PAYMENT STATISTICS
+# ============================================================
+
+def campaign_paid_total_cents(
+    creator,
+    campaign,
+):
+
+    return int(
+        db.session.query(
+            db.func.coalesce(
+                db.func.sum(
+                    FanPayment.amount_cents
+                ),
+                0,
+            )
+        )
+        .filter(
+            FanPayment.creator_account_id
+            == creator.id,
+            FanPayment.campaign_id
+            == campaign.id,
+            FanPayment.payment_type
+            == "campaign",
+            FanPayment.status
+            == "paid",
+        )
+        .scalar()
+        or 0
+    )
+
+
+def campaign_supporter_count(
+    creator,
+    campaign,
+):
+
+    return (
+        FanPayment.query
+        .filter(
+            FanPayment.creator_account_id
+            == creator.id,
+            FanPayment.campaign_id
+            == campaign.id,
+            FanPayment.payment_type
+            == "campaign",
+            FanPayment.status
+            == "paid",
+        )
+        .count()
+    )
+
+
+def campaign_stats(
+    creator,
+    campaign,
+):
+
+    raised_cents = (
+        campaign_paid_total_cents(
+            creator,
+            campaign,
+        )
+    )
+
+    supporter_count = (
+        campaign_supporter_count(
+            creator,
+            campaign,
+        )
+    )
+
+    goal_cents = (
+        campaign.goal_amount_cents
+        or 0
+    )
+
+    progress_percent = 0
+
+    if goal_cents > 0:
+
+        progress_percent = min(
+            100,
+            round(
+                (
+                    raised_cents
+                    / goal_cents
+                )
+                * 100,
+                1,
+            ),
+        )
+
+    return {
+        "raised_cents": raised_cents,
+        "supporter_count": supporter_count,
+        "progress_percent": (
+            progress_percent
+        ),
+    }
+
+
+def attach_campaign_stats(
+    creator,
+    campaigns,
+):
+
+    for campaign in campaigns:
+
+        stats = campaign_stats(
+            creator,
+            campaign,
+        )
+
+        campaign.raised_cents = (
+            stats["raised_cents"]
+        )
+
+        campaign.supporter_count = (
+            stats["supporter_count"]
+        )
+
+        campaign.progress_percent = (
+            stats["progress_percent"]
+        )
+
+    return campaigns
+
+
+# ============================================================
 # DASHBOARD
 # ============================================================
 
@@ -1111,24 +1314,18 @@ def dashboard():
         current_creator_account()
     )
 
-    creator = (
-        creator_profile(
-            account
-        )
+    creator = creator_profile(
+        account
     )
 
     base_posts = (
         ContentPost.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            )
+            creator_account_id=account.id
         )
     )
 
-    total_posts = (
-        base_posts.count()
-    )
+    total_posts = base_posts.count()
 
     published_posts = (
         base_posts
@@ -1157,9 +1354,7 @@ def dashboard():
     email_subscribers = (
         EmailSubscriber.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            ),
+            creator_account_id=account.id,
             status="active",
         )
         .count()
@@ -1168,9 +1363,7 @@ def dashboard():
     categories_count = (
         ContentCategory.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            )
+            creator_account_id=account.id
         )
         .count()
     )
@@ -1184,12 +1377,6 @@ def dashboard():
         .all()
     )
 
-    plan_summary = (
-        creator_plan_summary(
-            account
-        )
-    )
-
     return render_template(
         "studio/dashboard.html",
         creator=creator,
@@ -1200,7 +1387,11 @@ def dashboard():
         exclusive_posts=exclusive_posts,
         email_subscribers=email_subscribers,
         categories_count=categories_count,
-        plan_summary=plan_summary,
+        plan_summary=(
+            creator_plan_summary(
+                account
+            )
+        ),
         recent_posts=recent_posts,
         subscription=(
             g.creator_subscription
@@ -1217,21 +1408,6 @@ def dashboard():
 # ============================================================
 # MONETISATION
 # ============================================================
-#
-# Standard:
-#
-#   Payout account
-#   Buy Me a Coffee
-#
-# Premium:
-#
-#   Everything Standard
-#   Fundraising campaigns
-#   Exclusive content
-#   Paid memberships later
-#
-# No Paystack API calls are made here yet.
-# ============================================================
 
 @studio_bp.route(
     "/monetisation"
@@ -1243,16 +1419,8 @@ def monetisation():
         current_creator_account()
     )
 
-    creator = (
-        creator_profile(
-            account
-        )
-    )
-
-    plan_summary = (
-        creator_plan_summary(
-            account
-        )
+    creator = creator_profile(
+        account
     )
 
     payout_account = (
@@ -1261,26 +1429,17 @@ def monetisation():
         )
     )
 
-    # --------------------------------------------------------
-    # SUPPORT PAYMENTS
-    # --------------------------------------------------------
-
-    support_payments_query = (
+    support_payment_count = (
         FanPayment.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            ),
+            creator_account_id=account.id,
             payment_type="support",
             status="paid",
         )
+        .count()
     )
 
-    support_payment_count = (
-        support_payments_query.count()
-    )
-
-    support_total_cents = (
+    support_total_cents = int(
         db.session.query(
             db.func.coalesce(
                 db.func.sum(
@@ -1301,22 +1460,16 @@ def monetisation():
         or 0
     )
 
-    # --------------------------------------------------------
-    # ALL FAN PAYMENTS
-    # --------------------------------------------------------
-
     total_paid_fan_payments = (
         FanPayment.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            ),
+            creator_account_id=account.id,
             status="paid",
         )
         .count()
     )
 
-    total_fan_earnings_cents = (
+    total_fan_earnings_cents = int(
         db.session.query(
             db.func.coalesce(
                 db.func.sum(
@@ -1338,9 +1491,7 @@ def monetisation():
     recent_payments = (
         FanPayment.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            )
+            creator_account_id=account.id
         )
         .order_by(
             FanPayment.created_at.desc()
@@ -1349,16 +1500,10 @@ def monetisation():
         .all()
     )
 
-    # --------------------------------------------------------
-    # FUNDRAISING
-    # --------------------------------------------------------
-
     campaigns = (
         FundraisingCampaign.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            )
+            creator_account_id=account.id
         )
         .order_by(
             FundraisingCampaign.created_at.desc()
@@ -1366,76 +1511,59 @@ def monetisation():
         .all()
     )
 
+    attach_campaign_stats(
+        account,
+        campaigns,
+    )
+
     active_campaign_count = (
         FundraisingCampaign.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            ),
+            creator_account_id=account.id,
             status="active",
         )
         .count()
-    )
-
-    # --------------------------------------------------------
-    # FEATURE ACCESS
-    # --------------------------------------------------------
-
-    can_connect_payout = (
-        creator_has_feature(
-            account,
-            FEATURE_PAYOUT_CONNECTION,
-        )
-    )
-
-    can_receive_support = (
-        creator_has_feature(
-            account,
-            FEATURE_FAN_SUPPORT,
-        )
-    )
-
-    can_fundraise = (
-        creator_has_feature(
-            account,
-            FEATURE_FUNDRAISING,
-        )
-    )
-
-    can_offer_memberships = (
-        creator_has_feature(
-            account,
-            FEATURE_PAID_MEMBERSHIPS,
-        )
-    )
-
-    can_publish_exclusive = (
-        creator_has_feature(
-            account,
-            FEATURE_EXCLUSIVE_CONTENT,
-        )
     )
 
     return render_template(
         "studio/monetisation.html",
         creator=creator,
         creator_account=account,
-        plan_summary=plan_summary,
+        plan_summary=(
+            creator_plan_summary(
+                account
+            )
+        ),
         payout_account=payout_account,
         can_connect_payout=(
-            can_connect_payout
+            creator_has_feature(
+                account,
+                FEATURE_PAYOUT_CONNECTION,
+            )
         ),
         can_receive_support=(
-            can_receive_support
+            creator_has_feature(
+                account,
+                FEATURE_FAN_SUPPORT,
+            )
         ),
         can_fundraise=(
-            can_fundraise
+            creator_has_feature(
+                account,
+                FEATURE_FUNDRAISING,
+            )
         ),
         can_offer_memberships=(
-            can_offer_memberships
+            creator_has_feature(
+                account,
+                FEATURE_PAID_MEMBERSHIPS,
+            )
         ),
         can_publish_exclusive=(
-            can_publish_exclusive
+            creator_has_feature(
+                account,
+                FEATURE_EXCLUSIVE_CONTENT,
+            )
         ),
         support_payment_count=(
             support_payment_count
@@ -1449,9 +1577,7 @@ def monetisation():
         total_fan_earnings_cents=(
             total_fan_earnings_cents
         ),
-        recent_payments=(
-            recent_payments
-        ),
+        recent_payments=recent_payments,
         campaigns=campaigns,
         active_campaign_count=(
             active_campaign_count
@@ -1460,20 +1586,14 @@ def monetisation():
 
 
 # ============================================================
-# PAYOUT ACCOUNT SETUP PLACEHOLDER
-# ============================================================
-#
-# Both Standard and Premium creators may connect a payout
-# account.
-#
-# Actual Paystack onboarding will be connected later.
+# PAYOUT SETUP
 # ============================================================
 
 @studio_bp.route(
     "/monetisation/payout"
 )
 @studio_required
-def monetisation_payout():
+def payout_setup():
 
     account = (
         current_creator_account()
@@ -1490,16 +1610,17 @@ def monetisation_payout():
             )
         )
 
-    payout_account = (
-        creator_payout_account(
-            account
-        )
-    )
-
     return render_template(
         "studio/payout_setup.html",
+        creator=creator_profile(
+            account
+        ),
         creator_account=account,
-        payout_account=payout_account,
+        payout_account=(
+            creator_payout_account(
+                account
+            )
+        ),
         plan_summary=(
             creator_plan_summary(
                 account
@@ -1508,21 +1629,29 @@ def monetisation_payout():
     )
 
 
+# Backwards-compatible endpoint.
+@studio_bp.route(
+    "/monetisation/payout/legacy"
+)
+@studio_required
+def monetisation_payout():
+
+    return redirect(
+        url_for(
+            "studio.payout_setup"
+        )
+    )
+
+
 # ============================================================
-# FAN SUPPORT SETUP
-# ============================================================
-#
-# Buy Me a Coffee is available to BOTH plans.
-#
-# We do not create payments here yet.
-# This route prepares the Creator Studio management screen.
+# SUPPORT SETUP
 # ============================================================
 
 @studio_bp.route(
     "/monetisation/support"
 )
 @studio_required
-def monetisation_support():
+def support_setup():
 
     account = (
         current_creator_account()
@@ -1545,8 +1674,55 @@ def monetisation_support():
         )
     )
 
+    support_total_cents = int(
+        db.session.query(
+            db.func.coalesce(
+                db.func.sum(
+                    FanPayment.amount_cents
+                ),
+                0,
+            )
+        )
+        .filter(
+            FanPayment.creator_account_id
+            == account.id,
+            FanPayment.payment_type
+            == "support",
+            FanPayment.status
+            == "paid",
+        )
+        .scalar()
+        or 0
+    )
+
+    support_count = (
+        FanPayment.query
+        .filter_by(
+            creator_account_id=account.id,
+            payment_type="support",
+            status="paid",
+        )
+        .count()
+    )
+
+    recent_support = (
+        FanPayment.query
+        .filter_by(
+            creator_account_id=account.id,
+            payment_type="support",
+        )
+        .order_by(
+            FanPayment.created_at.desc()
+        )
+        .limit(10)
+        .all()
+    )
+
     return render_template(
         "studio/support_setup.html",
+        creator=creator_profile(
+            account
+        ),
         creator_account=account,
         payout_account=payout_account,
         plan_summary=(
@@ -1554,14 +1730,31 @@ def monetisation_support():
                 account
             )
         ),
+        support_total_cents=(
+            support_total_cents
+        ),
+        support_count=support_count,
+        recent_support=recent_support,
+    )
+
+
+# Backwards-compatible endpoint.
+@studio_bp.route(
+    "/monetisation/support/legacy"
+)
+@studio_required
+def monetisation_support():
+
+    return redirect(
+        url_for(
+            "studio.support_setup"
+        )
     )
 
 
 # ============================================================
 # FUNDRAISING CAMPAIGNS
-# ============================================================
-#
-# Premium only.
+# PREMIUM ONLY
 # ============================================================
 
 @studio_bp.route(
@@ -1588,9 +1781,7 @@ def fundraising_campaigns():
     campaigns = (
         FundraisingCampaign.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            )
+            creator_account_id=account.id
         )
         .order_by(
             FundraisingCampaign.created_at.desc()
@@ -1598,20 +1789,44 @@ def fundraising_campaigns():
         .all()
     )
 
+    attach_campaign_stats(
+        account,
+        campaigns,
+    )
+
+    total_raised_cents = sum(
+        campaign.raised_cents
+        for campaign in campaigns
+    )
+
+    total_supporters = sum(
+        campaign.supporter_count
+        for campaign in campaigns
+    )
+
     return render_template(
         "studio/fundraising_campaigns.html",
+        creator=creator_profile(
+            account
+        ),
         creator_account=account,
         campaigns=campaigns,
+        total_raised_cents=(
+            total_raised_cents
+        ),
+        total_supporters=(
+            total_supporters
+        ),
+        plan_summary=(
+            creator_plan_summary(
+                account
+            )
+        ),
     )
 
 
 # ============================================================
 # CREATE FUNDRAISING CAMPAIGN
-# ============================================================
-#
-# For now this creates the campaign definition.
-#
-# Payment processing is added later.
 # ============================================================
 
 @studio_bp.route(
@@ -1622,7 +1837,7 @@ def fundraising_campaigns():
     ],
 )
 @studio_required
-def fundraising_campaign_new():
+def fundraising_new():
 
     account = (
         current_creator_account()
@@ -1643,35 +1858,85 @@ def fundraising_campaign_new():
 
         title = (
             request.form
-            .get(
-                "title",
-                "",
-            )
+            .get("title", "")
             .strip()
         )
 
         description = (
             request.form
-            .get(
-                "description",
-                "",
-            )
+            .get("description", "")
             .strip()
         )
 
-        goal_amount = (
-            request.form
-            .get(
-                "goal_amount",
-                "",
+        goal_amount_cents = (
+            parse_money_to_cents(
+                request.form.get(
+                    "goal_amount"
+                )
             )
+        )
+
+        starts_at_raw = (
+            request.form
+            .get("starts_at", "")
             .strip()
         )
+
+        ends_at_raw = (
+            request.form
+            .get("ends_at", "")
+            .strip()
+        )
+
+        starts_at = (
+            parse_datetime_local(
+                starts_at_raw
+            )
+        )
+
+        ends_at = (
+            parse_datetime_local(
+                ends_at_raw
+            )
+        )
+
+        requested_status = (
+            request.form
+            .get(
+                "status",
+                "draft",
+            )
+            .strip()
+            .lower()
+        )
+
+        if requested_status not in {
+            "draft",
+            "active",
+        }:
+
+            requested_status = "draft"
 
         if not title:
 
             flash(
                 "Campaign title is required.",
+                "error",
+            )
+
+            return render_template(
+                "studio/fundraising_form.html",
+                creator_account=account,
+                campaign=None,
+            )
+
+        if len(title) > 180:
+
+            flash(
+                (
+                    "Campaign title must be "
+                    "180 characters or fewer."
+                ),
                 "error",
             )
 
@@ -1697,22 +1962,7 @@ def fundraising_campaign_new():
                 campaign=None,
             )
 
-        try:
-
-            goal_decimal = (
-                float(
-                    goal_amount
-                )
-            )
-
-        except (
-            TypeError,
-            ValueError,
-        ):
-
-            goal_decimal = 0
-
-        if goal_decimal <= 0:
+        if goal_amount_cents is None:
 
             flash(
                 (
@@ -1728,19 +1978,54 @@ def fundraising_campaign_new():
                 campaign=None,
             )
 
-        goal_amount_cents = (
-            int(
-                round(
-                    goal_decimal
-                    * 100
-                )
+        if starts_at_raw and not starts_at:
+
+            flash(
+                "Enter a valid campaign start date.",
+                "error",
             )
-        )
+
+            return render_template(
+                "studio/fundraising_form.html",
+                creator_account=account,
+                campaign=None,
+            )
+
+        if ends_at_raw and not ends_at:
+
+            flash(
+                "Enter a valid campaign end date.",
+                "error",
+            )
+
+            return render_template(
+                "studio/fundraising_form.html",
+                creator_account=account,
+                campaign=None,
+            )
+
+        if (
+            starts_at
+            and ends_at
+            and ends_at <= starts_at
+        ):
+
+            flash(
+                (
+                    "Campaign end date must be "
+                    "after the start date."
+                ),
+                "error",
+            )
+
+            return render_template(
+                "studio/fundraising_form.html",
+                creator_account=account,
+                campaign=None,
+            )
 
         campaign = FundraisingCampaign(
-            creator_account_id=(
-                account.id
-            ),
+            creator_account_id=account.id,
             title=title,
             slug=unique_campaign_slug(
                 account,
@@ -1751,19 +2036,84 @@ def fundraising_campaign_new():
                 goal_amount_cents
             ),
             currency="ZAR",
-            status="draft",
+            status=requested_status,
+            starts_at=starts_at,
+            ends_at=ends_at,
         )
 
-        db.session.add(
-            campaign
-        )
+        if requested_status == "active":
 
-        db.session.commit()
+            campaign.published_at = (
+                utc_now()
+            )
+
+        try:
+
+            db.session.add(
+                campaign
+            )
+
+            # Need ID before Cloudinary folder.
+            db.session.flush()
+
+            success, error = (
+                process_campaign_cover_image(
+                    account,
+                    campaign,
+                    request.files.get(
+                        "cover_image"
+                    ),
+                )
+            )
+
+            if not success:
+
+                db.session.rollback()
+
+                flash(
+                    error,
+                    "error",
+                )
+
+                return render_template(
+                    "studio/fundraising_form.html",
+                    creator_account=account,
+                    campaign=None,
+                )
+
+            db.session.commit()
+
+        except Exception:
+
+            db.session.rollback()
+
+            current_app.logger.exception(
+                (
+                    "Fundraising campaign "
+                    "creation failed. "
+                    "creator_account_id=%s"
+                ),
+                account.id,
+            )
+
+            flash(
+                (
+                    "Campaign could not be "
+                    "created. Please try again."
+                ),
+                "error",
+            )
+
+            return render_template(
+                "studio/fundraising_form.html",
+                creator_account=account,
+                campaign=None,
+            )
 
         flash(
             (
                 "Fundraising campaign "
-                "created as a draft."
+                "created successfully."
             ),
             "success",
         )
@@ -1778,6 +2128,840 @@ def fundraising_campaign_new():
         "studio/fundraising_form.html",
         creator_account=account,
         campaign=None,
+    )
+
+
+# ============================================================
+# BACKWARDS-COMPATIBLE CREATE ENDPOINT
+# ============================================================
+
+@studio_bp.route(
+    "/monetisation/campaigns/create",
+    methods=["GET"],
+)
+@studio_required
+def fundraising_campaign_new():
+
+    return redirect(
+        url_for(
+            "studio.fundraising_new"
+        )
+    )
+
+
+# ============================================================
+# EDIT FUNDRAISING CAMPAIGN
+# ============================================================
+
+@studio_bp.route(
+    "/monetisation/campaigns/"
+    "<int:campaign_id>/edit",
+    methods=[
+        "GET",
+        "POST",
+    ],
+)
+@studio_required
+def fundraising_edit(
+    campaign_id,
+):
+
+    account = (
+        current_creator_account()
+    )
+
+    if not require_creator_feature(
+        account,
+        FEATURE_FUNDRAISING,
+    ):
+
+        return redirect(
+            url_for(
+                "studio.monetisation"
+            )
+        )
+
+    campaign = (
+        creator_campaign_or_404(
+            account,
+            campaign_id,
+        )
+    )
+
+    if request.method == "POST":
+
+        title = (
+            request.form
+            .get("title", "")
+            .strip()
+        )
+
+        description = (
+            request.form
+            .get("description", "")
+            .strip()
+        )
+
+        goal_amount_cents = (
+            parse_money_to_cents(
+                request.form.get(
+                    "goal_amount"
+                )
+            )
+        )
+
+        starts_at_raw = (
+            request.form
+            .get("starts_at", "")
+            .strip()
+        )
+
+        ends_at_raw = (
+            request.form
+            .get("ends_at", "")
+            .strip()
+        )
+
+        starts_at = (
+            parse_datetime_local(
+                starts_at_raw
+            )
+        )
+
+        ends_at = (
+            parse_datetime_local(
+                ends_at_raw
+            )
+        )
+
+        requested_status = (
+            request.form
+            .get(
+                "status",
+                campaign.status,
+            )
+            .strip()
+            .lower()
+        )
+
+        allowed_statuses = {
+            "draft",
+            "active",
+            "completed",
+            "cancelled",
+            "archived",
+        }
+
+        if requested_status not in allowed_statuses:
+
+            abort(400)
+
+        if not title:
+
+            flash(
+                "Campaign title is required.",
+                "error",
+            )
+
+            return render_template(
+                "studio/fundraising_form.html",
+                creator_account=account,
+                campaign=campaign,
+            )
+
+        if len(title) > 180:
+
+            flash(
+                (
+                    "Campaign title must be "
+                    "180 characters or fewer."
+                ),
+                "error",
+            )
+
+            return render_template(
+                "studio/fundraising_form.html",
+                creator_account=account,
+                campaign=campaign,
+            )
+
+        if not description:
+
+            flash(
+                (
+                    "Campaign description "
+                    "is required."
+                ),
+                "error",
+            )
+
+            return render_template(
+                "studio/fundraising_form.html",
+                creator_account=account,
+                campaign=campaign,
+            )
+
+        if goal_amount_cents is None:
+
+            flash(
+                (
+                    "Enter a valid fundraising "
+                    "goal greater than R0."
+                ),
+                "error",
+            )
+
+            return render_template(
+                "studio/fundraising_form.html",
+                creator_account=account,
+                campaign=campaign,
+            )
+
+        if starts_at_raw and not starts_at:
+
+            flash(
+                "Enter a valid campaign start date.",
+                "error",
+            )
+
+            return render_template(
+                "studio/fundraising_form.html",
+                creator_account=account,
+                campaign=campaign,
+            )
+
+        if ends_at_raw and not ends_at:
+
+            flash(
+                "Enter a valid campaign end date.",
+                "error",
+            )
+
+            return render_template(
+                "studio/fundraising_form.html",
+                creator_account=account,
+                campaign=campaign,
+            )
+
+        if (
+            starts_at
+            and ends_at
+            and ends_at <= starts_at
+        ):
+
+            flash(
+                (
+                    "Campaign end date must be "
+                    "after the start date."
+                ),
+                "error",
+            )
+
+            return render_template(
+                "studio/fundraising_form.html",
+                creator_account=account,
+                campaign=campaign,
+            )
+
+        previous_status = (
+            campaign.status
+        )
+
+        campaign.title = title
+
+        campaign.slug = (
+            unique_campaign_slug(
+                account,
+                title,
+                campaign.id,
+            )
+        )
+
+        campaign.description = (
+            description
+        )
+
+        campaign.goal_amount_cents = (
+            goal_amount_cents
+        )
+
+        campaign.starts_at = starts_at
+
+        campaign.ends_at = ends_at
+
+        campaign.status = (
+            requested_status
+        )
+
+        if (
+            requested_status == "active"
+            and previous_status != "active"
+        ):
+
+            if not campaign.published_at:
+
+                campaign.published_at = (
+                    utc_now()
+                )
+
+            campaign.cancelled_at = None
+
+        if (
+            requested_status == "completed"
+            and previous_status
+            != "completed"
+        ):
+
+            campaign.completed_at = (
+                utc_now()
+            )
+
+        if (
+            requested_status == "cancelled"
+            and previous_status
+            != "cancelled"
+        ):
+
+            campaign.cancelled_at = (
+                utc_now()
+            )
+
+        try:
+
+            success, error = (
+                process_campaign_cover_image(
+                    account,
+                    campaign,
+                    request.files.get(
+                        "cover_image"
+                    ),
+                )
+            )
+
+            if not success:
+
+                db.session.rollback()
+
+                flash(
+                    error,
+                    "error",
+                )
+
+                return redirect(
+                    url_for(
+                        "studio.fundraising_edit",
+                        campaign_id=campaign.id,
+                    )
+                )
+
+            db.session.commit()
+
+        except Exception:
+
+            db.session.rollback()
+
+            current_app.logger.exception(
+                (
+                    "Fundraising campaign "
+                    "update failed. "
+                    "creator_account_id=%s "
+                    "campaign_id=%s"
+                ),
+                account.id,
+                campaign.id,
+            )
+
+            flash(
+                (
+                    "Campaign could not be "
+                    "updated. Please try again."
+                ),
+                "error",
+            )
+
+            return redirect(
+                url_for(
+                    "studio.fundraising_edit",
+                    campaign_id=campaign.id,
+                )
+            )
+
+        flash(
+            "Campaign updated.",
+            "success",
+        )
+
+        return redirect(
+            url_for(
+                "studio.fundraising_edit",
+                campaign_id=campaign.id,
+            )
+        )
+
+    stats = campaign_stats(
+        account,
+        campaign,
+    )
+
+    campaign.raised_cents = (
+        stats["raised_cents"]
+    )
+
+    campaign.supporter_count = (
+        stats["supporter_count"]
+    )
+
+    campaign.progress_percent = (
+        stats["progress_percent"]
+    )
+
+    return render_template(
+        "studio/fundraising_form.html",
+        creator_account=account,
+        campaign=campaign,
+    )
+
+
+# ============================================================
+# PUBLISH / ACTIVATE CAMPAIGN
+# ============================================================
+
+@studio_bp.route(
+    "/monetisation/campaigns/"
+    "<int:campaign_id>/publish",
+    methods=["POST"],
+)
+@studio_required
+def fundraising_publish(
+    campaign_id,
+):
+
+    account = (
+        current_creator_account()
+    )
+
+    if not require_creator_feature(
+        account,
+        FEATURE_FUNDRAISING,
+    ):
+
+        return redirect(
+            url_for(
+                "studio.monetisation"
+            )
+        )
+
+    campaign = (
+        creator_campaign_or_404(
+            account,
+            campaign_id,
+        )
+    )
+
+    if campaign.status in {
+        "cancelled",
+        "archived",
+    }:
+
+        flash(
+            (
+                "This campaign cannot be "
+                "published in its current state."
+            ),
+            "warning",
+        )
+
+        return redirect(
+            url_for(
+                "studio.fundraising_edit",
+                campaign_id=campaign.id,
+            )
+        )
+
+    campaign.status = "active"
+
+    if not campaign.published_at:
+
+        campaign.published_at = (
+            utc_now()
+        )
+
+    campaign.cancelled_at = None
+
+    db.session.commit()
+
+    flash(
+        "Campaign is now active.",
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "studio.fundraising_campaigns"
+        )
+    )
+
+
+# ============================================================
+# COMPLETE CAMPAIGN
+# ============================================================
+
+@studio_bp.route(
+    "/monetisation/campaigns/"
+    "<int:campaign_id>/complete",
+    methods=["POST"],
+)
+@studio_required
+def fundraising_complete(
+    campaign_id,
+):
+
+    account = (
+        current_creator_account()
+    )
+
+    if not require_creator_feature(
+        account,
+        FEATURE_FUNDRAISING,
+    ):
+
+        return redirect(
+            url_for(
+                "studio.monetisation"
+            )
+        )
+
+    campaign = (
+        creator_campaign_or_404(
+            account,
+            campaign_id,
+        )
+    )
+
+    campaign.status = "completed"
+
+    if not campaign.completed_at:
+
+        campaign.completed_at = (
+            utc_now()
+        )
+
+    db.session.commit()
+
+    flash(
+        "Campaign marked as completed.",
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "studio.fundraising_campaigns"
+        )
+    )
+
+
+# ============================================================
+# CANCEL CAMPAIGN
+# ============================================================
+
+@studio_bp.route(
+    "/monetisation/campaigns/"
+    "<int:campaign_id>/cancel",
+    methods=["POST"],
+)
+@studio_required
+def fundraising_cancel(
+    campaign_id,
+):
+
+    account = (
+        current_creator_account()
+    )
+
+    if not require_creator_feature(
+        account,
+        FEATURE_FUNDRAISING,
+    ):
+
+        return redirect(
+            url_for(
+                "studio.monetisation"
+            )
+        )
+
+    campaign = (
+        creator_campaign_or_404(
+            account,
+            campaign_id,
+        )
+    )
+
+    campaign.status = "cancelled"
+
+    campaign.cancelled_at = (
+        utc_now()
+    )
+
+    db.session.commit()
+
+    flash(
+        "Campaign cancelled.",
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "studio.fundraising_campaigns"
+        )
+    )
+
+
+# ============================================================
+# ARCHIVE CAMPAIGN
+# ============================================================
+
+@studio_bp.route(
+    "/monetisation/campaigns/"
+    "<int:campaign_id>/archive",
+    methods=["POST"],
+)
+@studio_required
+def fundraising_archive(
+    campaign_id,
+):
+
+    account = (
+        current_creator_account()
+    )
+
+    if not require_creator_feature(
+        account,
+        FEATURE_FUNDRAISING,
+    ):
+
+        return redirect(
+            url_for(
+                "studio.monetisation"
+            )
+        )
+
+    campaign = (
+        creator_campaign_or_404(
+            account,
+            campaign_id,
+        )
+    )
+
+    campaign.status = "archived"
+
+    db.session.commit()
+
+    flash(
+        "Campaign archived.",
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "studio.fundraising_campaigns"
+        )
+    )
+
+
+# ============================================================
+# REMOVE CAMPAIGN COVER
+# ============================================================
+
+@studio_bp.route(
+    "/monetisation/campaigns/"
+    "<int:campaign_id>/cover/remove",
+    methods=["POST"],
+)
+@studio_required
+def fundraising_remove_cover(
+    campaign_id,
+):
+
+    account = (
+        current_creator_account()
+    )
+
+    if not require_creator_feature(
+        account,
+        FEATURE_FUNDRAISING,
+    ):
+
+        return redirect(
+            url_for(
+                "studio.monetisation"
+            )
+        )
+
+    campaign = (
+        creator_campaign_or_404(
+            account,
+            campaign_id,
+        )
+    )
+
+    if campaign.cover_image_public_id:
+
+        try:
+
+            delete_media(
+                campaign.cover_image_public_id,
+                resource_type="image",
+            )
+
+        except Exception:
+
+            current_app.logger.exception(
+                (
+                    "Campaign cover deletion "
+                    "failed. creator_account_id=%s "
+                    "campaign_id=%s"
+                ),
+                account.id,
+                campaign.id,
+            )
+
+            flash(
+                (
+                    "Campaign cover could "
+                    "not be removed."
+                ),
+                "error",
+            )
+
+            return redirect(
+                url_for(
+                    "studio.fundraising_edit",
+                    campaign_id=campaign.id,
+                )
+            )
+
+    campaign.cover_image_url = None
+    campaign.cover_image_public_id = None
+
+    db.session.commit()
+
+    flash(
+        "Campaign cover removed.",
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "studio.fundraising_edit",
+            campaign_id=campaign.id,
+        )
+    )
+
+
+# ============================================================
+# DELETE CAMPAIGN
+# ============================================================
+#
+# Only campaigns without payment history can be deleted.
+# Once money has been associated with a campaign, preserve the
+# financial history and archive/cancel it instead.
+# ============================================================
+
+@studio_bp.route(
+    "/monetisation/campaigns/"
+    "<int:campaign_id>/delete",
+    methods=["POST"],
+)
+@studio_required
+def fundraising_delete(
+    campaign_id,
+):
+
+    account = (
+        current_creator_account()
+    )
+
+    if not require_creator_feature(
+        account,
+        FEATURE_FUNDRAISING,
+    ):
+
+        return redirect(
+            url_for(
+                "studio.monetisation"
+            )
+        )
+
+    campaign = (
+        creator_campaign_or_404(
+            account,
+            campaign_id,
+        )
+    )
+
+    payment_exists = (
+        FanPayment.query
+        .filter(
+            FanPayment.creator_account_id
+            == account.id,
+            FanPayment.campaign_id
+            == campaign.id,
+        )
+        .first()
+    )
+
+    if payment_exists:
+
+        flash(
+            (
+                "This campaign has payment "
+                "history and cannot be deleted. "
+                "Archive it instead."
+            ),
+            "warning",
+        )
+
+        return redirect(
+            url_for(
+                "studio.fundraising_campaigns"
+            )
+        )
+
+    if campaign.cover_image_public_id:
+
+        try:
+
+            delete_media(
+                campaign.cover_image_public_id,
+                resource_type="image",
+            )
+
+        except Exception:
+
+            current_app.logger.exception(
+                (
+                    "Campaign cover cleanup "
+                    "failed during deletion."
+                )
+            )
+
+    title = campaign.title
+
+    db.session.delete(
+        campaign
+    )
+
+    db.session.commit()
+
+    flash(
+        f'"{title}" was deleted.',
+        "success",
+    )
+
+    return redirect(
+        url_for(
+            "studio.fundraising_campaigns"
+        )
     )
 
 
@@ -1797,28 +2981,20 @@ def content_list():
 
     status = (
         request.args
-        .get(
-            "status",
-            "",
-        )
+        .get("status", "")
         .strip()
     )
 
     content_type = (
         request.args
-        .get(
-            "type",
-            "",
-        )
+        .get("type", "")
         .strip()
     )
 
     query = (
         ContentPost.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            )
+            creator_account_id=account.id
         )
     )
 
@@ -1879,9 +3055,7 @@ def content_new():
     categories = (
         ContentCategory.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            ),
+            creator_account_id=account.id,
             is_active=True,
         )
         .order_by(
@@ -1895,28 +3069,19 @@ def content_new():
 
         title = (
             request.form
-            .get(
-                "title",
-                "",
-            )
+            .get("title", "")
             .strip()
         )
 
         excerpt = (
             request.form
-            .get(
-                "excerpt",
-                "",
-            )
+            .get("excerpt", "")
             .strip()
         )
 
         body = (
             request.form
-            .get(
-                "body",
-                "",
-            )
+            .get("body", "")
             .strip()
         )
 
@@ -1982,13 +3147,8 @@ def content_new():
 
             abort(400)
 
-        # ----------------------------------------------------
-        # PREMIUM: EXCLUSIVE CONTENT
-        # ----------------------------------------------------
-
         if (
-            access_level
-            == "subscriber"
+            access_level == "subscriber"
             and not require_creator_feature(
                 account,
                 FEATURE_EXCLUSIVE_CONTENT,
@@ -2021,22 +3181,14 @@ def content_new():
             )
 
         post = ContentPost(
-            creator_account_id=(
-                account.id
-            ),
+            creator_account_id=account.id,
             title=title,
             slug=unique_post_slug(
                 account,
                 title,
             ),
-            excerpt=(
-                excerpt
-                or None
-            ),
-            body=(
-                body
-                or None
-            ),
+            excerpt=excerpt or None,
+            body=body or None,
             content_type=content_type,
             access_level=access_level,
             status=status,
@@ -2049,10 +3201,7 @@ def content_new():
             ),
         )
 
-        if (
-            status
-            == "published"
-        ):
+        if status == "published":
 
             post.published_at = (
                 utc_now()
@@ -2119,10 +3268,7 @@ def content_new():
                     categories=categories,
                 )
 
-        if (
-            content_type
-            == "story"
-        ):
+        if content_type == "story":
 
             success, error = (
                 process_story_gallery(
@@ -2152,8 +3298,7 @@ def content_new():
         db.session.commit()
 
         if (
-            post.status
-            == "published"
+            post.status == "published"
             and post.access_level
             == "public"
         ):
@@ -2220,9 +3365,7 @@ def content_edit(
     categories = (
         ContentCategory.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            ),
+            creator_account_id=account.id,
             is_active=True,
         )
         .order_by(
@@ -2236,10 +3379,7 @@ def content_edit(
 
         title = (
             request.form
-            .get(
-                "title",
-                "",
-            )
+            .get("title", "")
             .strip()
         )
 
@@ -2298,13 +3438,8 @@ def content_edit(
 
             abort(400)
 
-        # ----------------------------------------------------
-        # PREMIUM: EXCLUSIVE CONTENT
-        # ----------------------------------------------------
-
         making_new_exclusive = (
-            access_level
-            == "subscriber"
+            access_level == "subscriber"
             and post.access_level
             != "subscriber"
         )
@@ -2354,10 +3489,8 @@ def content_edit(
         )
 
         publishing_exclusive = (
-            access_level
-            == "subscriber"
-            and status
-            == "published"
+            access_level == "subscriber"
+            and status == "published"
             and previous_status
             != "published"
         )
@@ -2376,34 +3509,24 @@ def content_edit(
                 categories=categories,
             )
 
-        post.title = (
-            title
-        )
+        post.title = title
 
-        post.slug = (
-            unique_post_slug(
-                account,
-                title,
-                post.id,
-            )
+        post.slug = unique_post_slug(
+            account,
+            title,
+            post.id,
         )
 
         post.excerpt = (
             request.form
-            .get(
-                "excerpt",
-                "",
-            )
+            .get("excerpt", "")
             .strip()
             or None
         )
 
         post.body = (
             request.form
-            .get(
-                "body",
-                "",
-            )
+            .get("body", "")
             .strip()
             or None
         )
@@ -2416,13 +3539,9 @@ def content_edit(
             access_level
         )
 
-        post.status = (
-            status
-        )
+        post.status = status
 
-        post.category = (
-            category
-        )
+        post.category = category
 
         post.is_featured = (
             request.form.get(
@@ -2432,8 +3551,7 @@ def content_edit(
         )
 
         if (
-            status
-            == "published"
+            status == "published"
             and previous_status
             != "published"
         ):
@@ -2499,10 +3617,7 @@ def content_edit(
                     )
                 )
 
-        if (
-            content_type
-            == "story"
-        ):
+        if content_type == "story":
 
             success, error = (
                 process_story_gallery(
@@ -2576,7 +3691,7 @@ def content_edit(
 
 
 # ============================================================
-# PUBLISH
+# PUBLISH CONTENT
 # ============================================================
 
 @studio_bp.route(
@@ -2598,10 +3713,8 @@ def content_publish(
     )
 
     if (
-        post.access_level
-        == "subscriber"
-        and post.status
-        != "published"
+        post.access_level == "subscriber"
+        and post.status != "published"
         and not require_creator_feature(
             account,
             FEATURE_EXCLUSIVE_CONTENT,
@@ -2616,13 +3729,10 @@ def content_publish(
         )
 
     was_published = (
-        post.status
-        == "published"
+        post.status == "published"
     )
 
-    post.status = (
-        "published"
-    )
+    post.status = "published"
 
     if not post.published_at:
 
@@ -2666,7 +3776,7 @@ def content_publish(
 
 
 # ============================================================
-# ARCHIVE
+# ARCHIVE CONTENT
 # ============================================================
 
 @studio_bp.route(
@@ -2687,9 +3797,7 @@ def content_archive(
         post_id,
     )
 
-    post.status = (
-        "archived"
-    )
+    post.status = "archived"
 
     db.session.commit()
 
@@ -2706,7 +3814,7 @@ def content_archive(
 
 
 # ============================================================
-# DELETE
+# DELETE CONTENT
 # ============================================================
 
 @studio_bp.route(
@@ -2727,9 +3835,7 @@ def content_delete(
         post_id,
     )
 
-    title = (
-        post.title
-    )
+    title = post.title
 
     for media in list(
         post.media
@@ -2753,9 +3859,7 @@ def content_delete(
 
             delete_media(
                 media.public_id,
-                resource_type=(
-                    resource_type
-                ),
+                resource_type=resource_type,
             )
 
         except Exception:
@@ -2852,9 +3956,7 @@ def content_remove_cover(
             media
         )
 
-    post.cover_image_url = (
-        None
-    )
+    post.cover_image_url = None
 
     db.session.commit()
 
@@ -3070,19 +4172,13 @@ def categories():
 
         name = (
             request.form
-            .get(
-                "name",
-                "",
-            )
+            .get("name", "")
             .strip()
         )
 
         description = (
             request.form
-            .get(
-                "description",
-                "",
-            )
+            .get("description", "")
             .strip()
         )
 
@@ -3102,17 +4198,13 @@ def categories():
         count = (
             ContentCategory.query
             .filter_by(
-                creator_account_id=(
-                    account.id
-                )
+                creator_account_id=account.id
             )
             .count()
         )
 
         category = ContentCategory(
-            creator_account_id=(
-                account.id
-            ),
+            creator_account_id=account.id,
             name=name,
             slug=unique_category_slug(
                 account,
@@ -3123,9 +4215,7 @@ def categories():
                 or None
             ),
             is_active=True,
-            display_order=(
-                count + 1
-            ),
+            display_order=count + 1,
         )
 
         db.session.add(
@@ -3148,9 +4238,7 @@ def categories():
     category_items = (
         ContentCategory.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            )
+            creator_account_id=account.id
         )
         .order_by(
             ContentCategory.display_order.asc(),
@@ -3183,10 +4271,8 @@ def profile():
         current_creator_account()
     )
 
-    creator = (
-        creator_profile(
-            account
-        )
+    creator = creator_profile(
+        account
     )
 
     if not creator:
@@ -3197,28 +4283,19 @@ def profile():
 
         display_name = (
             request.form
-            .get(
-                "display_name",
-                "",
-            )
+            .get("display_name", "")
             .strip()
         )
 
         tagline = (
             request.form
-            .get(
-                "tagline",
-                "",
-            )
+            .get("tagline", "")
             .strip()
         )
 
         bio = (
             request.form
-            .get(
-                "bio",
-                "",
-            )
+            .get("bio", "")
             .strip()
         )
 
@@ -3257,37 +4334,24 @@ def profile():
 
         creator.instagram_url = (
             request.form
-            .get(
-                "instagram_url",
-                "",
-            )
+            .get("instagram_url", "")
             .strip()
             or None
         )
 
         creator.tiktok_url = (
             request.form
-            .get(
-                "tiktok_url",
-                "",
-            )
+            .get("tiktok_url", "")
             .strip()
             or None
         )
 
         creator.youtube_url = (
             request.form
-            .get(
-                "youtube_url",
-                "",
-            )
+            .get("youtube_url", "")
             .strip()
             or None
         )
-
-        # ----------------------------------------------------
-        # PROFILE IMAGE
-        # ----------------------------------------------------
 
         profile_image = (
             request.files.get(
@@ -3318,16 +4382,16 @@ def profile():
                     creator=creator,
                 )
 
+            root = current_app.config.get(
+                "CLOUDINARY_FOLDER",
+                "creator-blog",
+            )
+
             result = upload_image(
                 profile_image,
                 folder=(
-                    current_app.config[
-                        "CLOUDINARY_FOLDER"
-                    ]
-                    + (
-                        f"/creators/"
-                        f"{account.id}/profile"
-                    )
+                    f"{root}/creators/"
+                    f"{account.id}/profile"
                 ),
             )
 
@@ -3361,10 +4425,6 @@ def profile():
                         )
                     )
 
-        # ----------------------------------------------------
-        # INTRO REEL
-        # ----------------------------------------------------
-
         intro_reel = (
             request.files.get(
                 "intro_reel"
@@ -3394,17 +4454,17 @@ def profile():
                     creator=creator,
                 )
 
+            root = current_app.config.get(
+                "CLOUDINARY_FOLDER",
+                "creator-blog",
+            )
+
             result = upload_video(
                 intro_reel,
                 folder=(
-                    current_app.config[
-                        "CLOUDINARY_FOLDER"
-                    ]
-                    + (
-                        f"/creators/"
-                        f"{account.id}/"
-                        "intro-reels"
-                    )
+                    f"{root}/creators/"
+                    f"{account.id}/"
+                    "intro-reels"
                 ),
             )
 
@@ -3482,10 +4542,7 @@ def comments():
 
     status = (
         request.args
-        .get(
-            "status",
-            "",
-        )
+        .get("status", "")
         .strip()
     )
 
@@ -3509,8 +4566,7 @@ def comments():
     }:
 
         query = query.filter(
-            Comment.status
-            == status
+            Comment.status == status
         )
 
     items = (
@@ -3552,9 +4608,7 @@ def comment_approve(
         )
     )
 
-    comment.status = (
-        "approved"
-    )
+    comment.status = "approved"
 
     db.session.commit()
 
@@ -3595,20 +4649,13 @@ def comment_hide(
         )
     )
 
-    comment.status = (
-        "hidden"
-    )
+    comment.status = "hidden"
 
-    if (
-        comment.parent_id
-        is None
-    ):
+    if comment.parent_id is None:
 
         for reply in comment.replies:
 
-            reply.status = (
-                "hidden"
-            )
+            reply.status = "hidden"
 
     db.session.commit()
 
@@ -3692,19 +4739,13 @@ def comment_creator_reply(
         )
     )
 
-    if (
-        parent.parent_id
-        is not None
-    ):
+    if parent.parent_id is not None:
 
         abort(400)
 
     body = (
         request.form
-        .get(
-            "body",
-            "",
-        )
+        .get("body", "")
         .strip()
     )
 
@@ -3724,7 +4765,7 @@ def comment_creator_reply(
             )
         )
 
-    profile = (
+    profile_item = (
         creator_profile(
             account
         )
@@ -3734,8 +4775,8 @@ def comment_creator_reply(
         post_id=parent.post_id,
         parent_id=parent.id,
         author_name=(
-            profile.display_name
-            if profile
+            profile_item.display_name
+            if profile_item
             else account.username
         ),
         body=body,
@@ -3778,19 +4819,14 @@ def subscribers():
 
     status = (
         request.args
-        .get(
-            "status",
-            "",
-        )
+        .get("status", "")
         .strip()
     )
 
     query = (
         EmailSubscriber.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            )
+            creator_account_id=account.id
         )
     )
 
@@ -3836,18 +4872,14 @@ def analytics():
     posts = (
         ContentPost.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            )
+            creator_account_id=account.id
         )
     )
 
     subscriber_query = (
         EmailSubscriber.query
         .filter_by(
-            creator_account_id=(
-                account.id
-            )
+            creator_account_id=account.id
         )
     )
 
@@ -3871,9 +4903,7 @@ def analytics():
             account
         ),
 
-        total_posts=(
-            posts.count()
-        ),
+        total_posts=posts.count(),
 
         published_posts=(
             posts
@@ -4024,10 +5054,8 @@ def profile_remove_image():
         current_creator_account()
     )
 
-    creator = (
-        creator_profile(
-            account
-        )
+    creator = creator_profile(
+        account
     )
 
     if not creator:
@@ -4066,13 +5094,9 @@ def profile_remove_image():
                 )
             )
 
-    creator.profile_image_url = (
-        None
-    )
+    creator.profile_image_url = None
 
-    creator.profile_image_public_id = (
-        None
-    )
+    creator.profile_image_public_id = None
 
     db.session.commit()
 
@@ -4103,10 +5127,8 @@ def profile_remove_intro_reel():
         current_creator_account()
     )
 
-    creator = (
-        creator_profile(
-            account
-        )
+    creator = creator_profile(
+        account
     )
 
     if not creator:
@@ -4145,17 +5167,11 @@ def profile_remove_intro_reel():
                 )
             )
 
-    creator.intro_reel_url = (
-        None
-    )
+    creator.intro_reel_url = None
 
-    creator.intro_reel_public_id = (
-        None
-    )
+    creator.intro_reel_public_id = None
 
-    creator.intro_reel_thumbnail_url = (
-        None
-    )
+    creator.intro_reel_thumbnail_url = None
 
     db.session.commit()
 
