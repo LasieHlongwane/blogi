@@ -4,6 +4,7 @@
 # ============================================================
 
 import base64
+import binascii
 import hashlib
 import hmac
 import time
@@ -16,6 +17,10 @@ from flask import current_app
 # ============================================================
 
 class YocoWebhookError(Exception):
+    """
+    Raised when a Yoco webhook cannot be authenticated.
+    """
+
     pass
 
 
@@ -24,6 +29,18 @@ class YocoWebhookError(Exception):
 # ============================================================
 
 def get_yoco_webhook_secret():
+    """
+    Return the Yoco/Svix webhook signing secret.
+
+    IMPORTANT:
+    This must be the webhook secret returned when the Yoco
+    webhook subscription was created.
+
+    It is NOT:
+        - YOCO_SECRET_KEY
+        - YOCO_API_KEY
+        - a Checkout API key
+    """
 
     secret = current_app.config.get(
         "YOCO_WEBHOOK_SECRET"
@@ -35,81 +52,153 @@ def get_yoco_webhook_secret():
             "Yoco webhook secret is not configured."
         )
 
+    if not isinstance(
+        secret,
+        str,
+    ):
+
+        raise YocoWebhookError(
+            "Yoco webhook secret is invalid."
+        )
+
+    secret = secret.strip()
+
+    if not secret:
+
+        raise YocoWebhookError(
+            "Yoco webhook secret is empty."
+        )
+
     return secret
 
 
 # ============================================================
-# NORMALIZE SECRET
+# DECODE WEBHOOK SECRET
 # ============================================================
 
-def _decode_webhook_secret(secret):
+def _decode_webhook_secret(
+    secret,
+):
+    """
+    Svix webhook signing secrets normally look like:
 
-    secret = (
-        secret
-        .strip()
-    )
+        whsec_<base64-data>
 
-    # Yoco/Svix-style webhook secrets commonly use a
-    # whsec_ prefix followed by Base64 key material.
+    The whsec_ prefix must be removed and the remaining
+    Base64 value decoded before it is used as the HMAC key.
+    """
+
+    secret = secret.strip()
+
     if secret.startswith(
         "whsec_"
     ):
 
-        encoded = secret[
+        encoded_secret = secret[
             len("whsec_"):
         ]
 
-        try:
+    else:
 
-            return base64.b64decode(
-                encoded
-            )
+        encoded_secret = secret
 
-        except Exception as exc:
+    if not encoded_secret:
 
-            raise YocoWebhookError(
-                "Invalid Yoco webhook secret."
-            ) from exc
+        raise YocoWebhookError(
+            "Yoco webhook secret contains no key material."
+        )
 
-    return secret.encode(
-        "utf-8"
-    )
+    # --------------------------------------------------------
+    # BASE64 PADDING
+    # --------------------------------------------------------
+    #
+    # Base64 strings should normally already contain the
+    # correct padding, but adding missing padding makes the
+    # decoder tolerant of secrets where "=" characters were
+    # omitted.
+    # --------------------------------------------------------
+
+    missing_padding = (
+        -len(encoded_secret)
+    ) % 4
+
+    if missing_padding:
+
+        encoded_secret += (
+            "=" * missing_padding
+        )
+
+    try:
+
+        return base64.b64decode(
+            encoded_secret,
+            validate=True,
+        )
+
+    except (
+        binascii.Error,
+        ValueError,
+    ) as exc:
+
+        raise YocoWebhookError(
+            "Yoco webhook secret is not valid Base64."
+        ) from exc
 
 
 # ============================================================
-# SIGNATURE PARSING
+# EXTRACT SVIX SIGNATURES
 # ============================================================
 
 def _extract_signatures(
     signature_header,
 ):
+    """
+    Svix may provide one or more signatures in the header.
+
+    Example:
+
+        v1,abc123... v1,xyz456...
+
+    We only accept v1 signatures.
+    """
+
+    if not signature_header:
+
+        return []
 
     signatures = []
 
-    for item in (
-        signature_header
-        .split()
-    ):
+    for item in signature_header.split():
 
-        if "," in item:
+        item = item.strip()
 
-            parts = item.split(
-                ",",
-                1,
-            )
-
-            if len(parts) == 2:
-                signatures.append(
-                    parts[1]
-                )
+        if not item:
 
             continue
 
-        # Some providers may send only the Base64 signature.
-        if item:
-            signatures.append(
-                item
-            )
+        if "," not in item:
+
+            continue
+
+        version, signature = item.split(
+            ",",
+            1,
+        )
+
+        version = version.strip()
+        signature = signature.strip()
+
+        if version != "v1":
+
+            continue
+
+        if not signature:
+
+            continue
+
+        signatures.append(
+            signature
+        )
 
     return signatures
 
@@ -124,8 +213,29 @@ def verify_yoco_webhook(
     webhook_id,
     webhook_timestamp,
     webhook_signature,
-    tolerance_seconds=180,
+    tolerance_seconds=300,
 ):
+    """
+    Verify a Yoco webhook using the Svix signing scheme.
+
+    Signed content:
+
+        webhook-id.webhook-timestamp.raw-body
+
+    HMAC:
+
+        HMAC-SHA256(
+            decoded webhook secret,
+            signed content
+        )
+
+    The resulting digest is Base64 encoded and compared
+    against every v1 signature supplied by Svix.
+    """
+
+    # ========================================================
+    # REQUIRED HEADERS
+    # ========================================================
 
     if not webhook_id:
 
@@ -145,9 +255,46 @@ def verify_yoco_webhook(
             "Missing webhook-signature header."
         )
 
-    # --------------------------------------------------------
+    # ========================================================
+    # RAW BODY
+    # ========================================================
+
+    if raw_body is None:
+
+        raise YocoWebhookError(
+            "Webhook body is missing."
+        )
+
+    if isinstance(
+        raw_body,
+        str,
+    ):
+
+        raw_body = raw_body.encode(
+            "utf-8"
+        )
+
+    if not isinstance(
+        raw_body,
+        (
+            bytes,
+            bytearray,
+        ),
+    ):
+
+        raise YocoWebhookError(
+            "Webhook body must be raw bytes."
+        )
+
+    # Convert bytearray to bytes if necessary.
+
+    raw_body = bytes(
+        raw_body
+    )
+
+    # ========================================================
     # TIMESTAMP
-    # --------------------------------------------------------
+    # ========================================================
 
     try:
 
@@ -155,7 +302,10 @@ def verify_yoco_webhook(
             webhook_timestamp
         )
 
-    except (TypeError, ValueError) as exc:
+    except (
+        TypeError,
+        ValueError,
+    ) as exc:
 
         raise YocoWebhookError(
             "Invalid webhook timestamp."
@@ -174,9 +324,18 @@ def verify_yoco_webhook(
             "the allowed tolerance."
         )
 
-    # --------------------------------------------------------
-    # SIGNED PAYLOAD
-    # --------------------------------------------------------
+    # ========================================================
+    # SIGNED CONTENT
+    # ========================================================
+    #
+    # IMPORTANT:
+    #
+    # Do not parse JSON and serialize it again here.
+    #
+    # The signature was calculated from the exact HTTP body
+    # Yoco/Svix sent.
+    #
+    # ========================================================
 
     try:
 
@@ -196,16 +355,26 @@ def verify_yoco_webhook(
         f"{body_text}"
     )
 
-    # --------------------------------------------------------
-    # HMAC SHA256
-    # --------------------------------------------------------
+    # ========================================================
+    # WEBHOOK SIGNING KEY
+    # ========================================================
 
-    key = _decode_webhook_secret(
+    secret = (
         get_yoco_webhook_secret()
     )
 
+    signing_key = (
+        _decode_webhook_secret(
+            secret
+        )
+    )
+
+    # ========================================================
+    # CALCULATE EXPECTED SIGNATURE
+    # ========================================================
+
     digest = hmac.new(
-        key,
+        signing_key,
         signed_content.encode(
             "utf-8"
         ),
@@ -217,9 +386,13 @@ def verify_yoco_webhook(
             digest
         )
         .decode(
-            "utf-8"
+            "ascii"
         )
     )
+
+    # ========================================================
+    # GET SUPPLIED SIGNATURES
+    # ========================================================
 
     supplied_signatures = (
         _extract_signatures(
@@ -230,21 +403,26 @@ def verify_yoco_webhook(
     if not supplied_signatures:
 
         raise YocoWebhookError(
-            "Webhook signature is invalid."
+            "No valid v1 webhook signatures were supplied."
         )
 
-    valid = any(
-        hmac.compare_digest(
+    # ========================================================
+    # CONSTANT-TIME SIGNATURE COMPARISON
+    # ========================================================
+
+    for supplied_signature in supplied_signatures:
+
+        if hmac.compare_digest(
             expected_signature,
-            supplied,
-        )
-        for supplied in supplied_signatures
+            supplied_signature,
+        ):
+
+            return True
+
+    # ========================================================
+    # FAILED
+    # ========================================================
+
+    raise YocoWebhookError(
+        "Webhook signature verification failed."
     )
-
-    if not valid:
-
-        raise YocoWebhookError(
-            "Webhook signature verification failed."
-        )
-
-    return True
