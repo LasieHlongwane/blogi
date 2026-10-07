@@ -1,143 +1,296 @@
-import base64
-import hashlib
-import hmac
-import json
-import os
-import time
+# ============================================================
+# CREATOR PLATFORM
+# YOCO PAYMENT SERVICE
+# ============================================================
+
 import uuid
-from urllib import error, request
 
-YOCO_API_BASE = "https://payments.yoco.com/api"
-WEBHOOK_TOLERANCE_SECONDS = 180
+import requests
+
+from flask import (
+    current_app,
+)
 
 
-class YocoError(RuntimeError):
+# ============================================================
+# EXCEPTIONS
+# ============================================================
+
+class YocoError(Exception):
+    """
+    Raised when communication with Yoco fails or Yoco returns
+    an invalid checkout response.
+    """
+
     pass
 
 
-def _secret_key():
-    value = os.getenv("YOCO_SECRET_KEY", "").strip()
-    if not value:
-        raise YocoError("YOCO_SECRET_KEY is not configured.")
-    return value
+# ============================================================
+# HELPERS
+# ============================================================
 
+def get_yoco_secret_key():
 
-def _webhook_secret():
-    value = os.getenv("YOCO_WEBHOOK_SECRET", "").strip()
-    if not value:
-        raise YocoError("YOCO_WEBHOOK_SECRET is not configured.")
-    return value
-
-
-def _api_request(method, path, payload=None, idempotency_key=None):
-    body = None
-    headers = {
-        "Authorization": f"Bearer {_secret_key()}",
-        "Accept": "application/json",
-    }
-    if payload is not None:
-        body = json.dumps(payload).encode("utf-8")
-        headers["Content-Type"] = "application/json"
-    if idempotency_key:
-        headers["Idempotency-Key"] = idempotency_key
-
-    req = request.Request(
-        f"{YOCO_API_BASE}{path}",
-        data=body,
-        headers=headers,
-        method=method,
+    secret_key = current_app.config.get(
+        "YOCO_SECRET_KEY"
     )
-    try:
-        with request.urlopen(req, timeout=20) as response:
-            raw = response.read().decode("utf-8")
-            return json.loads(raw) if raw else {}
-    except error.HTTPError as exc:
-        detail = exc.read().decode("utf-8", errors="replace")
-        raise YocoError(f"Yoco API returned HTTP {exc.code}: {detail}") from exc
-    except error.URLError as exc:
-        raise YocoError(f"Could not reach Yoco: {exc.reason}") from exc
+
+    if not secret_key:
+
+        raise YocoError(
+            "Yoco payments are not configured."
+        )
+
+    return secret_key
 
 
-def create_checkout( *, amount_cents, success_url, cancel_url, failure_url, metadata, description):
+def get_yoco_checkout_url():
+
+    return current_app.config.get(
+        "YOCO_CHECKOUT_URL",
+        "https://payments.yoco.com/api/checkouts",
+    )
+
+
+def generate_checkout_reference():
+
+    return (
+        "creator_"
+        + uuid.uuid4().hex
+    )
+
+
+# ============================================================
+# CREATE CHECKOUT
+# ============================================================
+
+def create_checkout(
+    *,
+    amount_cents,
+    creator,
+    plan,
+    success_url,
+    cancel_url,
+    failure_url,
+):
+
+    # --------------------------------------------------------
+    # VALIDATE AMOUNT
+    # --------------------------------------------------------
+
+    amount_cents = int(
+        amount_cents
+    )
+
+    if amount_cents <= 0:
+
+        raise YocoError(
+            "Invalid checkout amount."
+        )
+
+    # --------------------------------------------------------
+    # SECRET
+    # --------------------------------------------------------
+
+    secret_key = (
+        get_yoco_secret_key()
+    )
+
+    # --------------------------------------------------------
+    # LOCAL REFERENCE
+    # --------------------------------------------------------
+
+    checkout_reference = (
+        generate_checkout_reference()
+    )
+
+    # --------------------------------------------------------
+    # PAYLOAD
+    # --------------------------------------------------------
+    #
+    # Prices are supplied by our backend.
+    #
+    # The browser does NOT determine:
+    #
+    #     amount
+    #     currency
+    #     creator ID
+    #     plan price
+    #
+    # --------------------------------------------------------
+
     payload = {
-        "amount": int(amount_cents),
+        "amount": amount_cents,
         "currency": "ZAR",
+
         "successUrl": success_url,
         "cancelUrl": cancel_url,
         "failureUrl": failure_url,
-        "metadata": {str(k): str(v) for k, v in metadata.items()},
-        "lineItems": [
-            {
-                "displayName": description,
-                "quantity": 1,
-                "pricingDetails": {
-                    "price": int(amount_cents),
-                },
-            }
-        ],
+
+        "clientReferenceId": (
+            checkout_reference
+        ),
+
+        "externalId": (
+            checkout_reference
+        ),
+
+        "metadata": {
+            "creatorAccountId": str(
+                creator.id
+            ),
+            "creatorUsername": str(
+                creator.username
+            ),
+            "plan": str(
+                plan
+            ),
+            "checkoutReference": (
+                checkout_reference
+            ),
+        },
     }
-    return _api_request(
-        "POST",
-        "/checkouts",
-        payload=payload,
-        idempotency_key=str(uuid.uuid4()),
-    )
 
+    # --------------------------------------------------------
+    # HEADERS
+    # --------------------------------------------------------
 
-def get_checkout(checkout_id):
-    return _api_request("GET", f"/checkouts/{checkout_id}")
+    headers = {
+        "Authorization": (
+            f"Bearer {secret_key}"
+        ),
+        "Content-Type": (
+            "application/json"
+        ),
+        "Idempotency-Key": (
+            checkout_reference
+        ),
+    }
 
-
-def _decode_webhook_secret(secret):
-    if secret.startswith("whsec_"):
-        secret = secret[len("whsec_"):]
-    try:
-        return base64.b64decode(secret)
-    except Exception as exc:
-        raise YocoError("YOCO_WEBHOOK_SECRET is invalid.") from exc
-
-
-def verify_webhook(raw_body, headers):
-    webhook_id = headers.get("webhook-id", "")
-    timestamp = headers.get("webhook-timestamp", "")
-    signature_header = headers.get("webhook-signature", "")
-
-    if not webhook_id or not timestamp or not signature_header:
-        return False
+    # --------------------------------------------------------
+    # REQUEST
+    # --------------------------------------------------------
 
     try:
-        timestamp_int = int(timestamp)
-    except (TypeError, ValueError):
-        return False
 
-    if abs(int(time.time()) - timestamp_int) > WEBHOOK_TOLERANCE_SECONDS:
-        return False
+        response = requests.post(
+            get_yoco_checkout_url(),
+            json=payload,
+            headers=headers,
+            timeout=30,
+        )
 
-    signed_content = (
-        webhook_id.encode("utf-8")
-        + b"."
-        + timestamp.encode("utf-8")
-        + b"."
-        + raw_body
+    except requests.RequestException as exc:
+
+        current_app.logger.exception(
+            "Unable to connect to Yoco."
+        )
+
+        raise YocoError(
+            "Unable to connect to Yoco."
+        ) from exc
+
+    # --------------------------------------------------------
+    # PARSE RESPONSE
+    # --------------------------------------------------------
+
+    try:
+
+        data = response.json()
+
+    except ValueError as exc:
+
+        current_app.logger.error(
+            "Yoco returned a non-JSON response. "
+            "HTTP status=%s",
+            response.status_code,
+        )
+
+        raise YocoError(
+            "Yoco returned an invalid response."
+        ) from exc
+
+    # --------------------------------------------------------
+    # ERROR RESPONSE
+    # --------------------------------------------------------
+
+    if not response.ok:
+
+        # Do not log the secret key.
+        # Do not expose the entire provider response to users.
+
+        current_app.logger.error(
+            "Yoco checkout creation failed. "
+            "HTTP status=%s response=%s",
+            response.status_code,
+            data,
+        )
+
+        raise YocoError(
+            "Yoco could not create the payment checkout."
+        )
+
+    # --------------------------------------------------------
+    # REQUIRED RESPONSE FIELDS
+    # --------------------------------------------------------
+
+    checkout_id = data.get(
+        "id"
     )
-    digest = hmac.new(
-        _decode_webhook_secret(_webhook_secret()),
-        signed_content,
-        hashlib.sha256,
-    ).digest()
-    expected = base64.b64encode(digest).decode("ascii")
 
-    # Standard webhook signatures can contain multiple versions/signatures.
-    candidates = []
-    for part in signature_header.split(" "):
-        part = part.strip()
-        if not part:
-            continue
-        if "," in part:
-            version, value = part.split(",", 1)
-            if version == "v1":
-                candidates.append(value)
-        else:
-            candidates.append(part)
+    redirect_url = data.get(
+        "redirectUrl"
+    )
 
-    return any(hmac.compare_digest(expected, value) for value in candidates)
+    if not checkout_id:
+
+        current_app.logger.error(
+            "Yoco checkout response did not contain an ID."
+        )
+
+        raise YocoError(
+            "Yoco returned an invalid checkout."
+        )
+
+    if not redirect_url:
+
+        current_app.logger.error(
+            "Yoco checkout response did not contain "
+            "a redirectUrl."
+        )
+
+        raise YocoError(
+            "Yoco did not return a payment URL."
+        )
+
+    # --------------------------------------------------------
+    # RETURN NORMALIZED CHECKOUT
+    # --------------------------------------------------------
+
+    return {
+        "id": checkout_id,
+
+        "redirect_url": redirect_url,
+
+        "status": data.get(
+            "status"
+        ),
+
+        "amount": data.get(
+            "amount"
+        ),
+
+        "currency": data.get(
+            "currency"
+        ),
+
+        "processing_mode": data.get(
+            "processingMode"
+        ),
+
+        "checkout_reference": (
+            checkout_reference
+        ),
+
+        "raw": data,
+    }
