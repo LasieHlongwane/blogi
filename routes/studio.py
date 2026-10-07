@@ -18,10 +18,7 @@ from flask import (
     session,
     abort,
     current_app,
-)
-
-from services.subscription_service import (
-    creator_subscription_is_current,
+    g,
 )
 
 from extensions import db
@@ -35,6 +32,12 @@ from models import (
     Comment,
     EmailSubscriber,
     EmailDelivery,
+)
+
+from services.subscription_service import (
+    creator_subscription_is_current,
+    enforce_subscription_lifecycle,
+    creator_grace_days_remaining,
 )
 
 from services.cloudinary_service import (
@@ -95,7 +98,39 @@ def current_creator_account():
     )
 
 
+# ============================================================
+# STUDIO ACCESS
+# ============================================================
+
 def studio_required(view):
+    """
+    Protect Creator Studio routes.
+
+    Access rules:
+
+        account not logged in
+            -> creator login
+
+        account not active
+            -> pending/account-status page
+
+        subscription active
+            -> Studio access
+
+        subscription past_due
+            -> Studio access during grace period
+
+        subscription expired
+            -> renewal/account-status page
+
+        subscription inactive/cancelled
+            -> renewal/account-status page
+
+    Subscription lifecycle transitions are evaluated whenever
+    a protected Studio route is requested.
+
+    Public creator pages are NOT affected by this decorator.
+    """
 
     @wraps(view)
     def wrapped_view(
@@ -106,6 +141,10 @@ def studio_required(view):
         creator = (
             current_creator_account()
         )
+
+        # ----------------------------------------------------
+        # LOGIN REQUIRED
+        # ----------------------------------------------------
 
         if not creator:
 
@@ -141,37 +180,203 @@ def studio_required(view):
             )
 
         # ----------------------------------------------------
-        # PLATFORM SUBSCRIPTION MUST BE ACTIVE
+        # ENFORCE SUBSCRIPTION LIFECYCLE
+        # ----------------------------------------------------
+        #
+        # Possible transitions:
+        #
+        # active
+        #   ↓ paid period ends
+        # past_due
+        #   ↓ 7-day grace ends
+        # expired
+        #
+        # The service intentionally does not commit.
+        # Studio owns the transaction here.
         # ----------------------------------------------------
 
+        try:
+
+            subscription = (
+                enforce_subscription_lifecycle(
+                    creator
+                )
+            )
+
+            db.session.commit()
+
+        except Exception:
+
+            db.session.rollback()
+
+            current_app.logger.exception(
+                (
+                    "Unable to enforce creator "
+                    "subscription lifecycle. "
+                    "creator_account_id=%s"
+                ),
+                creator.id,
+            )
+
+            flash(
+                (
+                    "We could not verify your "
+                    "subscription right now. "
+                    "Please try again."
+                ),
+                "error",
+            )
+
+            return redirect(
+                url_for(
+                    "creator_auth.pending"
+                )
+            )
+
         # ----------------------------------------------------
-# PLATFORM SUBSCRIPTION ACCESS
-# ----------------------------------------------------
-#
-# PlatformSubscription is now the preferred source.
-#
-# The service also understands the temporary legacy
-# CreatorAccount subscription fields during migration.
+        # STORE SUBSCRIPTION CONTEXT
+        # ----------------------------------------------------
+        #
+        # Flask's g object is available to templates.
+        #
+        # This allows the Studio layout/dashboard to show:
+        #
+        #   Subscription payment due
+        #   6 days remaining
+        #   Renew now
+        #
+        # without querying the subscription again.
+        # ----------------------------------------------------
+
+        g.creator_subscription = (
+            subscription
+        )
+
+        g.creator_subscription_status = (
+            subscription.status
+            if subscription
+            else (
+                creator.subscription_status
+                or "inactive"
+            )
+        )
+
+        g.creator_grace_days_remaining = (
+            creator_grace_days_remaining(
+                creator
+            )
+        )
+
+        # ----------------------------------------------------
+        # SUBSCRIPTION ACCESS
+        # ----------------------------------------------------
+        #
+        # creator_subscription_is_current() returns True for:
+        #
+        #   active
+        #   past_due while grace remains
+        #
+        # and False for:
+        #
+        #   inactive
+        #   expired
+        #   cancelled
         # ----------------------------------------------------
 
         if not creator_subscription_is_current(
-         creator
+            creator
         ):
 
-         return redirect(
-          url_for(
-            "creator_auth.pending"
-          )
-         )
+            subscription_status = (
+                g.creator_subscription_status
+            )
 
+            if (
+                subscription_status
+                == "expired"
+            ):
 
-        
+                flash(
+                    (
+                        "Your subscription has expired. "
+                        "Your public creator page and "
+                        "content are still online. "
+                        "Renew your subscription to "
+                        "continue using Creator Studio."
+                    ),
+                    "warning",
+                )
+
+            elif (
+                subscription_status
+                == "cancelled"
+            ):
+
+                flash(
+                    (
+                        "Your subscription is no longer "
+                        "active. Renew your subscription "
+                        "to continue using Creator Studio."
+                    ),
+                    "warning",
+                )
+
+            else:
+
+                flash(
+                    (
+                        "An active subscription is "
+                        "required to use Creator Studio."
+                    ),
+                    "warning",
+                )
+
+            return redirect(
+                url_for(
+                    "creator_auth.pending"
+                )
+            )
+
+        # ----------------------------------------------------
+        # PAST-DUE GRACE PERIOD
+        # ----------------------------------------------------
+        #
+        # Do NOT block Studio yet.
+        #
+        # The creator keeps access until grace expires.
+        # ----------------------------------------------------
+
+        if (
+            g.creator_subscription_status
+            == "past_due"
+        ):
+
+            days_remaining = (
+                g.creator_grace_days_remaining
+            )
+
+            current_app.logger.info(
+                (
+                    "Creator using Studio during "
+                    "subscription grace period. "
+                    "creator_account_id=%s "
+                    "days_remaining=%s"
+                ),
+                creator.id,
+                days_remaining,
+            )
+
         return view(
             *args,
             **kwargs,
         )
 
     return wrapped_view
+
+
+# ============================================================
+# FEATURE ACCESS
+# ============================================================
 
 def require_creator_feature(
     creator,
@@ -180,8 +385,6 @@ def require_creator_feature(
     """
     Server-side creator plan feature gate.
 
-    Returns True when access is allowed.
-
     Routes must never rely only on hidden template buttons.
     """
 
@@ -189,6 +392,7 @@ def require_creator_feature(
         creator,
         feature,
     ):
+
         return True
 
     flash(
@@ -201,6 +405,9 @@ def require_creator_feature(
     return False
 
 
+# ============================================================
+# CREATOR PROFILE
+# ============================================================
 
 def creator_profile(
     creator,
@@ -214,6 +421,10 @@ def creator_profile(
         .first()
     )
 
+
+# ============================================================
+# TENANT-SCOPED POST
+# ============================================================
 
 def creator_post_or_404(
     creator,
@@ -230,6 +441,10 @@ def creator_post_or_404(
     )
 
 
+# ============================================================
+# TENANT-SCOPED CATEGORY
+# ============================================================
+
 def creator_category_or_404(
     creator,
     category_id,
@@ -244,6 +459,10 @@ def creator_category_or_404(
         .first_or_404()
     )
 
+
+# ============================================================
+# TENANT-SCOPED COMMENT
+# ============================================================
 
 def creator_comment_or_404(
     creator,
@@ -270,7 +489,9 @@ def creator_comment_or_404(
 # SLUGIFY
 # ============================================================
 
-def slugify(value):
+def slugify(
+    value,
+):
 
     value = (
         value
@@ -291,10 +512,6 @@ def slugify(value):
 # UNIQUE POST SLUG
 # ============================================================
 
-# ============================================================
-# UNIQUE POST SLUG
-# ============================================================
-
 def unique_post_slug(
     creator,
     title,
@@ -310,16 +527,6 @@ def unique_post_slug(
     counter = 2
 
     while True:
-
-        # ====================================================
-        # TENANT-SCOPED LOOKUP
-        # ====================================================
-        #
-        # Only check posts belonging to THIS creator.
-        #
-        # Another creator is allowed to use the exact same
-        # slug.
-        # ====================================================
 
         query = (
             ContentPost.query
@@ -348,9 +555,6 @@ def unique_post_slug(
 
         counter += 1
 
-# ============================================================
-# UNIQUE CATEGORY SLUG
-# ============================================================
 
 # ============================================================
 # UNIQUE CATEGORY SLUG
@@ -370,10 +574,6 @@ def unique_category_slug(
     counter = 2
 
     while True:
-
-        # ====================================================
-        # TENANT-SCOPED LOOKUP
-        # ====================================================
 
         existing = (
             ContentCategory.query
@@ -395,6 +595,7 @@ def unique_category_slug(
         )
 
         counter += 1
+
 
 # ============================================================
 # CLOUDINARY FOLDER
@@ -437,7 +638,9 @@ def process_cover_image(
         return True, None
 
     valid, error = (
-        validate_image(file)
+        validate_image(
+            file
+        )
     )
 
     if not valid:
@@ -493,14 +696,20 @@ def process_cover_image(
             result["public_id"]
         )
 
-        existing.resource_type = "image"
+        existing.resource_type = (
+            "image"
+        )
 
         existing.width = (
-            result.get("width")
+            result.get(
+                "width"
+            )
         )
 
         existing.height = (
-            result.get("height")
+            result.get(
+                "height"
+            )
         )
 
     else:
@@ -511,8 +720,12 @@ def process_cover_image(
             media_url=result["url"],
             public_id=result["public_id"],
             resource_type="image",
-            width=result.get("width"),
-            height=result.get("height"),
+            width=result.get(
+                "width"
+            ),
+            height=result.get(
+                "height"
+            ),
             media_order=0,
         )
 
@@ -536,7 +749,10 @@ def process_cover_image(
         except Exception:
 
             current_app.logger.exception(
-                "Old creator cover deletion failed."
+                (
+                    "Old creator cover "
+                    "deletion failed."
+                )
             )
 
     return True, None
@@ -560,7 +776,9 @@ def process_post_video(
         return True, None
 
     valid, error = (
-        validate_video(file)
+        validate_video(
+            file
+        )
     )
 
     if not valid:
@@ -616,7 +834,9 @@ def process_post_video(
             result["public_id"]
         )
 
-        existing.resource_type = "video"
+        existing.resource_type = (
+            "video"
+        )
 
         existing.thumbnail_url = (
             result.get(
@@ -631,11 +851,15 @@ def process_post_video(
         )
 
         existing.width = (
-            result.get("width")
+            result.get(
+                "width"
+            )
         )
 
         existing.height = (
-            result.get("height")
+            result.get(
+                "height"
+            )
         )
 
     else:
@@ -652,8 +876,12 @@ def process_post_video(
             duration_seconds=result.get(
                 "duration"
             ),
-            width=result.get("width"),
-            height=result.get("height"),
+            width=result.get(
+                "width"
+            ),
+            height=result.get(
+                "height"
+            ),
             media_order=0,
         )
 
@@ -673,7 +901,10 @@ def process_post_video(
         except Exception:
 
             current_app.logger.exception(
-                "Old creator video deletion failed."
+                (
+                    "Old creator video "
+                    "deletion failed."
+                )
             )
 
     return True, None
@@ -692,7 +923,8 @@ def process_story_gallery(
     files = [
         file
         for file in files
-        if file and file.filename
+        if file
+        and file.filename
     ]
 
     if not files:
@@ -703,14 +935,18 @@ def process_story_gallery(
 
         return (
             False,
-            "You can upload up to 10 gallery "
-            "images at a time.",
+            (
+                "You can upload up to 10 "
+                "gallery images at a time."
+            ),
         )
 
     for file in files:
 
         valid, error = (
-            validate_image(file)
+            validate_image(
+                file
+            )
         )
 
         if not valid:
@@ -766,7 +1002,9 @@ def process_story_gallery(
                         result["url"]
                     ),
                     public_id=(
-                        result["public_id"]
+                        result[
+                            "public_id"
+                        ]
                     ),
                     resource_type="image",
                     width=result.get(
@@ -823,13 +1061,17 @@ def dashboard():
     )
 
     creator = (
-        creator_profile(account)
+        creator_profile(
+            account
+        )
     )
 
     base_posts = (
         ContentPost.query
         .filter_by(
-            creator_account_id=account.id
+            creator_account_id=(
+                account.id
+            )
         )
     )
 
@@ -864,7 +1106,9 @@ def dashboard():
     email_subscribers = (
         EmailSubscriber.query
         .filter_by(
-            creator_account_id=account.id,
+            creator_account_id=(
+                account.id
+            ),
             status="active",
         )
         .count()
@@ -873,7 +1117,9 @@ def dashboard():
     categories_count = (
         ContentCategory.query
         .filter_by(
-            creator_account_id=account.id
+            creator_account_id=(
+                account.id
+            )
         )
         .count()
     )
@@ -887,8 +1133,10 @@ def dashboard():
         .all()
     )
 
-    plan_summary = creator_plan_summary(
-        account
+    plan_summary = (
+        creator_plan_summary(
+            account
+        )
     )
 
     return render_template(
@@ -903,6 +1151,17 @@ def dashboard():
         categories_count=categories_count,
         plan_summary=plan_summary,
         recent_posts=recent_posts,
+
+        # Subscription lifecycle context
+        subscription=(
+            g.creator_subscription
+        ),
+        subscription_status=(
+            g.creator_subscription_status
+        ),
+        grace_days_remaining=(
+            g.creator_grace_days_remaining
+        ),
     )
 
 
@@ -1004,7 +1263,9 @@ def content_new():
     categories = (
         ContentCategory.query
         .filter_by(
-            creator_account_id=account.id,
+            creator_account_id=(
+                account.id
+            ),
             is_active=True,
         )
         .order_by(
@@ -1102,13 +1363,16 @@ def content_new():
             "public",
             "subscriber",
         }:
+
             abort(400)
-           # ====================================================
+
+        # ----------------------------------------------------
         # PREMIUM: EXCLUSIVE CONTENT
-        # ====================================================
+        # ----------------------------------------------------
 
         if (
-            access_level == "subscriber"
+            access_level
+            == "subscriber"
             and not require_creator_feature(
                 account,
                 FEATURE_EXCLUSIVE_CONTENT,
@@ -1119,9 +1383,7 @@ def content_new():
                 "studio/content_form.html",
                 post=None,
                 categories=categories,
-            )         
-
-            abort(400)
+            )
 
         if status not in {
             "draft",
@@ -1152,10 +1414,12 @@ def content_new():
                 title,
             ),
             excerpt=(
-                excerpt or None
+                excerpt
+                or None
             ),
             body=(
-                body or None
+                body
+                or None
             ),
             content_type=content_type,
             access_level=access_level,
@@ -1169,7 +1433,10 @@ def content_new():
             ),
         )
 
-        if status == "published":
+        if (
+            status
+            == "published"
+        ):
 
             post.published_at = (
                 utc_now()
@@ -1236,7 +1503,10 @@ def content_new():
                     categories=categories,
                 )
 
-        if content_type == "story":
+        if (
+            content_type
+            == "story"
+        ):
 
             success, error = (
                 process_story_gallery(
@@ -1281,8 +1551,10 @@ def content_new():
             except Exception:
 
                 current_app.logger.exception(
-                    "Creator subscriber "
-                    "notification failed."
+                    (
+                        "Creator subscriber "
+                        "notification failed."
+                    )
                 )
 
         flash(
@@ -1332,7 +1604,9 @@ def content_edit(
     categories = (
         ContentCategory.query
         .filter_by(
-            creator_account_id=account.id,
+            creator_account_id=(
+                account.id
+            ),
             is_active=True,
         )
         .order_by(
@@ -1405,24 +1679,26 @@ def content_edit(
             "public",
             "subscriber",
         }:
+
             abort(400)
 
-        
-        # ====================================================
+        # ----------------------------------------------------
         # PREMIUM: EXCLUSIVE CONTENT
-        # ====================================================
+        # ----------------------------------------------------
 
         making_new_exclusive = (
-          access_level == "subscriber"
-          and post.access_level != "subscriber"
+            access_level
+            == "subscriber"
+            and post.access_level
+            != "subscriber"
         )
 
         if (
-          making_new_exclusive
-          and not require_creator_feature(
-            account,
-            FEATURE_EXCLUSIVE_CONTENT,
-          )
+            making_new_exclusive
+            and not require_creator_feature(
+                account,
+                FEATURE_EXCLUSIVE_CONTENT,
+            )
         ):
 
             return render_template(
@@ -1430,7 +1706,6 @@ def content_edit(
                 post=post,
                 categories=categories,
             )
-            abort(400)
 
         if status not in {
             "draft",
@@ -1463,25 +1738,31 @@ def content_edit(
         )
 
         publishing_exclusive = (
-         access_level == "subscriber"
-         and status == "published"
-         and previous_status != "published"
+            access_level
+            == "subscriber"
+            and status
+            == "published"
+            and previous_status
+            != "published"
         )
 
         if (
-         publishing_exclusive
-         and not require_creator_feature(
-          account,
-          FEATURE_EXCLUSIVE_CONTENT,
-         )
+            publishing_exclusive
+            and not require_creator_feature(
+                account,
+                FEATURE_EXCLUSIVE_CONTENT,
+            )
         ):
-         return render_template(
-          "studio/content_form.html",
-          post=post,
-          categories=categories,
-         )
 
-        post.title = title
+            return render_template(
+                "studio/content_form.html",
+                post=post,
+                categories=categories,
+            )
+
+        post.title = (
+            title
+        )
 
         post.slug = (
             unique_post_slug(
@@ -1519,9 +1800,13 @@ def content_edit(
             access_level
         )
 
-        post.status = status
+        post.status = (
+            status
+        )
 
-        post.category = category
+        post.category = (
+            category
+        )
 
         post.is_featured = (
             request.form.get(
@@ -1531,7 +1816,8 @@ def content_edit(
         )
 
         if (
-            status == "published"
+            status
+            == "published"
             and previous_status
             != "published"
         ):
@@ -1597,7 +1883,10 @@ def content_edit(
                     )
                 )
 
-        if content_type == "story":
+        if (
+            content_type
+            == "story"
+        ):
 
             success, error = (
                 process_story_gallery(
@@ -1627,7 +1916,10 @@ def content_edit(
 
         db.session.commit()
 
-        # Notify only when transitioning into published.
+        # ----------------------------------------------------
+        # NOTIFY ONLY WHEN FIRST PUBLISHED
+        # ----------------------------------------------------
+
         if (
             previous_status
             != "published"
@@ -1646,8 +1938,10 @@ def content_edit(
             except Exception:
 
                 current_app.logger.exception(
-                    "Creator subscriber "
-                    "notification failed."
+                    (
+                        "Creator subscriber "
+                        "notification failed."
+                    )
                 )
 
         flash(
@@ -1692,25 +1986,31 @@ def content_publish(
     )
 
     if (
-     post.access_level == "subscriber"
-     and post.status != "published"
-     and not require_creator_feature(
-        account,
-        FEATURE_EXCLUSIVE_CONTENT,
-     )
-    ):
-     return redirect(
-        url_for(
-            "studio.content_edit",
-            post_id=post.id,
+        post.access_level
+        == "subscriber"
+        and post.status
+        != "published"
+        and not require_creator_feature(
+            account,
+            FEATURE_EXCLUSIVE_CONTENT,
         )
-     )
+    ):
+
+        return redirect(
+            url_for(
+                "studio.content_edit",
+                post_id=post.id,
+            )
+        )
 
     was_published = (
-        post.status == "published"
+        post.status
+        == "published"
     )
 
-    post.status = "published"
+    post.status = (
+        "published"
+    )
 
     if not post.published_at:
 
@@ -1735,8 +2035,10 @@ def content_publish(
         except Exception:
 
             current_app.logger.exception(
-                "Creator newsletter "
-                "notification failed."
+                (
+                    "Creator newsletter "
+                    "notification failed."
+                )
             )
 
     flash(
@@ -1773,7 +2075,9 @@ def content_archive(
         post_id,
     )
 
-    post.status = "archived"
+    post.status = (
+        "archived"
+    )
 
     db.session.commit()
 
@@ -1811,7 +2115,9 @@ def content_delete(
         post_id,
     )
 
-    title = post.title
+    title = (
+        post.title
+    )
 
     for media in list(
         post.media
@@ -1843,7 +2149,10 @@ def content_delete(
         except Exception:
 
             current_app.logger.exception(
-                "Creator media deletion failed."
+                (
+                    "Creator media "
+                    "deletion failed."
+                )
             )
 
     db.session.delete(
@@ -1913,7 +2222,10 @@ def content_remove_cover(
                 )
 
                 flash(
-                    "Cover image could not be removed.",
+                    (
+                        "Cover image could "
+                        "not be removed."
+                    ),
                     "error",
                 )
 
@@ -1928,7 +2240,9 @@ def content_remove_cover(
             media
         )
 
-    post.cover_image_url = None
+    post.cover_image_url = (
+        None
+    )
 
     db.session.commit()
 
@@ -2006,7 +2320,10 @@ def content_remove_video(
             )
 
             flash(
-                "Video could not be removed.",
+                (
+                    "Video could not "
+                    "be removed."
+                ),
                 "error",
             )
 
@@ -2086,7 +2403,10 @@ def content_remove_gallery_image(
             )
 
             flash(
-                "Gallery image could not be removed.",
+                (
+                    "Gallery image could "
+                    "not be removed."
+                ),
                 "error",
             )
 
@@ -2187,7 +2507,8 @@ def categories():
                 name,
             ),
             description=(
-                description or None
+                description
+                or None
             ),
             is_active=True,
             display_order=(
@@ -2251,7 +2572,9 @@ def profile():
     )
 
     creator = (
-        creator_profile(account)
+        creator_profile(
+            account
+        )
     )
 
     if not creator:
@@ -2290,7 +2613,10 @@ def profile():
         if not display_name:
 
             flash(
-                "Display name is required.",
+                (
+                    "Display name "
+                    "is required."
+                ),
                 "error",
             )
 
@@ -2300,12 +2626,7 @@ def profile():
             )
 
         # ----------------------------------------------------
-        # USERNAME
-        # ----------------------------------------------------
-        #
-        # CreatorAccount is canonical.
-        #
-        # Do not independently change profile.username here.
+        # CREATORACCOUNT USERNAME IS CANONICAL
         # ----------------------------------------------------
 
         creator.username = (
@@ -2317,11 +2638,13 @@ def profile():
         )
 
         creator.tagline = (
-            tagline or None
+            tagline
+            or None
         )
 
         creator.bio = (
-            bio or None
+            bio
+            or None
         )
 
         creator.instagram_url = (
@@ -2353,6 +2676,10 @@ def profile():
             .strip()
             or None
         )
+
+        # ----------------------------------------------------
+        # PROFILE IMAGE
+        # ----------------------------------------------------
 
         profile_image = (
             request.files.get(
@@ -2389,7 +2716,10 @@ def profile():
                     current_app.config[
                         "CLOUDINARY_FOLDER"
                     ]
-                    + f"/creators/{account.id}/profile"
+                    + (
+                        f"/creators/"
+                        f"{account.id}/profile"
+                    )
                 ),
             )
 
@@ -2417,9 +2747,15 @@ def profile():
                 except Exception:
 
                     current_app.logger.exception(
-                        "Old profile image "
-                        "deletion failed."
+                        (
+                            "Old profile image "
+                            "deletion failed."
+                        )
                     )
+
+        # ----------------------------------------------------
+        # INTRO REEL
+        # ----------------------------------------------------
 
         intro_reel = (
             request.files.get(
@@ -2456,7 +2792,11 @@ def profile():
                     current_app.config[
                         "CLOUDINARY_FOLDER"
                     ]
-                    + f"/creators/{account.id}/intro-reels"
+                    + (
+                        f"/creators/"
+                        f"{account.id}/"
+                        "intro-reels"
+                    )
                 ),
             )
 
@@ -2490,13 +2830,19 @@ def profile():
                 except Exception:
 
                     current_app.logger.exception(
-                        "Old intro reel deletion failed."
+                        (
+                            "Old intro reel "
+                            "deletion failed."
+                        )
                     )
 
         db.session.commit()
 
         flash(
-            "Profile updated successfully.",
+            (
+                "Profile updated "
+                "successfully."
+            ),
             "success",
         )
 
@@ -2555,7 +2901,8 @@ def comments():
     }:
 
         query = query.filter(
-            Comment.status == status
+            Comment.status
+            == status
         )
 
     items = (
@@ -2574,7 +2921,7 @@ def comments():
 
 
 # ============================================================
-# COMMENT STATUS
+# COMMENT APPROVE
 # ============================================================
 
 @studio_bp.route(
@@ -2597,7 +2944,9 @@ def comment_approve(
         )
     )
 
-    comment.status = "approved"
+    comment.status = (
+        "approved"
+    )
 
     db.session.commit()
 
@@ -2613,6 +2962,10 @@ def comment_approve(
         )
     )
 
+
+# ============================================================
+# COMMENT HIDE
+# ============================================================
 
 @studio_bp.route(
     "/comments/<int:comment_id>/hide",
@@ -2634,13 +2987,20 @@ def comment_hide(
         )
     )
 
-    comment.status = "hidden"
+    comment.status = (
+        "hidden"
+    )
 
-    if comment.parent_id is None:
+    if (
+        comment.parent_id
+        is None
+    ):
 
         for reply in comment.replies:
 
-            reply.status = "hidden"
+            reply.status = (
+                "hidden"
+            )
 
     db.session.commit()
 
@@ -2656,6 +3016,10 @@ def comment_hide(
         )
     )
 
+
+# ============================================================
+# COMMENT DELETE
+# ============================================================
 
 @studio_bp.route(
     "/comments/<int:comment_id>/delete",
@@ -2720,7 +3084,10 @@ def comment_creator_reply(
         )
     )
 
-    if parent.parent_id is not None:
+    if (
+        parent.parent_id
+        is not None
+    ):
 
         abort(400)
 
@@ -2750,7 +3117,9 @@ def comment_creator_reply(
         )
 
     profile = (
-        creator_profile(account)
+        creator_profile(
+            account
+        )
     )
 
     reply = Comment(
@@ -2859,14 +3228,18 @@ def analytics():
     posts = (
         ContentPost.query
         .filter_by(
-            creator_account_id=account.id
+            creator_account_id=(
+                account.id
+            )
         )
     )
 
     subscriber_query = (
         EmailSubscriber.query
         .filter_by(
-            creator_account_id=account.id
+            creator_account_id=(
+                account.id
+            )
         )
     )
 
@@ -2890,7 +3263,9 @@ def analytics():
             account
         ),
 
-        total_posts=posts.count(),
+        total_posts=(
+            posts.count()
+        ),
 
         published_posts=(
             posts
@@ -3025,6 +3400,7 @@ def analytics():
         ),
     )
 
+
 # ============================================================
 # REMOVE PROFILE IMAGE
 # ============================================================
@@ -3041,7 +3417,9 @@ def profile_remove_image():
     )
 
     creator = (
-        creator_profile(account)
+        creator_profile(
+            account
+        )
     )
 
     if not creator:
@@ -3060,13 +3438,17 @@ def profile_remove_image():
         except Exception:
 
             current_app.logger.exception(
-                "Creator profile image "
-                "deletion failed."
+                (
+                    "Creator profile image "
+                    "deletion failed."
+                )
             )
 
             flash(
-                "Profile image could not "
-                "be removed.",
+                (
+                    "Profile image could "
+                    "not be removed."
+                ),
                 "error",
             )
 
@@ -3076,9 +3458,13 @@ def profile_remove_image():
                 )
             )
 
-    creator.profile_image_url = None
+    creator.profile_image_url = (
+        None
+    )
 
-    creator.profile_image_public_id = None
+    creator.profile_image_public_id = (
+        None
+    )
 
     db.session.commit()
 
@@ -3110,7 +3496,9 @@ def profile_remove_intro_reel():
     )
 
     creator = (
-        creator_profile(account)
+        creator_profile(
+            account
+        )
     )
 
     if not creator:
@@ -3129,13 +3517,17 @@ def profile_remove_intro_reel():
         except Exception:
 
             current_app.logger.exception(
-                "Creator intro reel "
-                "deletion failed."
+                (
+                    "Creator intro reel "
+                    "deletion failed."
+                )
             )
 
             flash(
-                "Intro reel could not "
-                "be removed.",
+                (
+                    "Intro reel could "
+                    "not be removed."
+                ),
                 "error",
             )
 
@@ -3145,9 +3537,17 @@ def profile_remove_intro_reel():
                 )
             )
 
-    creator.intro_reel_url = None
-    creator.intro_reel_public_id = None
-    creator.intro_reel_thumbnail_url = None
+    creator.intro_reel_url = (
+        None
+    )
+
+    creator.intro_reel_public_id = (
+        None
+    )
+
+    creator.intro_reel_thumbnail_url = (
+        None
+    )
 
     db.session.commit()
 
