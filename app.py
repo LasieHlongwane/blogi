@@ -57,22 +57,48 @@ def create_app():
         studio_bp,
     )
 
+    from routes.payments import (
+        payments_bp,
+    )
+
+    # --------------------------------------------------------
+    # PUBLIC
+    # --------------------------------------------------------
+
     app.register_blueprint(
         public_bp
     )
 
-    # Existing platform/admin routes remain
-    # available during the SaaS transition.
+    # --------------------------------------------------------
+    # PLATFORM ADMIN
+    # --------------------------------------------------------
+
     app.register_blueprint(
         admin_bp
     )
+
+    # --------------------------------------------------------
+    # CREATOR AUTHENTICATION
+    # --------------------------------------------------------
 
     app.register_blueprint(
         creator_auth_bp
     )
 
+    # --------------------------------------------------------
+    # CREATOR STUDIO
+    # --------------------------------------------------------
+
     app.register_blueprint(
         studio_bp
+    )
+
+    # --------------------------------------------------------
+    # PLATFORM PAYMENTS
+    # --------------------------------------------------------
+
+    app.register_blueprint(
+        payments_bp
     )
 
     # ========================================================
@@ -105,13 +131,17 @@ def create_app():
                 initialize_production_identity()
             )
 
-            if result["admin_created"]:
+            if result[
+                "admin_created"
+            ]:
 
                 app.logger.info(
                     "Initial production admin created."
                 )
 
-            if result["creator_created"]:
+            if result[
+                "creator_created"
+            ]:
 
                 app.logger.info(
                     "Initial creator profile created."
