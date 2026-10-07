@@ -13,6 +13,7 @@ from extensions import db
 # ============================================================
 
 def utc_now():
+
     return datetime.now(
         timezone.utc
     )
@@ -105,9 +106,7 @@ class AdminUser(db.Model):
 # CREATOR ACCOUNT
 # ============================================================
 #
-# This is the SaaS tenant/account.
-#
-# Every creator who registers gets one CreatorAccount.
+# SaaS tenant/account.
 #
 # account_status:
 #
@@ -163,13 +162,6 @@ class CreatorAccount(db.Model):
     # ========================================================
     # CREATOR PLAN
     # ========================================================
-    #
-    # Existing creator accounts should migrate to Premium
-    # so that current functionality is not unexpectedly lost.
-    #
-    # New registrations explicitly choose Standard/Premium
-    # inside creator_auth.py.
-    # ========================================================
 
     plan = db.Column(
         db.String(30),
@@ -190,13 +182,7 @@ class CreatorAccount(db.Model):
     )
 
     # ========================================================
-    # REGISTRATION / INITIAL PLATFORM PAYMENT
-    # ========================================================
-    #
-    # This remains for the current manual MVP flow.
-    #
-    # Later Yoco will become the source of truth for the
-    # creator -> Kalxa platform payment.
+    # INITIAL PLATFORM PAYMENT
     # ========================================================
 
     payment_status = db.Column(
@@ -221,7 +207,7 @@ class CreatorAccount(db.Model):
     )
 
     # ========================================================
-    # MONTHLY SAAS SUBSCRIPTION
+    # LEGACY MONTHLY SAAS SUBSCRIPTION FIELDS
     # ========================================================
 
     subscription_status = db.Column(
@@ -296,28 +282,6 @@ class CreatorAccount(db.Model):
 
 # ============================================================
 # PLATFORM SUBSCRIPTION
-# ============================================================
-#
-# Current SaaS subscription state for one creator.
-#
-# One CreatorAccount has at most one current subscription
-# record. Payment history lives separately in
-# PlatformSubscriptionPayment.
-#
-# status:
-#
-# inactive
-# active
-# past_due
-# expired
-# cancelled
-#
-# provider:
-#
-# manual
-# yoco
-# legacy
-#
 # ============================================================
 
 class PlatformSubscription(db.Model):
@@ -421,14 +385,16 @@ class PlatformSubscription(db.Model):
 # PLATFORM SUBSCRIPTION PAYMENT
 # ============================================================
 #
-# Financial history for creator -> platform payments.
+# Creator -> platform payment history.
 #
-# Examples:
+# This is separate from FanPayment.
 #
-# Standard  R79  paid
-# Premium   R149 paid
+# PlatformSubscriptionPayment:
+#     creator pays Kalxa.
 #
-# Later Yoco webhook events will create/update these records.
+# FanPayment:
+#     fan/supporter pays creator.
+#
 # ============================================================
 
 class PlatformSubscriptionPayment(db.Model):
@@ -467,11 +433,6 @@ class PlatformSubscriptionPayment(db.Model):
         nullable=False,
         index=True,
     )
-
-    # Store money in cents.
-    #
-    # R79  = 7900
-    # R149 = 14900
 
     amount_cents = db.Column(
         db.Integer,
@@ -540,6 +501,163 @@ class PlatformSubscriptionPayment(db.Model):
             lazy=True,
         ),
     )
+
+
+# ============================================================
+# CREATOR PAYOUT ACCOUNT
+# ============================================================
+#
+# Creator's external payout connection.
+#
+# Available to:
+#
+# Standard
+# Premium
+#
+# Provider initially:
+#
+# paystack
+#
+# One creator has at most one current payout account.
+#
+# IMPORTANT:
+#
+# Do not store creator banking credentials or sensitive
+# authentication information here.
+#
+# The provider subaccount code is the important identifier
+# used when creating fan payments.
+#
+# status:
+#
+# pending
+# active
+# disabled
+# ============================================================
+
+class CreatorPayoutAccount(db.Model):
+
+    __tablename__ = "creator_payout_accounts"
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True,
+    )
+
+    creator_account_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "creator_accounts.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+
+    provider = db.Column(
+        db.String(30),
+        nullable=False,
+        default="paystack",
+        index=True,
+    )
+
+    provider_subaccount_code = db.Column(
+        db.String(255),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+
+    # ========================================================
+    # PAYOUT DISPLAY / AUDIT INFORMATION
+    # ========================================================
+
+    business_name = db.Column(
+        db.String(180),
+        nullable=True,
+    )
+
+    account_name = db.Column(
+        db.String(180),
+        nullable=True,
+    )
+
+    settlement_bank = db.Column(
+        db.String(180),
+        nullable=True,
+    )
+
+    # Only the final four digits should be retained here
+    # after payout onboarding.
+
+    account_number_last4 = db.Column(
+        db.String(4),
+        nullable=True,
+    )
+
+    # ========================================================
+    # PROVIDER CHARGE CONFIGURATION
+    # ========================================================
+    #
+    # Keep this for provider configuration/audit.
+    #
+    # Kalxa's platform commission on voluntary support can
+    # remain 0 even though payment processing fees may apply.
+    # ========================================================
+
+    percentage_charge = db.Column(
+        db.Numeric(
+            5,
+            2,
+        ),
+        nullable=False,
+        default=0,
+    )
+
+    # pending / active / disabled
+
+    status = db.Column(
+        db.String(30),
+        nullable=False,
+        default="pending",
+        index=True,
+    )
+
+    connected_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    disabled_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
+
+    creator_account = db.relationship(
+        "CreatorAccount",
+        backref=db.backref(
+            "payout_account",
+            uselist=False,
+            cascade="all, delete-orphan",
+            single_parent=True,
+        ),
+    )
+
+
 # ============================================================
 # CREATOR PROFILE
 # ============================================================
@@ -552,14 +670,6 @@ class CreatorProfile(db.Model):
         db.Integer,
         primary_key=True,
     )
-
-    # ========================================================
-    # SAAS OWNER
-    # ========================================================
-    #
-    # Temporarily nullable for migration/backfill.
-    # Later this becomes nullable=False.
-    # ========================================================
 
     creator_account_id = db.Column(
         db.Integer,
@@ -667,10 +777,6 @@ class CreatorProfile(db.Model):
         nullable=False,
     )
 
-    # ========================================================
-    # RELATIONSHIP
-    # ========================================================
-
     creator_account = db.relationship(
         "CreatorAccount",
         backref=db.backref(
@@ -695,10 +801,6 @@ class ContentCategory(db.Model):
         primary_key=True,
     )
 
-    # ========================================================
-    # SAAS OWNER
-    # ========================================================
-
     creator_account_id = db.Column(
         db.Integer,
         db.ForeignKey(
@@ -713,21 +815,6 @@ class ContentCategory(db.Model):
         db.String(100),
         nullable=False,
     )
-
-    # ========================================================
-    # TENANT-SCOPED SLUG
-    # ========================================================
-    #
-    # Slug is NOT globally unique anymore.
-    #
-    # Two different creators may both have:
-    #
-    #   /@creator-a/category/travel
-    #   /@creator-b/category/travel
-    #
-    # Uniqueness is enforced by the composite constraint
-    # declared in __table_args__ below.
-    # ========================================================
 
     slug = db.Column(
         db.String(120),
@@ -758,10 +845,6 @@ class ContentCategory(db.Model):
         nullable=False,
     )
 
-    # ========================================================
-    # RELATIONSHIP
-    # ========================================================
-
     creator_account = db.relationship(
         "CreatorAccount",
         backref=db.backref(
@@ -769,10 +852,6 @@ class ContentCategory(db.Model):
             lazy=True,
         ),
     )
-
-    # ========================================================
-    # MULTI-TENANT UNIQUE CONSTRAINT
-    # ========================================================
 
     __table_args__ = (
         db.UniqueConstraint(
@@ -784,6 +863,8 @@ class ContentCategory(db.Model):
             ),
         ),
     )
+
+
 # ============================================================
 # CONTENT POST
 # ============================================================
@@ -796,10 +877,6 @@ class ContentPost(db.Model):
         db.Integer,
         primary_key=True,
     )
-
-    # ========================================================
-    # SAAS OWNER
-    # ========================================================
 
     creator_account_id = db.Column(
         db.Integer,
@@ -825,20 +902,6 @@ class ContentPost(db.Model):
         db.String(200),
         nullable=False,
     )
-
-    # ========================================================
-    # TENANT-SCOPED SLUG
-    # ========================================================
-    #
-    # Slug is NOT globally unique.
-    #
-    # These are both valid:
-    #
-    #   /@creator-a/content/my-first-vlog
-    #   /@creator-b/content/my-first-vlog
-    #
-    # The creator + slug combination is unique.
-    # ========================================================
 
     slug = db.Column(
         db.String(220),
@@ -913,10 +976,6 @@ class ContentPost(db.Model):
         nullable=False,
     )
 
-    # ========================================================
-    # RELATIONSHIPS
-    # ========================================================
-
     category = db.relationship(
         "ContentCategory",
         backref=db.backref(
@@ -933,10 +992,6 @@ class ContentPost(db.Model):
         ),
     )
 
-    # ========================================================
-    # MULTI-TENANT UNIQUE CONSTRAINT
-    # ========================================================
-
     __table_args__ = (
         db.UniqueConstraint(
             "creator_account_id",
@@ -947,6 +1002,7 @@ class ContentPost(db.Model):
             ),
         ),
     )
+
 
 # ============================================================
 # CONTENT MEDIA
@@ -978,10 +1034,6 @@ class ContentMedia(db.Model):
         nullable=False,
     )
 
-    # ========================================================
-    # CLOUDINARY
-    # ========================================================
-
     media_url = db.Column(
         db.Text,
         nullable=False,
@@ -1002,10 +1054,6 @@ class ContentMedia(db.Model):
         db.Text,
         nullable=True,
     )
-
-    # ========================================================
-    # MEDIA DETAILS
-    # ========================================================
 
     caption = db.Column(
         db.String(255),
@@ -1038,10 +1086,6 @@ class ContentMedia(db.Model):
         default=utc_now,
         nullable=False,
     )
-
-    # ========================================================
-    # RELATIONSHIP
-    # ========================================================
 
     post = db.relationship(
         "ContentPost",
@@ -1131,10 +1175,6 @@ class Comment(db.Model):
         nullable=False,
     )
 
-    # ========================================================
-    # RELATIONSHIPS
-    # ========================================================
-
     post = db.relationship(
         "ContentPost",
         backref=db.backref(
@@ -1158,16 +1198,6 @@ class Comment(db.Model):
 
 # ============================================================
 # EMAIL SUBSCRIBER
-# ============================================================
-#
-# A visitor can subscribe separately to multiple creators.
-#
-# Therefore email is no longer globally unique.
-# Instead:
-#
-# creator_account_id + email
-#
-# must be unique.
 # ============================================================
 
 class EmailSubscriber(db.Model):
@@ -1241,10 +1271,6 @@ class EmailSubscriber(db.Model):
         nullable=False,
     )
 
-    # ========================================================
-    # RELATIONSHIP
-    # ========================================================
-
     creator_account = db.relationship(
         "CreatorAccount",
         backref=db.backref(
@@ -1252,10 +1278,6 @@ class EmailSubscriber(db.Model):
             lazy=True,
         ),
     )
-
-    # ========================================================
-    # MULTI-TENANT UNIQUE CONSTRAINT
-    # ========================================================
 
     __table_args__ = (
         db.UniqueConstraint(
@@ -1358,5 +1380,424 @@ class EmailDelivery(db.Model):
         backref=db.backref(
             "email_deliveries",
             lazy=True,
+        ),
+    )
+
+
+# ============================================================
+# FUNDRAISING CAMPAIGN
+# ============================================================
+#
+# Premium-only creator feature.
+#
+# This table stores the campaign definition.
+#
+# Financial truth does NOT live in an amount_raised column.
+#
+# Confirmed FanPayment records are the source of truth for
+# campaign contributions.
+#
+# status:
+#
+# draft
+# active
+# completed
+# cancelled
+# archived
+#
+# ============================================================
+
+class FundraisingCampaign(db.Model):
+
+    __tablename__ = "fundraising_campaigns"
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True,
+    )
+
+    creator_account_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "creator_accounts.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        index=True,
+    )
+
+    title = db.Column(
+        db.String(180),
+        nullable=False,
+    )
+
+    slug = db.Column(
+        db.String(200),
+        nullable=False,
+        index=True,
+    )
+
+    description = db.Column(
+        db.Text,
+        nullable=False,
+    )
+
+    # ========================================================
+    # COVER IMAGE
+    # ========================================================
+
+    cover_image_url = db.Column(
+        db.Text,
+        nullable=True,
+    )
+
+    cover_image_public_id = db.Column(
+        db.String(500),
+        nullable=True,
+    )
+
+    # ========================================================
+    # FUNDING GOAL
+    # ========================================================
+    #
+    # Always store money in cents.
+    #
+    # R15,000 = 1,500,000 cents
+    # ========================================================
+
+    goal_amount_cents = db.Column(
+        db.Integer,
+        nullable=False,
+    )
+
+    currency = db.Column(
+        db.String(10),
+        nullable=False,
+        default="ZAR",
+    )
+
+    # ========================================================
+    # CAMPAIGN STATE
+    # ========================================================
+
+    status = db.Column(
+        db.String(30),
+        nullable=False,
+        default="draft",
+        index=True,
+    )
+
+    starts_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+
+    ends_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+
+    published_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+
+    completed_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    cancelled_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
+
+    # ========================================================
+    # RELATIONSHIP
+    # ========================================================
+
+    creator_account = db.relationship(
+        "CreatorAccount",
+        backref=db.backref(
+            "fundraising_campaigns",
+            lazy=True,
+            cascade="all, delete-orphan",
+        ),
+    )
+
+    # ========================================================
+    # TENANT-SCOPED SLUG
+    # ========================================================
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "creator_account_id",
+            "slug",
+            name=(
+                "uq_fundraising_campaign_"
+                "creator_slug"
+            ),
+        ),
+        db.CheckConstraint(
+            "goal_amount_cents > 0",
+            name=(
+                "ck_fundraising_campaign_"
+                "positive_goal"
+            ),
+        ),
+    )
+
+
+# ============================================================
+# FAN PAYMENT
+# ============================================================
+#
+# Fan/supporter -> creator payment ledger.
+#
+# This is completely separate from creator -> platform
+# subscription payments.
+#
+# payment_type:
+#
+# support
+# campaign
+# membership        (future)
+#
+# status:
+#
+# pending
+# paid
+# failed
+# refunded
+#
+# Provider initially:
+#
+# paystack
+#
+# IMPORTANT:
+#
+# The provider webhook will become the authoritative source
+# for changing a pending FanPayment to paid.
+#
+# Never mark a FanPayment paid from a browser success URL.
+# ============================================================
+
+class FanPayment(db.Model):
+
+    __tablename__ = "fan_payments"
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True,
+    )
+
+    creator_account_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "creator_accounts.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        index=True,
+    )
+
+    campaign_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "fundraising_campaigns.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
+    )
+
+    # support / campaign / membership
+
+    payment_type = db.Column(
+        db.String(30),
+        nullable=False,
+        default="support",
+        index=True,
+    )
+
+    # ========================================================
+    # SUPPORTER DETAILS
+    # ========================================================
+
+    supporter_name = db.Column(
+        db.String(120),
+        nullable=True,
+    )
+
+    supporter_email = db.Column(
+        db.String(255),
+        nullable=True,
+        index=True,
+    )
+
+    supporter_message = db.Column(
+        db.String(500),
+        nullable=True,
+    )
+
+    is_anonymous = db.Column(
+        db.Boolean,
+        nullable=False,
+        default=False,
+    )
+
+    # ========================================================
+    # PAYMENT AMOUNT
+    # ========================================================
+
+    amount_cents = db.Column(
+        db.Integer,
+        nullable=False,
+    )
+
+    currency = db.Column(
+        db.String(10),
+        nullable=False,
+        default="ZAR",
+    )
+
+    # ========================================================
+    # PLATFORM FEE
+    # ========================================================
+    #
+    # For the initial Buy Me a Coffee model this can remain 0.
+    #
+    # Provider/payment-processing fees are separate from
+    # Kalxa's own platform commission.
+    # ========================================================
+
+    platform_fee_cents = db.Column(
+        db.Integer,
+        nullable=False,
+        default=0,
+    )
+
+    # ========================================================
+    # PROVIDER
+    # ========================================================
+
+    provider = db.Column(
+        db.String(30),
+        nullable=False,
+        default="paystack",
+        index=True,
+    )
+
+    # Our payment/checkout reference sent to Paystack.
+
+    provider_reference = db.Column(
+        db.String(255),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+
+    # Provider transaction ID after payment confirmation.
+
+    provider_transaction_id = db.Column(
+        db.String(255),
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+
+    # pending / paid / failed / refunded
+
+    status = db.Column(
+        db.String(30),
+        nullable=False,
+        default="pending",
+        index=True,
+    )
+
+    paid_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+        index=True,
+    )
+
+    failed_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    refunded_at = db.Column(
+        db.DateTime(timezone=True),
+        nullable=True,
+    )
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+        index=True,
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
+
+    # ========================================================
+    # RELATIONSHIPS
+    # ========================================================
+
+    creator_account = db.relationship(
+        "CreatorAccount",
+        backref=db.backref(
+            "fan_payments",
+            lazy=True,
+        ),
+    )
+
+    campaign = db.relationship(
+        "FundraisingCampaign",
+        backref=db.backref(
+            "payments",
+            lazy=True,
+        ),
+    )
+
+    # ========================================================
+    # DATABASE SAFETY
+    # ========================================================
+
+    __table_args__ = (
+        db.CheckConstraint(
+            "amount_cents > 0",
+            name=(
+                "ck_fan_payment_"
+                "positive_amount"
+            ),
+        ),
+        db.CheckConstraint(
+            "platform_fee_cents >= 0",
+            name=(
+                "ck_fan_payment_"
+                "nonnegative_platform_fee"
+            ),
         ),
     )
