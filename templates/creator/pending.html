@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -10,9 +11,15 @@
         content="width=device-width, initial-scale=1"
     >
 
+    <meta
+        name="theme-color"
+        content="#111318"
+    >
+
     <title>
         Creator Account Status
     </title>
+
 
     <link
         rel="stylesheet"
@@ -22,152 +29,422 @@
         ) }}"
     >
 
+
     <style>
 
         /* =====================================================
+           PAGE
+        ===================================================== */
+
+        .account-status-card {
+
+            width: min(
+                100%,
+                540px
+            );
+
+        }
+
+
+        /* =====================================================
            PLAN CARD
-        ====================================================== */
+        ===================================================== */
 
         .pending-plan-card {
+
             margin: 24px 0;
+
             padding: 20px;
+
             border: 1px solid #d9dce0;
+
             border-radius: 14px;
+
             background: #f5f6f7;
+
         }
+
 
         .pending-plan-card.premium {
+
             background: #111318;
+
             color: #ffffff;
+
             border-color: #111318;
+
         }
+
 
         .pending-plan-card span {
+
             display: block;
+
             margin-bottom: 6px;
+
             font-size: 11px;
+
             font-weight: 700;
+
             letter-spacing: 0.1em;
+
         }
+
 
         .pending-plan-card strong {
+
             display: block;
-            font-size: 22px;
+
             margin-bottom: 4px;
+
+            font-size: 22px;
+
         }
 
+
         .pending-plan-card p {
+
             margin: 0;
+
+        }
+
+
+        /* =====================================================
+           STATUS BADGE
+        ===================================================== */
+
+        .account-status-badge {
+
+            display: inline-block;
+
+            margin-bottom: 14px;
+
+            padding: 6px 10px;
+
+            border-radius: 999px;
+
+            background: #f0f1f2;
+
+            color: #52565d;
+
+            font-size: 10px;
+
+            font-weight: 800;
+
+            letter-spacing: 0.08em;
+
+            text-transform: uppercase;
+
+        }
+
+
+        .account-status-badge.expired {
+
+            background: #fff0ee;
+
+            color: #a43228;
+
+        }
+
+
+        .account-status-badge.payment {
+
+            background: #fff7e7;
+
+            color: #8a5b0b;
+
+        }
+
+
+        .account-status-badge.approval {
+
+            background: #edf4ff;
+
+            color: #2f5f9f;
+
         }
 
 
         /* =====================================================
            PAYMENT AREA
-        ====================================================== */
+        ===================================================== */
 
         .payment-section {
+
             margin-top: 26px;
+
             padding-top: 22px;
+
             border-top: 1px solid #e1e3e6;
+
         }
 
+
         .payment-section h3 {
+
             margin:
                 0
                 0
                 8px;
+
             font-size: 18px;
+
         }
 
+
         .payment-section p {
+
             margin:
                 0
                 0
                 18px;
+
             line-height: 1.55;
+
         }
+
 
         .payment-price {
+
             margin-bottom: 18px;
+
             padding: 14px 16px;
+
             border-radius: 10px;
+
             background: #f5f6f7;
+
         }
+
 
         .payment-price span {
+
             display: block;
+
             margin-bottom: 3px;
+
             color: #666b73;
+
             font-size: 12px;
+
             font-weight: 700;
+
             letter-spacing: 0.06em;
+
             text-transform: uppercase;
+
         }
 
+
         .payment-price strong {
+
             font-size: 22px;
+
         }
 
 
         /* =====================================================
-           YOCO CHECKOUT BUTTON
-        ====================================================== */
+           YOCO CHECKOUT
+        ===================================================== */
 
         .yoco-checkout-form {
+
             margin: 0;
+
         }
 
+
         .yoco-checkout-button {
+
             display: block;
+
             width: 100%;
+
             padding: 14px 18px;
+
             border: 0;
+
             border-radius: 10px;
+
             background: #111318;
+
             color: #ffffff;
+
+            font-family: inherit;
+
             font-size: 15px;
+
             font-weight: 700;
+
             cursor: pointer;
+
             transition:
                 transform 0.15s ease,
                 opacity 0.15s ease;
+
         }
+
 
         .yoco-checkout-button:hover {
+
             opacity: 0.92;
+
         }
+
 
         .yoco-checkout-button:active {
-            transform: translateY(1px);
+
+            transform: translateY(
+                1px
+            );
+
         }
 
+
         .payment-note {
+
             margin-top: 12px !important;
+
             color: #70757d;
+
             font-size: 12px;
+
             line-height: 1.5;
+
         }
 
 
         /* =====================================================
            STATUS MESSAGE
-        ====================================================== */
+        ===================================================== */
 
         .status-note {
+
             margin-top: 20px;
+
             padding: 14px 16px;
+
             border-radius: 10px;
+
             background: #f5f6f7;
+
             line-height: 1.55;
+
+        }
+
+
+        .status-note.success {
+
+            background: #edf8f1;
+
+            color: #285e3c;
+
+        }
+
+
+        .status-note.warning {
+
+            background: #fff7e8;
+
+            color: #755119;
+
+        }
+
+
+        .status-note.expired {
+
+            background: #fff1ef;
+
+            color: #7d3029;
+
+        }
+
+
+        /* =====================================================
+           CONTENT SAFETY MESSAGE
+        ===================================================== */
+
+        .content-safe-box {
+
+            margin-top: 18px;
+
+            padding: 16px;
+
+            border: 1px solid #dfe2e5;
+
+            border-radius: 12px;
+
+            background: #ffffff;
+
+        }
+
+
+        .content-safe-box strong {
+
+            display: block;
+
+            margin-bottom: 5px;
+
+        }
+
+
+        .content-safe-box p {
+
+            margin: 0;
+
+            color: #656a72;
+
+            font-size: 13px;
+
+            line-height: 1.55;
+
+        }
+
+
+        /* =====================================================
+           PUBLIC WEBSITE
+        ===================================================== */
+
+        .public-page-link {
+
+            display: block;
+
+            margin-top: 12px;
+
+            padding: 12px 14px;
+
+            border: 1px solid #d9dce0;
+
+            border-radius: 9px;
+
+            color: #111318;
+
+            font-size: 13px;
+
+            font-weight: 700;
+
+            text-align: center;
+
+            text-decoration: none;
+
+        }
+
+
+        .public-page-link:hover {
+
+            background: #f5f6f7;
+
         }
 
 
         /* =====================================================
            SIGN OUT
-        ====================================================== */
+        ===================================================== */
 
         .signout-form {
+
             margin-top: 26px;
+
         }
 
     </style>
@@ -177,7 +454,13 @@
 
 <body class="login-page">
 
-<div class="login-card">
+
+<div
+    class="
+        login-card
+        account-status-card
+    "
+>
 
 
     <!-- =====================================================
@@ -186,13 +469,74 @@
 
     <div class="login-heading">
 
+
         <span>
             CREATOR ACCOUNT
         </span>
 
-        <h1>
-            Almost there.
-        </h1>
+
+        {% if
+            creator_account.account_status
+            == "pending_payment"
+        %}
+
+            <h1>
+                Complete your setup.
+            </h1>
+
+
+        {% elif
+            creator_account.account_status
+            == "pending_approval"
+        %}
+
+            <h1>
+                Almost there.
+            </h1>
+
+
+        {% elif
+            creator_account.account_status
+            == "active"
+            and subscription_status
+            == "expired"
+        %}
+
+            <h1>
+                Renew your Studio.
+            </h1>
+
+
+        {% elif
+            creator_account.account_status
+            == "active"
+            and subscription_status
+            == "cancelled"
+        %}
+
+            <h1>
+                Subscription inactive.
+            </h1>
+
+
+        {% elif
+            creator_account.account_status
+            == "active"
+        %}
+
+            <h1>
+                Subscription required.
+            </h1>
+
+
+        {% else %}
+
+            <h1>
+                Account status.
+            </h1>
+
+        {% endif %}
+
 
     </div>
 
@@ -204,24 +548,38 @@
     <div
         class="
             pending-plan-card
-            {% if creator_account.plan == 'premium' %}
+
+            {% if
+                creator_account.plan
+                == 'premium'
+            %}
+
                 premium
+
             {% endif %}
         "
     >
+
 
         <span>
             YOUR PLAN
         </span>
 
+
         <strong>
+
             {{ creator_account.plan|default(
                 "standard",
                 true
             )|upper }}
+
         </strong>
 
-        {% if creator_account.plan == "premium" %}
+
+        {% if
+            creator_account.plan
+            == "premium"
+        %}
 
             <p>
                 R149/month · Earn from your audience
@@ -235,6 +593,7 @@
 
         {% endif %}
 
+
     </div>
 
 
@@ -247,37 +606,58 @@
         == "pending_payment"
     %}
 
+
+        <div
+            class="
+                account-status-badge
+                payment
+            "
+        >
+            Payment required
+        </div>
+
+
         <h2>
             Subscription payment required
         </h2>
 
-        <p>
-            Your creator account has been created
-            successfully.
-        </p>
 
         <p>
+            Your creator account has been
+            created successfully.
+        </p>
+
+
+        <p>
+
             Complete your
+
             <strong>
+
                 {{ creator_account.plan|default(
                     "standard",
                     true
                 )|title }}
+
             </strong>
-            plan payment before your account
-            can be reviewed.
+
+            subscription payment before
+            your account can be reviewed.
+
         </p>
 
 
         <!-- =================================================
-             YOCO INITIAL CHECKOUT
+             INITIAL PAYMENT
         ================================================== -->
 
         <div class="payment-section">
 
+
             <h3>
                 Complete your subscription
             </h3>
+
 
             <div class="payment-price">
 
@@ -287,18 +667,7 @@
 
                 <strong>
 
-                    {% if
-                        creator_account.plan
-                        == "premium"
-                    %}
-
-                        R149
-
-                    {% else %}
-
-                        R79
-
-                    {% endif %}
+                    R{{ selected_plan_price }}
 
                     /month
 
@@ -315,44 +684,37 @@
                 ) }}"
             >
 
-                <input
-                    type="hidden"
-                    name="plan"
-                    value="{{ creator_account.plan|default(
-                        'standard',
-                        true
-                    ) }}"
-                >
 
                 <button
                     type="submit"
-                    class="yoco-checkout-button"
+                    class="
+                        yoco-checkout-button
+                    "
                 >
 
-                    {% if
-                        creator_account.plan
-                        == "premium"
-                    %}
-
-                        Pay R149 with Yoco
-
-                    {% else %}
-
-                        Pay R79 with Yoco
-
-                    {% endif %}
+                    Pay
+                    R{{ selected_plan_price }}
+                    with Yoco
 
                 </button>
+
 
             </form>
 
 
             <p class="payment-note">
-                You will be redirected to Yoco
-                to complete your payment securely.
-                Your account will only be updated
-                after the payment is confirmed.
+
+                You will be redirected to
+                Yoco to complete your payment
+                securely.
+
+                Your account will only be
+                updated after the payment is
+                confirmed by the payment
+                provider.
+
             </p>
+
 
         </div>
 
@@ -366,68 +728,193 @@
         == "pending_approval"
     %}
 
+
+        <div
+            class="
+                account-status-badge
+                approval
+            "
+        >
+            Awaiting approval
+        </div>
+
+
         <h2>
             Account under review
         </h2>
+
 
         <p>
             Your payment has been received.
         </p>
 
-        <div class="status-note">
+
+        <div
+            class="
+                status-note
+                success
+            "
+        >
 
             Your
+
             <strong>
+
                 {{ creator_account.plan|default(
                     "standard",
                     true
                 )|title }}
-            </strong>
-            subscription payment has been confirmed.
 
-            Your creator account is now waiting
-            for platform approval.
+            </strong>
+
+            subscription payment has been
+            confirmed.
+
+            Your creator account is now
+            waiting for platform approval.
+
+        </div>
+
+
+        <div class="content-safe-box">
+
+            <strong>
+                Your subscription has not
+                started yet.
+            </strong>
+
+            <p>
+
+                Your paid Creator Studio
+                period will begin when your
+                creator account is approved.
+
+            </p>
 
         </div>
 
 
     <!-- =====================================================
-         APPROVED BUT SUBSCRIPTION INACTIVE
+         EXPIRED
     ====================================================== -->
 
     {% elif
         creator_account.account_status
         == "active"
-        and creator_account.subscription_status
-        != "active"
+        and subscription_status
+        == "expired"
     %}
 
+
+        <div
+            class="
+                account-status-badge
+                expired
+            "
+        >
+            Subscription expired
+        </div>
+
+
         <h2>
-            Platform subscription inactive
+            Your Creator Studio access
+            has expired
         </h2>
 
+
         <p>
-            Your creator profile is approved,
-            but your
+
+            Your paid
+
             <strong>
+
                 {{ creator_account.plan|default(
                     "standard",
                     true
                 )|title }}
+
             </strong>
-            subscription is currently inactive.
+
+            subscription period and
+            grace period have ended.
+
         </p>
 
 
+        <div
+            class="
+                status-note
+                expired
+            "
+        >
+
+            Creator Studio is temporarily
+            restricted until you renew your
+            subscription.
+
+        </div>
+
+
         <!-- =================================================
-             YOCO RENEWAL CHECKOUT
+             CONTENT PRESERVATION
+        ================================================== -->
+
+        <div class="content-safe-box">
+
+            <strong>
+                Your content is safe.
+            </strong>
+
+            <p>
+
+                Your creator profile,
+                published posts, drafts,
+                media, subscribers and
+                existing data have not been
+                deleted.
+
+                Your public creator page
+                remains online.
+
+            </p>
+
+        </div>
+
+
+        {% if public_creator_url %}
+
+            <a
+                href="{{ public_creator_url }}"
+                class="public-page-link"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                View your public page ↗
+            </a>
+
+        {% endif %}
+
+
+        <!-- =================================================
+             RENEWAL
         ================================================== -->
 
         <div class="payment-section">
 
+
             <h3>
-                Renew your subscription
+                Restore Creator Studio
             </h3>
+
+
+            <p>
+
+                Renew your subscription
+                to unlock Creator Studio
+                again.
+
+            </p>
+
 
             <div class="payment-price">
 
@@ -437,18 +924,7 @@
 
                 <strong>
 
-                    {% if
-                        creator_account.plan
-                        == "premium"
-                    %}
-
-                        R149
-
-                    {% else %}
-
-                        R79
-
-                    {% endif %}
+                    R{{ selected_plan_price }}
 
                     /month
 
@@ -465,32 +941,283 @@
                 ) }}"
             >
 
-                <input
-                    type="hidden"
-                    name="plan"
-                    value="{{ creator_account.plan|default(
-                        'standard',
-                        true
-                    ) }}"
-                >
 
                 <button
                     type="submit"
-                    class="yoco-checkout-button"
+                    class="
+                        yoco-checkout-button
+                    "
                 >
 
-                    {% if
-                        creator_account.plan
-                        == "premium"
-                    %}
+                    Renew
 
-                        Renew Premium · R149
+                    {{ creator_account.plan|default(
+                        "standard",
+                        true
+                    )|title }}
 
-                    {% else %}
+                    · R{{ selected_plan_price }}
 
-                        Renew Standard · R79
+                </button>
 
-                    {% endif %}
+
+            </form>
+
+
+            <p class="payment-note">
+
+                After Yoco confirms your
+                payment, your subscription
+                will become active again
+                and Creator Studio access
+                will be restored.
+
+            </p>
+
+
+        </div>
+
+
+    <!-- =====================================================
+         CANCELLED
+    ====================================================== -->
+
+    {% elif
+        creator_account.account_status
+        == "active"
+        and subscription_status
+        == "cancelled"
+    %}
+
+
+        <div
+            class="
+                account-status-badge
+                expired
+            "
+        >
+            Subscription cancelled
+        </div>
+
+
+        <h2>
+            Your subscription is inactive
+        </h2>
+
+
+        <p>
+
+            Your creator account and
+            content remain available,
+            but Creator Studio requires
+            an active subscription.
+
+        </p>
+
+
+        <div class="content-safe-box">
+
+            <strong>
+                Your content is safe.
+            </strong>
+
+            <p>
+
+                Nothing has been deleted.
+                Renew below to restore
+                Creator Studio access.
+
+            </p>
+
+        </div>
+
+
+        {% if public_creator_url %}
+
+            <a
+                href="{{ public_creator_url }}"
+                class="public-page-link"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                View your public page ↗
+            </a>
+
+        {% endif %}
+
+
+        <div class="payment-section">
+
+
+            <h3>
+                Reactivate subscription
+            </h3>
+
+
+            <div class="payment-price">
+
+                <span>
+                    Amount
+                </span>
+
+                <strong>
+                    R{{ selected_plan_price }}
+                    /month
+                </strong>
+
+            </div>
+
+
+            <form
+                class="yoco-checkout-form"
+                method="POST"
+                action="{{ url_for(
+                    'payments.creator_checkout'
+                ) }}"
+            >
+
+                <button
+                    type="submit"
+                    class="
+                        yoco-checkout-button
+                    "
+                >
+                    Reactivate ·
+                    R{{ selected_plan_price }}
+                </button>
+
+            </form>
+
+
+        </div>
+
+
+    <!-- =====================================================
+         ACTIVE ACCOUNT / INACTIVE SUBSCRIPTION
+    ====================================================== -->
+
+    {% elif
+        creator_account.account_status
+        == "active"
+        and subscription_status
+        != "active"
+    %}
+
+
+        <div
+            class="
+                account-status-badge
+                payment
+            "
+        >
+            Subscription inactive
+        </div>
+
+
+        <h2>
+            Platform subscription inactive
+        </h2>
+
+
+        <p>
+
+            Your creator profile is
+            approved, but your
+
+            <strong>
+
+                {{ creator_account.plan|default(
+                    "standard",
+                    true
+                )|title }}
+
+            </strong>
+
+            subscription is currently
+            inactive.
+
+        </p>
+
+
+        <div class="content-safe-box">
+
+            <strong>
+                Your creator data remains
+                stored.
+            </strong>
+
+            <p>
+
+                Complete payment to restore
+                Creator Studio access.
+
+                Your public creator page
+                remains separate from
+                Studio subscription access.
+
+            </p>
+
+        </div>
+
+
+        {% if public_creator_url %}
+
+            <a
+                href="{{ public_creator_url }}"
+                class="public-page-link"
+                target="_blank"
+                rel="noopener noreferrer"
+            >
+                View your public page ↗
+            </a>
+
+        {% endif %}
+
+
+        <div class="payment-section">
+
+
+            <h3>
+                Activate your subscription
+            </h3>
+
+
+            <div class="payment-price">
+
+                <span>
+                    Amount
+                </span>
+
+                <strong>
+                    R{{ selected_plan_price }}
+                    /month
+                </strong>
+
+            </div>
+
+
+            <form
+                class="yoco-checkout-form"
+                method="POST"
+                action="{{ url_for(
+                    'payments.creator_checkout'
+                ) }}"
+            >
+
+                <button
+                    type="submit"
+                    class="
+                        yoco-checkout-button
+                    "
+                >
+
+                    Activate
+                    {{ creator_account.plan|default(
+                        "standard",
+                        true
+                    )|title }}
+
+                    · R{{ selected_plan_price }}
 
                 </button>
 
@@ -498,12 +1225,13 @@
 
 
             <p class="payment-note">
-                Your existing creator content
-                remains stored while your
-                subscription is inactive.
-                Complete payment to restore
-                Creator Studio access.
+
+                Your subscription will
+                become active only after
+                Yoco confirms the payment.
+
             </p>
+
 
         </div>
 
@@ -517,30 +1245,97 @@
         == "suspended"
     %}
 
+
+        <div
+            class="
+                account-status-badge
+                expired
+            "
+        >
+            Account suspended
+        </div>
+
+
         <h2>
             Account suspended
         </h2>
 
+
         <p>
+
             This creator account currently
             cannot access Creator Studio.
+
+        </p>
+
+
+        <div class="status-note">
+
+            Subscription payment does not
+            automatically remove a platform
+            suspension.
+
+        </div>
+
+
+    <!-- =====================================================
+         REJECTED
+    ====================================================== -->
+
+    {% elif
+        creator_account.account_status
+        == "rejected"
+    %}
+
+
+        <div
+            class="
+                account-status-badge
+                expired
+            "
+        >
+            Account unavailable
+        </div>
+
+
+        <h2>
+            Creator account unavailable
+        </h2>
+
+
+        <p>
+
+            This creator account is not
+            currently approved for Creator
+            Studio access.
+
         </p>
 
 
     <!-- =====================================================
-         OTHER / UNAVAILABLE
+         OTHER
     ====================================================== -->
 
     {% else %}
 
-        <h2>
+
+        <div class="account-status-badge">
             Account unavailable
+        </div>
+
+
+        <h2>
+            Creator Studio unavailable
         </h2>
 
+
         <p>
+
             Creator Studio is not currently
             available for this account.
+
         </p>
+
 
     {% endif %}
 
@@ -565,6 +1360,7 @@
 
 
 </div>
+
 
 </body>
 
