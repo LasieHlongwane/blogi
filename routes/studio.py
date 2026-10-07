@@ -26,6 +26,9 @@ from extensions import db
 from models import (
     CreatorAccount,
     CreatorProfile,
+    CreatorPayoutAccount,
+    FundraisingCampaign,
+    FanPayment,
     ContentCategory,
     ContentPost,
     ContentMedia,
@@ -54,6 +57,10 @@ from services.email_service import (
 
 from services.plan_service import (
     FEATURE_EXCLUSIVE_CONTENT,
+    FEATURE_FAN_SUPPORT,
+    FEATURE_PAYOUT_CONNECTION,
+    FEATURE_FUNDRAISING,
+    FEATURE_PAID_MEMBERSHIPS,
     creator_has_feature,
     creator_missing_feature_message,
     creator_plan_summary,
@@ -182,18 +189,6 @@ def studio_required(view):
         # ----------------------------------------------------
         # ENFORCE SUBSCRIPTION LIFECYCLE
         # ----------------------------------------------------
-        #
-        # Possible transitions:
-        #
-        # active
-        #   ↓ paid period ends
-        # past_due
-        #   ↓ 7-day grace ends
-        # expired
-        #
-        # The service intentionally does not commit.
-        # Studio owns the transaction here.
-        # ----------------------------------------------------
 
         try:
 
@@ -236,17 +231,6 @@ def studio_required(view):
         # ----------------------------------------------------
         # STORE SUBSCRIPTION CONTEXT
         # ----------------------------------------------------
-        #
-        # Flask's g object is available to templates.
-        #
-        # This allows the Studio layout/dashboard to show:
-        #
-        #   Subscription payment due
-        #   6 days remaining
-        #   Renew now
-        #
-        # without querying the subscription again.
-        # ----------------------------------------------------
 
         g.creator_subscription = (
             subscription
@@ -269,18 +253,6 @@ def studio_required(view):
 
         # ----------------------------------------------------
         # SUBSCRIPTION ACCESS
-        # ----------------------------------------------------
-        #
-        # creator_subscription_is_current() returns True for:
-        #
-        #   active
-        #   past_due while grace remains
-        #
-        # and False for:
-        #
-        #   inactive
-        #   expired
-        #   cancelled
         # ----------------------------------------------------
 
         if not creator_subscription_is_current(
@@ -339,11 +311,6 @@ def studio_required(view):
 
         # ----------------------------------------------------
         # PAST-DUE GRACE PERIOD
-        # ----------------------------------------------------
-        #
-        # Do NOT block Studio yet.
-        #
-        # The creator keeps access until grace expires.
         # ----------------------------------------------------
 
         if (
@@ -419,6 +386,42 @@ def creator_profile(
             creator_account_id=creator.id
         )
         .first()
+    )
+
+
+# ============================================================
+# CREATOR PAYOUT ACCOUNT
+# ============================================================
+
+def creator_payout_account(
+    creator,
+):
+
+    return (
+        CreatorPayoutAccount.query
+        .filter_by(
+            creator_account_id=creator.id
+        )
+        .first()
+    )
+
+
+# ============================================================
+# TENANT-SCOPED FUNDRAISING CAMPAIGN
+# ============================================================
+
+def creator_campaign_or_404(
+    creator,
+    campaign_id,
+):
+
+    return (
+        FundraisingCampaign.query
+        .filter_by(
+            id=campaign_id,
+            creator_account_id=creator.id,
+        )
+        .first_or_404()
     )
 
 
@@ -587,6 +590,54 @@ def unique_category_slug(
         )
 
         if not existing:
+
+            return candidate
+
+        candidate = (
+            f"{base_slug}-{counter}"
+        )
+
+        counter += 1
+
+
+# ============================================================
+# UNIQUE CAMPAIGN SLUG
+# ============================================================
+
+def unique_campaign_slug(
+    creator,
+    title,
+    campaign_id=None,
+):
+
+    base_slug = (
+        slugify(title)
+        or "campaign"
+    )
+
+    candidate = base_slug
+    counter = 2
+
+    while True:
+
+        query = (
+            FundraisingCampaign.query
+            .filter_by(
+                creator_account_id=(
+                    creator.id
+                ),
+                slug=candidate,
+            )
+        )
+
+        if campaign_id is not None:
+
+            query = query.filter(
+                FundraisingCampaign.id
+                != campaign_id
+            )
+
+        if not query.first():
 
             return candidate
 
@@ -1151,8 +1202,6 @@ def dashboard():
         categories_count=categories_count,
         plan_summary=plan_summary,
         recent_posts=recent_posts,
-
-        # Subscription lifecycle context
         subscription=(
             g.creator_subscription
         ),
@@ -1162,6 +1211,573 @@ def dashboard():
         grace_days_remaining=(
             g.creator_grace_days_remaining
         ),
+    )
+
+
+# ============================================================
+# MONETISATION
+# ============================================================
+#
+# Standard:
+#
+#   Payout account
+#   Buy Me a Coffee
+#
+# Premium:
+#
+#   Everything Standard
+#   Fundraising campaigns
+#   Exclusive content
+#   Paid memberships later
+#
+# No Paystack API calls are made here yet.
+# ============================================================
+
+@studio_bp.route(
+    "/monetisation"
+)
+@studio_required
+def monetisation():
+
+    account = (
+        current_creator_account()
+    )
+
+    creator = (
+        creator_profile(
+            account
+        )
+    )
+
+    plan_summary = (
+        creator_plan_summary(
+            account
+        )
+    )
+
+    payout_account = (
+        creator_payout_account(
+            account
+        )
+    )
+
+    # --------------------------------------------------------
+    # SUPPORT PAYMENTS
+    # --------------------------------------------------------
+
+    support_payments_query = (
+        FanPayment.query
+        .filter_by(
+            creator_account_id=(
+                account.id
+            ),
+            payment_type="support",
+            status="paid",
+        )
+    )
+
+    support_payment_count = (
+        support_payments_query.count()
+    )
+
+    support_total_cents = (
+        db.session.query(
+            db.func.coalesce(
+                db.func.sum(
+                    FanPayment.amount_cents
+                ),
+                0,
+            )
+        )
+        .filter(
+            FanPayment.creator_account_id
+            == account.id,
+            FanPayment.payment_type
+            == "support",
+            FanPayment.status
+            == "paid",
+        )
+        .scalar()
+        or 0
+    )
+
+    # --------------------------------------------------------
+    # ALL FAN PAYMENTS
+    # --------------------------------------------------------
+
+    total_paid_fan_payments = (
+        FanPayment.query
+        .filter_by(
+            creator_account_id=(
+                account.id
+            ),
+            status="paid",
+        )
+        .count()
+    )
+
+    total_fan_earnings_cents = (
+        db.session.query(
+            db.func.coalesce(
+                db.func.sum(
+                    FanPayment.amount_cents
+                ),
+                0,
+            )
+        )
+        .filter(
+            FanPayment.creator_account_id
+            == account.id,
+            FanPayment.status
+            == "paid",
+        )
+        .scalar()
+        or 0
+    )
+
+    recent_payments = (
+        FanPayment.query
+        .filter_by(
+            creator_account_id=(
+                account.id
+            )
+        )
+        .order_by(
+            FanPayment.created_at.desc()
+        )
+        .limit(8)
+        .all()
+    )
+
+    # --------------------------------------------------------
+    # FUNDRAISING
+    # --------------------------------------------------------
+
+    campaigns = (
+        FundraisingCampaign.query
+        .filter_by(
+            creator_account_id=(
+                account.id
+            )
+        )
+        .order_by(
+            FundraisingCampaign.created_at.desc()
+        )
+        .all()
+    )
+
+    active_campaign_count = (
+        FundraisingCampaign.query
+        .filter_by(
+            creator_account_id=(
+                account.id
+            ),
+            status="active",
+        )
+        .count()
+    )
+
+    # --------------------------------------------------------
+    # FEATURE ACCESS
+    # --------------------------------------------------------
+
+    can_connect_payout = (
+        creator_has_feature(
+            account,
+            FEATURE_PAYOUT_CONNECTION,
+        )
+    )
+
+    can_receive_support = (
+        creator_has_feature(
+            account,
+            FEATURE_FAN_SUPPORT,
+        )
+    )
+
+    can_fundraise = (
+        creator_has_feature(
+            account,
+            FEATURE_FUNDRAISING,
+        )
+    )
+
+    can_offer_memberships = (
+        creator_has_feature(
+            account,
+            FEATURE_PAID_MEMBERSHIPS,
+        )
+    )
+
+    can_publish_exclusive = (
+        creator_has_feature(
+            account,
+            FEATURE_EXCLUSIVE_CONTENT,
+        )
+    )
+
+    return render_template(
+        "studio/monetisation.html",
+        creator=creator,
+        creator_account=account,
+        plan_summary=plan_summary,
+        payout_account=payout_account,
+        can_connect_payout=(
+            can_connect_payout
+        ),
+        can_receive_support=(
+            can_receive_support
+        ),
+        can_fundraise=(
+            can_fundraise
+        ),
+        can_offer_memberships=(
+            can_offer_memberships
+        ),
+        can_publish_exclusive=(
+            can_publish_exclusive
+        ),
+        support_payment_count=(
+            support_payment_count
+        ),
+        support_total_cents=(
+            support_total_cents
+        ),
+        total_paid_fan_payments=(
+            total_paid_fan_payments
+        ),
+        total_fan_earnings_cents=(
+            total_fan_earnings_cents
+        ),
+        recent_payments=(
+            recent_payments
+        ),
+        campaigns=campaigns,
+        active_campaign_count=(
+            active_campaign_count
+        ),
+    )
+
+
+# ============================================================
+# PAYOUT ACCOUNT SETUP PLACEHOLDER
+# ============================================================
+#
+# Both Standard and Premium creators may connect a payout
+# account.
+#
+# Actual Paystack onboarding will be connected later.
+# ============================================================
+
+@studio_bp.route(
+    "/monetisation/payout"
+)
+@studio_required
+def monetisation_payout():
+
+    account = (
+        current_creator_account()
+    )
+
+    if not require_creator_feature(
+        account,
+        FEATURE_PAYOUT_CONNECTION,
+    ):
+
+        return redirect(
+            url_for(
+                "studio.monetisation"
+            )
+        )
+
+    payout_account = (
+        creator_payout_account(
+            account
+        )
+    )
+
+    return render_template(
+        "studio/payout_setup.html",
+        creator_account=account,
+        payout_account=payout_account,
+        plan_summary=(
+            creator_plan_summary(
+                account
+            )
+        ),
+    )
+
+
+# ============================================================
+# FAN SUPPORT SETUP
+# ============================================================
+#
+# Buy Me a Coffee is available to BOTH plans.
+#
+# We do not create payments here yet.
+# This route prepares the Creator Studio management screen.
+# ============================================================
+
+@studio_bp.route(
+    "/monetisation/support"
+)
+@studio_required
+def monetisation_support():
+
+    account = (
+        current_creator_account()
+    )
+
+    if not require_creator_feature(
+        account,
+        FEATURE_FAN_SUPPORT,
+    ):
+
+        return redirect(
+            url_for(
+                "studio.monetisation"
+            )
+        )
+
+    payout_account = (
+        creator_payout_account(
+            account
+        )
+    )
+
+    return render_template(
+        "studio/support_setup.html",
+        creator_account=account,
+        payout_account=payout_account,
+        plan_summary=(
+            creator_plan_summary(
+                account
+            )
+        ),
+    )
+
+
+# ============================================================
+# FUNDRAISING CAMPAIGNS
+# ============================================================
+#
+# Premium only.
+# ============================================================
+
+@studio_bp.route(
+    "/monetisation/campaigns"
+)
+@studio_required
+def fundraising_campaigns():
+
+    account = (
+        current_creator_account()
+    )
+
+    if not require_creator_feature(
+        account,
+        FEATURE_FUNDRAISING,
+    ):
+
+        return redirect(
+            url_for(
+                "studio.monetisation"
+            )
+        )
+
+    campaigns = (
+        FundraisingCampaign.query
+        .filter_by(
+            creator_account_id=(
+                account.id
+            )
+        )
+        .order_by(
+            FundraisingCampaign.created_at.desc()
+        )
+        .all()
+    )
+
+    return render_template(
+        "studio/fundraising_campaigns.html",
+        creator_account=account,
+        campaigns=campaigns,
+    )
+
+
+# ============================================================
+# CREATE FUNDRAISING CAMPAIGN
+# ============================================================
+#
+# For now this creates the campaign definition.
+#
+# Payment processing is added later.
+# ============================================================
+
+@studio_bp.route(
+    "/monetisation/campaigns/new",
+    methods=[
+        "GET",
+        "POST",
+    ],
+)
+@studio_required
+def fundraising_campaign_new():
+
+    account = (
+        current_creator_account()
+    )
+
+    if not require_creator_feature(
+        account,
+        FEATURE_FUNDRAISING,
+    ):
+
+        return redirect(
+            url_for(
+                "studio.monetisation"
+            )
+        )
+
+    if request.method == "POST":
+
+        title = (
+            request.form
+            .get(
+                "title",
+                "",
+            )
+            .strip()
+        )
+
+        description = (
+            request.form
+            .get(
+                "description",
+                "",
+            )
+            .strip()
+        )
+
+        goal_amount = (
+            request.form
+            .get(
+                "goal_amount",
+                "",
+            )
+            .strip()
+        )
+
+        if not title:
+
+            flash(
+                "Campaign title is required.",
+                "error",
+            )
+
+            return render_template(
+                "studio/fundraising_form.html",
+                creator_account=account,
+                campaign=None,
+            )
+
+        if not description:
+
+            flash(
+                (
+                    "Campaign description "
+                    "is required."
+                ),
+                "error",
+            )
+
+            return render_template(
+                "studio/fundraising_form.html",
+                creator_account=account,
+                campaign=None,
+            )
+
+        try:
+
+            goal_decimal = (
+                float(
+                    goal_amount
+                )
+            )
+
+        except (
+            TypeError,
+            ValueError,
+        ):
+
+            goal_decimal = 0
+
+        if goal_decimal <= 0:
+
+            flash(
+                (
+                    "Enter a valid fundraising "
+                    "goal greater than R0."
+                ),
+                "error",
+            )
+
+            return render_template(
+                "studio/fundraising_form.html",
+                creator_account=account,
+                campaign=None,
+            )
+
+        goal_amount_cents = (
+            int(
+                round(
+                    goal_decimal
+                    * 100
+                )
+            )
+        )
+
+        campaign = FundraisingCampaign(
+            creator_account_id=(
+                account.id
+            ),
+            title=title,
+            slug=unique_campaign_slug(
+                account,
+                title,
+            ),
+            description=description,
+            goal_amount_cents=(
+                goal_amount_cents
+            ),
+            currency="ZAR",
+            status="draft",
+        )
+
+        db.session.add(
+            campaign
+        )
+
+        db.session.commit()
+
+        flash(
+            (
+                "Fundraising campaign "
+                "created as a draft."
+            ),
+            "success",
+        )
+
+        return redirect(
+            url_for(
+                "studio.fundraising_campaigns"
+            )
+        )
+
+    return render_template(
+        "studio/fundraising_form.html",
+        creator_account=account,
+        campaign=None,
     )
 
 
@@ -1916,10 +2532,6 @@ def content_edit(
 
         db.session.commit()
 
-        # ----------------------------------------------------
-        # NOTIFY ONLY WHEN FIRST PUBLISHED
-        # ----------------------------------------------------
-
         if (
             previous_status
             != "published"
@@ -2624,10 +3236,6 @@ def profile():
                 "studio/profile.html",
                 creator=creator,
             )
-
-        # ----------------------------------------------------
-        # CREATORACCOUNT USERNAME IS CANONICAL
-        # ----------------------------------------------------
 
         creator.username = (
             account.username
