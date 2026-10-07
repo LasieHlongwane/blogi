@@ -157,6 +157,10 @@ class Config:
         "YOCO_SECRET_KEY"
     )
 
+    YOCO_API_KEY = os.getenv(
+        "YOCO_API_KEY"
+    )
+
     YOCO_CHECKOUT_URL = os.getenv(
         "YOCO_CHECKOUT_URL",
         "https://payments.yoco.com/api/checkouts",
