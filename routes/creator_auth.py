@@ -27,7 +27,6 @@ from models import (
 
 from services.plan_service import (
     PLAN_STANDARD,
-    PLAN_PREMIUM,
     VALID_PLANS,
     PLAN_PRICES,
     normalize_plan,
@@ -182,6 +181,11 @@ def register():
     if selected_plan not in VALID_PLANS:
         selected_plan = PLAN_STANDARD
 
+    selected_plan = normalize_plan(
+        selected_plan,
+        default=PLAN_STANDARD,
+    )
+
     # --------------------------------------------------------
     # FORM
     # --------------------------------------------------------
@@ -258,7 +262,8 @@ def register():
             )
 
         selected_plan = normalize_plan(
-            selected_plan
+            selected_plan,
+            default=PLAN_STANDARD,
         )
 
         # ====================================================
@@ -482,7 +487,9 @@ def register():
                 "pending_payment"
             ),
 
-            payment_status="unpaid",
+            payment_status=(
+                "unpaid"
+            ),
 
             subscription_status=(
                 "inactive"
@@ -497,7 +504,7 @@ def register():
             creator
         )
 
-        # Need ID for profile ownership.
+        # Need the creator ID before creating the profile.
         db.session.flush()
 
         # ====================================================
@@ -541,7 +548,11 @@ def register():
         ] = creator.id
 
         flash(
-            "Your creator account has been created.",
+            (
+                "Your creator account has been created. "
+                f"You selected the "
+                f"{selected_plan.title()} plan."
+            ),
             "success",
         )
 
@@ -777,13 +788,23 @@ def pending():
             )
         )
 
+    selected_plan = normalize_plan(
+        creator.plan,
+        default=PLAN_STANDARD,
+    )
+
     return render_template(
         "creator/pending.html",
+
         creator_account=creator,
-        selected_plan=normalize_plan(
-            creator.plan,
-            default=PLAN_STANDARD,
+
+        selected_plan=selected_plan,
+
+        selected_plan_price=PLAN_PRICES.get(
+            selected_plan,
+            PLAN_PRICES[PLAN_STANDARD],
         ),
+
         plan_prices=PLAN_PRICES,
     )
 
