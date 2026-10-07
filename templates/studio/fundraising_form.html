@@ -1,0 +1,26 @@
+{% extends "studio/base.html" %}
+{% block title %}{% if campaign %}Edit Campaign{% else %}New Campaign{% endif %} | Creator Studio{% endblock %}
+{% block content %}
+<style>
+.form-shell{max-width:820px;margin:0 auto}.form-card{background:#fff;border:1px solid #e2e5e9;border-radius:18px;padding:26px}.form-card h1{margin:0 0 7px}.lead{margin:0 0 24px;color:#69707a}.field{margin-bottom:18px}.field label{display:block;margin-bottom:7px;font-size:12px;font-weight:800}.field input,.field textarea,.field select{width:100%;padding:12px 13px;border:1px solid #d9dde2;border-radius:10px;background:#fff;font:inherit}.field textarea{min-height:150px;resize:vertical}.field small{display:block;margin-top:6px;color:#7a818a;line-height:1.45}.row{display:grid;grid-template-columns:1fr 1fr;gap:16px}.actions{display:flex;gap:10px;align-items:center;margin-top:24px}.button{border:0;border-radius:10px;padding:12px 16px;background:#111318;color:#fff;text-decoration:none;font:inherit;font-size:12px;font-weight:800;cursor:pointer}.button.secondary{background:#f0f2f4;color:#111318}.current-cover{max-width:260px;border-radius:12px;margin:8px 0 12px}.back{display:inline-block;margin-bottom:16px;color:#555d66;text-decoration:none;font-size:13px}@media(max-width:650px){.row{grid-template-columns:1fr}.actions{align-items:stretch;flex-direction:column}.button{text-align:center;width:100%}}
+</style>
+<div class="form-shell">
+<a class="back" href="{{ url_for('studio.fundraising_campaigns') }}">← Campaigns</a>
+<form class="form-card" method="POST" enctype="multipart/form-data">
+<h1>{% if campaign %}Edit campaign{% else %}Create fundraising campaign{% endif %}</h1>
+<p class="lead">Campaign contributions are tracked from confirmed paid FanPayment records rather than a manually editable amount-raised field.</p>
+<div class="field"><label for="title">Campaign title</label><input id="title" name="title" maxlength="180" required value="{{ campaign.title if campaign else request.form.get('title','') }}" placeholder="Help me fund my next documentary"></div>
+<div class="field"><label for="description">Description</label><textarea id="description" name="description" required placeholder="Explain what you are raising money for and how the funds will be used.">{{ campaign.description if campaign else request.form.get('description','') }}</textarea></div>
+<div class="row">
+<div class="field"><label for="goal_amount">Funding goal (R)</label><input id="goal_amount" name="goal_amount" type="number" min="1" step="0.01" required value="{% if campaign %}{{ '%.2f'|format(campaign.goal_amount_cents / 100) }}{% else %}{{ request.form.get('goal_amount','') }}{% endif %}" placeholder="15000.00"><small>Stored in cents by the backend.</small></div>
+<div class="field"><label for="status">Status</label><select id="status" name="status"><option value="draft" {% if (campaign and campaign.status == 'draft') or (not campaign and request.form.get('status','draft') == 'draft') %}selected{% endif %}>Draft</option><option value="active" {% if (campaign and campaign.status == 'active') or request.form.get('status') == 'active' %}selected{% endif %}>Active</option><option value="completed" {% if campaign and campaign.status == 'completed' %}selected{% endif %}>Completed</option><option value="cancelled" {% if campaign and campaign.status == 'cancelled' %}selected{% endif %}>Cancelled</option><option value="archived" {% if campaign and campaign.status == 'archived' %}selected{% endif %}>Archived</option></select></div>
+</div>
+<div class="row">
+<div class="field"><label for="starts_at">Start date</label><input id="starts_at" name="starts_at" type="date" value="{{ campaign.starts_at.strftime('%Y-%m-%d') if campaign and campaign.starts_at else request.form.get('starts_at','') }}"></div>
+<div class="field"><label for="ends_at">End date</label><input id="ends_at" name="ends_at" type="date" value="{{ campaign.ends_at.strftime('%Y-%m-%d') if campaign and campaign.ends_at else request.form.get('ends_at','') }}"><small>Optional unless you want a fixed campaign deadline.</small></div>
+</div>
+<div class="field"><label for="cover_image">Cover image</label>{% if campaign and campaign.cover_image_url %}<br><img class="current-cover" src="{{ campaign.cover_image_url }}" alt="Current campaign cover">{% endif %}<input id="cover_image" name="cover_image" type="file" accept="image/jpeg,image/png,image/webp"><small>Uploading a new image can replace the current campaign cover.</small></div>
+<div class="actions"><button class="button" type="submit">{% if campaign %}Save campaign{% else %}Create campaign{% endif %}</button><a class="button secondary" href="{{ url_for('studio.fundraising_campaigns') }}">Cancel</a></div>
+</form>
+</div>
+{% endblock %}
