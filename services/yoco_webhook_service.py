@@ -22,7 +22,12 @@
 #
 # ============================================================
 
-from flask import current_app
+import time
+
+from flask import (
+    current_app,
+    request,
+)
 
 from svix.webhooks import (
     Webhook,
@@ -202,7 +207,7 @@ def _validate_headers(
     webhook_signature,
 ):
     """
-    Validate that all Svix signature headers were supplied.
+    Validate that all required Svix signature headers exist.
     """
 
     if not webhook_id:
@@ -222,6 +227,142 @@ def _validate_headers(
         raise YocoWebhookError(
             "Missing webhook-signature header."
         )
+
+
+# ============================================================
+# SAFE DIAGNOSTIC LOGGING
+# ============================================================
+
+def _log_safe_diagnostics(
+    *,
+    raw_body,
+    webhook_id,
+    webhook_timestamp,
+    webhook_signature,
+):
+    """
+    Log non-secret information about the incoming webhook.
+
+    SECURITY:
+
+    We deliberately DO NOT log:
+
+        YOCO_WEBHOOK_SECRET
+        webhook-signature value
+        raw webhook body
+        Authorization headers
+        API keys
+
+    These diagnostics are temporary and should be removed
+    once webhook verification is working.
+    """
+
+    # ========================================================
+    # TIMESTAMP AGE
+    # ========================================================
+
+    timestamp_age = None
+
+    try:
+
+        timestamp_value = int(
+            webhook_timestamp
+        )
+
+        timestamp_age = (
+            int(
+                time.time()
+            )
+            - timestamp_value
+        )
+
+    except (
+        TypeError,
+        ValueError,
+    ):
+
+        timestamp_age = None
+
+    # ========================================================
+    # SIGNATURE METADATA
+    # ========================================================
+    #
+    # We only log whether the signature exists and the number
+    # of signature entries.
+    #
+    # We DO NOT log the actual signature.
+    #
+    # ========================================================
+
+    signature_present = bool(
+        webhook_signature
+    )
+
+    signature_count = 0
+
+    if webhook_signature:
+
+        signature_count = len(
+            [
+                item
+                for item
+                in str(
+                    webhook_signature
+                ).split()
+                if item.strip()
+            ]
+        )
+
+    # ========================================================
+    # REQUEST METADATA
+    # ========================================================
+
+    content_type = request.headers.get(
+        "Content-Type",
+        "",
+    )
+
+    user_agent = request.headers.get(
+        "User-Agent",
+        "",
+    )
+
+    content_length = request.headers.get(
+        "Content-Length",
+        "",
+    )
+
+    # ========================================================
+    # LOG
+    # ========================================================
+
+    current_app.logger.warning(
+        (
+            "Yoco webhook diagnostic: "
+            "webhook_id=%s "
+            "timestamp_present=%s "
+            "timestamp_age_seconds=%s "
+            "signature_present=%s "
+            "signature_count=%s "
+            "body_length=%s "
+            "content_length=%s "
+            "content_type=%s "
+            "user_agent=%s"
+        ),
+        webhook_id,
+        bool(
+            webhook_timestamp
+        ),
+        timestamp_age,
+        signature_present,
+        signature_count,
+        len(
+            raw_body
+        ),
+        content_length,
+        content_type,
+        user_agent,
+    )
 
 
 # ============================================================
@@ -253,6 +394,14 @@ def verify_yoco_webhook(
     valid.
 
     It raises YocoWebhookError when verification fails.
+
+    NOTE:
+
+    tolerance_seconds remains in the function signature for
+    compatibility with the previous implementation.
+
+    Timestamp/replay validation is performed by the official
+    Svix verifier.
     """
 
     # ========================================================
@@ -274,11 +423,44 @@ def verify_yoco_webhook(
     )
 
     # ========================================================
+    # SAFE DIAGNOSTICS
+    # ========================================================
+
+    _log_safe_diagnostics(
+        raw_body=raw_body,
+        webhook_id=webhook_id,
+        webhook_timestamp=webhook_timestamp,
+        webhook_signature=webhook_signature,
+    )
+
+    # ========================================================
     # WEBHOOK SECRET
     # ========================================================
 
     secret = (
         get_yoco_webhook_secret()
+    )
+
+    # ========================================================
+    # SAFE SECRET CONFIGURATION CHECK
+    # ========================================================
+    #
+    # We deliberately DO NOT log:
+    #
+    #     secret
+    #     secret prefix
+    #     secret length
+    #
+    # We only confirm that configuration validation passed.
+    #
+    # ========================================================
+
+    current_app.logger.warning(
+        (
+            "Yoco webhook diagnostic: "
+            "webhook signing secret configuration "
+            "loaded successfully."
+        )
     )
 
     # ========================================================
@@ -293,23 +475,23 @@ def verify_yoco_webhook(
 
     except Exception as exc:
 
+        current_app.logger.warning(
+            (
+                "Yoco webhook diagnostic: "
+                "Svix verifier initialization failed. "
+                "exception_type=%s"
+            ),
+            type(
+                exc
+            ).__name__,
+        )
+
         raise YocoWebhookError(
             "Could not initialize Yoco webhook verifier."
         ) from exc
 
     # ========================================================
     # SVIX HEADERS
-    # ========================================================
-    #
-    # Svix expects these headers:
-    #
-    #     webhook-id
-    #     webhook-timestamp
-    #     webhook-signature
-    #
-    # Header names are case-insensitive over HTTP, but we
-    # explicitly supply the canonical Svix names here.
-    #
     # ========================================================
 
     headers = {
@@ -327,18 +509,6 @@ def verify_yoco_webhook(
     # ========================================================
     # VERIFY
     # ========================================================
-    #
-    # The official Svix verifier handles:
-    #
-    #     secret decoding
-    #     signature parsing
-    #     HMAC verification
-    #     timestamp verification
-    #     multiple signatures
-    #
-    # We deliberately do NOT manually calculate an HMAC here.
-    #
-    # ========================================================
 
     try:
 
@@ -349,14 +519,44 @@ def verify_yoco_webhook(
 
     except WebhookVerificationError as exc:
 
+        # ----------------------------------------------------
+        # SAFE FAILURE DIAGNOSTIC
+        # ----------------------------------------------------
+        #
+        # We log only the exception class.
+        #
+        # We intentionally avoid logging str(exc) because
+        # third-party verification libraries can change what
+        # their exception messages contain.
+        # ----------------------------------------------------
+
+        current_app.logger.warning(
+            (
+                "Yoco webhook diagnostic: "
+                "Svix signature verification rejected "
+                "the request. exception_type=%s"
+            ),
+            type(
+                exc
+            ).__name__,
+        )
+
         raise YocoWebhookError(
             "Webhook signature verification failed."
         ) from exc
 
     except Exception as exc:
 
-        # Do not leak signature/header/secret information
-        # through application logs.
+        current_app.logger.warning(
+            (
+                "Yoco webhook diagnostic: "
+                "Unexpected verification failure. "
+                "exception_type=%s"
+            ),
+            type(
+                exc
+            ).__name__,
+        )
 
         raise YocoWebhookError(
             "Webhook verification failed."
@@ -365,5 +565,13 @@ def verify_yoco_webhook(
     # ========================================================
     # VERIFIED
     # ========================================================
+
+    current_app.logger.info(
+        (
+            "Yoco webhook signature verified "
+            "successfully. webhook_id=%s"
+        ),
+        webhook_id,
+    )
 
     return True
