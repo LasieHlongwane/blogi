@@ -1,10 +1,16 @@
 """add platform subscriptions and payments
 
 Revision ID: 47b9231e5dea
-Revises: 486565da0bd1
+Revises: 1d55d4ae0b54
 Create Date: 2026-10-07 00:50:17.991834
 
 """
+
+from datetime import (
+    datetime,
+    timedelta,
+    timezone,
+)
 
 from alembic import op
 import sqlalchemy as sa
@@ -15,9 +21,83 @@ import sqlalchemy as sa
 # ============================================================
 
 revision = "47b9231e5dea"
-down_revision = "486565da0bd1"
+down_revision = "1d55d4ae0b54"
 branch_labels = None
 depends_on = None
+
+
+# ============================================================
+# DATETIME HELPERS
+# ============================================================
+
+def _normalise_datetime(value):
+    """
+    Return a Python datetime when possible.
+
+    SQLite may return DateTime values as strings when executing
+    raw SQL through Alembic, while PostgreSQL normally returns
+    datetime objects.
+
+    This keeps the backfill portable across both databases.
+    """
+
+    if value is None:
+        return None
+
+    if isinstance(
+        value,
+        datetime,
+    ):
+
+        return value
+
+    if isinstance(
+        value,
+        str,
+    ):
+
+        text = value.strip()
+
+        if not text:
+            return None
+
+        # Handle a trailing UTC Z if encountered.
+        if text.endswith("Z"):
+            text = (
+                text[:-1]
+                + "+00:00"
+            )
+
+        try:
+            return datetime.fromisoformat(
+                text
+            )
+
+        except ValueError:
+            pass
+
+        # SQLite commonly stores datetimes using a space
+        # between the date and time.
+        formats = (
+            "%Y-%m-%d %H:%M:%S.%f",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d",
+        )
+
+        for date_format in formats:
+
+            try:
+                return datetime.strptime(
+                    text,
+                    date_format,
+                )
+
+            except ValueError:
+                continue
+
+    raise RuntimeError(
+        "Unable to parse legacy subscription datetime."
+    )
 
 
 # ============================================================
@@ -363,114 +443,235 @@ def upgrade():
     #
     # CreatorAccount currently contains the legacy fields:
     #
-    # plan
-    # subscription_status
-    # subscription_started_at
-    # subscription_expires_at
+    #     plan
+    #     subscription_status
+    #     subscription_started_at
+    #     subscription_expires_at
     #
     # We preserve those values by creating one
-    # PlatformSubscription for every existing creator.
+    # PlatformSubscription for each existing CreatorAccount.
     #
-    # Existing creators without a valid plan are treated as
+    # IMPORTANT:
+    #
+    # The previous migration used:
+    #
+    #     subscription_expires_at + INTERVAL '7 days'
+    #
+    # That syntax is PostgreSQL-specific and fails on SQLite.
+    #
+    # The backfill below calculates the grace date in Python
+    # instead, allowing the same migration to run against:
+    #
+    #     SQLite development
+    #     PostgreSQL / Neon production
+    #
+    # Existing creators without a recognised plan remain
     # Premium to preserve legacy functionality.
-    #
-    # The legacy CreatorAccount fields are NOT removed during
-    # Stage 2 because the application temporarily keeps them
-    # synchronized.
     # ========================================================
 
-    op.execute(
-        sa.text(
-            """
-            INSERT INTO platform_subscriptions
-            (
-                creator_account_id,
-                plan,
-                status,
-                provider,
-                provider_subscription_id,
-                started_at,
-                current_period_start,
-                current_period_end,
-                grace_period_ends_at,
-                cancelled_at,
-                created_at,
-                updated_at
-            )
-            SELECT
-                id,
+    connection = op.get_bind()
 
-                CASE
-                    WHEN LOWER(COALESCE(plan, '')) = 'standard'
-                        THEN 'standard'
 
-                    WHEN LOWER(COALESCE(plan, '')) = 'premium'
-                        THEN 'premium'
+    # --------------------------------------------------------
+    # REFLECT THE LEGACY CREATOR TABLE
+    # --------------------------------------------------------
+    #
+    # Using SQLAlchemy's reflected column types is important.
+    # It means SQLite DateTime values are converted through
+    # SQLAlchemy rather than relying entirely on raw strings.
+    # --------------------------------------------------------
 
-                    ELSE 'premium'
-                END,
+    metadata = sa.MetaData()
 
-                CASE
-                    WHEN subscription_status IN (
-                        'inactive',
-                        'active',
-                        'past_due',
-                        'expired',
-                        'cancelled'
-                    )
-                        THEN subscription_status
-
-                    ELSE 'inactive'
-                END,
-
-                'legacy',
-
-                NULL,
-
-                subscription_started_at,
-
-                subscription_started_at,
-
-                subscription_expires_at,
-
-                CASE
-                    WHEN subscription_status = 'past_due'
-                         AND subscription_expires_at IS NOT NULL
-                    THEN subscription_expires_at
-                         + INTERVAL '7 days'
-
-                    ELSE NULL
-                END,
-
-                CASE
-                    WHEN subscription_status = 'cancelled'
-                    THEN COALESCE(
-                        subscription_expires_at,
-                        CURRENT_TIMESTAMP
-                    )
-
-                    ELSE NULL
-                END,
-
-                CURRENT_TIMESTAMP,
-
-                CURRENT_TIMESTAMP
-
-            FROM creator_accounts
-
-            WHERE NOT EXISTS
-            (
-                SELECT 1
-
-                FROM platform_subscriptions ps
-
-                WHERE
-                    ps.creator_account_id
-                    = creator_accounts.id
-            );
-            """
-        )
+    creator_accounts_table = sa.Table(
+        "creator_accounts",
+        metadata,
+        autoload_with=connection,
     )
+
+    platform_subscriptions_table = sa.Table(
+        "platform_subscriptions",
+        metadata,
+        autoload_with=connection,
+    )
+
+
+    creator_rows = connection.execute(
+        sa.select(
+            creator_accounts_table.c.id,
+            creator_accounts_table.c.plan,
+            creator_accounts_table.c.subscription_status,
+            creator_accounts_table.c.subscription_started_at,
+            creator_accounts_table.c.subscription_expires_at,
+        )
+    ).mappings().all()
+
+
+    valid_statuses = {
+        "inactive",
+        "active",
+        "past_due",
+        "expired",
+        "cancelled",
+    }
+
+
+    for creator in creator_rows:
+
+        creator_id = (
+            creator["id"]
+        )
+
+
+        # ====================================================
+        # IDEMPOTENCY
+        # ====================================================
+
+        existing_subscription = (
+            connection.execute(
+                sa.select(
+                    platform_subscriptions_table.c.id
+                )
+                .where(
+                    platform_subscriptions_table
+                    .c
+                    .creator_account_id
+                    == creator_id
+                )
+                .limit(1)
+            )
+            .first()
+        )
+
+        if existing_subscription:
+            continue
+
+
+        # ====================================================
+        # PLAN
+        # ====================================================
+
+        raw_plan = str(
+            creator["plan"]
+            or ""
+        ).strip().lower()
+
+
+        if raw_plan == "standard":
+
+            plan = "standard"
+
+        elif raw_plan == "premium":
+
+            plan = "premium"
+
+        else:
+
+            # Preserve legacy functionality.
+            plan = "premium"
+
+
+        # ====================================================
+        # STATUS
+        # ====================================================
+
+        raw_status = str(
+            creator[
+                "subscription_status"
+            ]
+            or ""
+        ).strip().lower()
+
+
+        if raw_status in valid_statuses:
+
+            status = raw_status
+
+        else:
+
+            status = "inactive"
+
+
+        # ====================================================
+        # DATES
+        # ====================================================
+
+        started_at = _normalise_datetime(
+            creator[
+                "subscription_started_at"
+            ]
+        )
+
+        expires_at = _normalise_datetime(
+            creator[
+                "subscription_expires_at"
+            ]
+        )
+
+
+        grace_period_ends_at = None
+        cancelled_at = None
+
+
+        if (
+            status == "past_due"
+            and expires_at is not None
+        ):
+
+            grace_period_ends_at = (
+                expires_at
+                + timedelta(days=7)
+            )
+
+
+        if status == "cancelled":
+
+            cancelled_at = (
+                expires_at
+                or datetime.now(
+                    timezone.utc
+                )
+            )
+
+
+        now = datetime.now(
+            timezone.utc
+        )
+
+
+        # ====================================================
+        # INSERT SUBSCRIPTION
+        # ====================================================
+
+        connection.execute(
+            platform_subscriptions_table.insert().values(
+                creator_account_id=creator_id,
+
+                plan=plan,
+
+                status=status,
+
+                provider="legacy",
+
+                provider_subscription_id=None,
+
+                started_at=started_at,
+
+                current_period_start=started_at,
+
+                current_period_end=expires_at,
+
+                grace_period_ends_at=(
+                    grace_period_ends_at
+                ),
+
+                cancelled_at=cancelled_at,
+
+                created_at=now,
+
+                updated_at=now,
+            )
+        )
 
 
 # ============================================================
