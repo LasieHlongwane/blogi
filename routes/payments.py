@@ -44,11 +44,6 @@ from services.yoco_webhook_service import (
     YocoWebhookError,
 )
 
-from services.yoco_api_service import (
-    fetch_payment,
-    YocoAPIError,
-)
-
 
 # ============================================================
 # BLUEPRINT
@@ -72,6 +67,7 @@ def get_logged_in_creator():
     )
 
     if not creator_id:
+
         return None
 
     return db.session.get(
@@ -98,6 +94,233 @@ def get_site_url():
         )
 
     return site_url
+
+
+# ============================================================
+# WEBHOOK PAYLOAD HELPERS
+# ============================================================
+
+def _get_event_type(
+    payload,
+):
+
+    event_type = (
+        payload.get(
+            "type"
+        )
+        or payload.get(
+            "event_type"
+        )
+        or payload.get(
+            "eventType"
+        )
+        or ""
+    )
+
+    return (
+        str(
+            event_type
+        )
+        .strip()
+        .lower()
+    )
+
+
+def _get_event_data(
+    payload,
+):
+    """
+    Return the payment object contained inside the Yoco
+    webhook.
+
+    Standard Yoco payment webhook payloads contain the
+    payment information inside:
+
+        payload["data"]
+
+    We deliberately require a dictionary here rather than
+    falling back to arbitrary top-level fields for payment
+    confirmation.
+    """
+
+    data = payload.get(
+        "data"
+    )
+
+    if not isinstance(
+        data,
+        dict,
+    ):
+
+        return None
+
+    return data
+
+
+def _get_checkout_id(
+    payment_data,
+):
+
+    checkout_id = (
+        payment_data.get(
+            "checkoutId"
+        )
+        or payment_data.get(
+            "checkout_id"
+        )
+    )
+
+    if checkout_id is None:
+
+        return None
+
+    checkout_id = (
+        str(
+            checkout_id
+        )
+        .strip()
+    )
+
+    return (
+        checkout_id
+        or None
+    )
+
+
+def _get_provider_payment_id(
+    payment_data,
+):
+
+    payment_id = (
+        payment_data.get(
+            "id"
+        )
+        or payment_data.get(
+            "paymentId"
+        )
+        or payment_data.get(
+            "payment_id"
+        )
+    )
+
+    if payment_id is None:
+
+        return None
+
+    payment_id = (
+        str(
+            payment_id
+        )
+        .strip()
+    )
+
+    return (
+        payment_id
+        or None
+    )
+
+
+def _get_payment_status(
+    payment_data,
+):
+
+    status = (
+        payment_data.get(
+            "status"
+        )
+        or ""
+    )
+
+    return (
+        str(
+            status
+        )
+        .strip()
+        .lower()
+    )
+
+
+def _get_payment_currency(
+    payment_data,
+):
+
+    currency = (
+        payment_data.get(
+            "currency"
+        )
+        or ""
+    )
+
+    return (
+        str(
+            currency
+        )
+        .strip()
+        .upper()
+    )
+
+
+def _get_payment_amount(
+    payment_data,
+):
+
+    amount = payment_data.get(
+        "amount"
+    )
+
+    # --------------------------------------------------------
+    # SOME PAYMENT OBJECTS MAY WRAP THE AMOUNT
+    # --------------------------------------------------------
+
+    if isinstance(
+        amount,
+        dict,
+    ):
+
+        amount = amount.get(
+            "amount"
+        )
+
+    if amount is None:
+
+        total_amount = (
+            payment_data.get(
+                "totalAmount"
+            )
+            or payment_data.get(
+                "total_amount"
+            )
+        )
+
+        if isinstance(
+            total_amount,
+            dict,
+        ):
+
+            amount = total_amount.get(
+                "amount"
+            )
+
+        elif total_amount is not None:
+
+            amount = total_amount
+
+    if amount is None:
+
+        return None
+
+    try:
+
+        return int(
+            amount
+        )
+
+    except (
+        TypeError,
+        ValueError,
+    ):
+
+        return None
 
 
 # ============================================================
@@ -158,7 +381,13 @@ def creator_checkout():
     #
     # The creator's stored plan is authoritative.
     #
-    # Never trust an amount submitted by the browser.
+    # Never trust:
+    #
+    #     plan
+    #     price
+    #     amount
+    #
+    # supplied by the browser.
     # --------------------------------------------------------
 
     selected_plan = normalize_plan(
@@ -192,9 +421,11 @@ def creator_checkout():
     # SERVER-SIDE PRICE
     # --------------------------------------------------------
 
-    amount_rands = PLAN_PRICES[
-        selected_plan
-    ]
+    amount_rands = (
+        PLAN_PRICES[
+            selected_plan
+        ]
+    )
 
     amount_cents = int(
         amount_rands * 100
@@ -243,6 +474,22 @@ def creator_checkout():
     # --------------------------------------------------------
     # CREATE YOCO CHECKOUT
     # --------------------------------------------------------
+    #
+    # This uses the Yoco Online Checkout API:
+    #
+    #     payments.yoco.com/api/checkouts
+    #
+    # and YOCO_SECRET_KEY.
+    #
+    # Test Checkout:
+    #
+    #     sk_test_...
+    #
+    # Live Checkout:
+    #
+    #     sk_live_...
+    #
+    # --------------------------------------------------------
 
     try:
 
@@ -263,7 +510,9 @@ def creator_checkout():
                 "creator_account_id=%s: %s"
             ),
             creator.id,
-            str(exc),
+            str(
+                exc
+            ),
         )
 
         flash(
@@ -413,17 +662,19 @@ def creator_checkout():
     # RECORD PENDING PAYMENT
     # --------------------------------------------------------
     #
-    # provider_reference stores Yoco's Checkout ID.
+    # provider_reference stores the Yoco Checkout ID.
+    #
+    # Example:
+    #
+    #     ch_...
     #
     # Later:
     #
-    # payment.created
-    #       ↓
-    # Fetch Payment
-    #       ↓
-    # checkout_id
-    #       ↓
-    # provider_reference
+    #     payment.succeeded
+    #             ↓
+    #     data.checkoutId
+    #             ↓
+    #     provider_reference
     #
     # --------------------------------------------------------
 
@@ -478,7 +729,7 @@ def creator_checkout():
 
 
 # ============================================================
-# YOCO WEBHOOK
+# YOCO CHECKOUT WEBHOOK
 # ============================================================
 
 @payments_bp.route(
@@ -493,10 +744,11 @@ def yoco_webhook():
     #
     # IMPORTANT:
     #
-    # Signature verification MUST happen against the exact
-    # raw bytes sent by Yoco.
+    # The webhook signature is calculated from the exact
+    # bytes sent by Yoco.
     #
-    # Do not reconstruct the JSON before verifying.
+    # Signature verification MUST therefore happen before
+    # JSON parsing.
     # --------------------------------------------------------
 
     raw_body = request.get_data(
@@ -517,7 +769,7 @@ def yoco_webhook():
     )
 
     # --------------------------------------------------------
-    # VERIFY YOCO SIGNATURE
+    # VERIFY YOCO / SVIX SIGNATURE
     # --------------------------------------------------------
 
     try:
@@ -532,8 +784,12 @@ def yoco_webhook():
     except YocoWebhookError as exc:
 
         current_app.logger.warning(
-            "Rejected Yoco webhook: %s",
-            str(exc),
+            (
+                "Rejected Yoco Checkout webhook: %s"
+            ),
+            str(
+                exc
+            ),
         )
 
         return jsonify(
@@ -546,7 +802,7 @@ def yoco_webhook():
         ), 401
 
     # --------------------------------------------------------
-    # PARSE JSON
+    # PARSE VERIFIED JSON
     # --------------------------------------------------------
 
     payload = request.get_json(
@@ -559,7 +815,10 @@ def yoco_webhook():
     ):
 
         current_app.logger.warning(
-            "Yoco webhook contained invalid JSON."
+            (
+                "Verified Yoco webhook contained "
+                "invalid JSON."
+            )
         )
 
         return jsonify(
@@ -573,45 +832,34 @@ def yoco_webhook():
     # EVENT TYPE
     # --------------------------------------------------------
 
-    event_type = (
-        payload.get(
-            "event_type"
-        )
-        or payload.get(
-            "type"
-        )
-        or payload.get(
-            "eventType"
-        )
-        or ""
+    event_type = _get_event_type(
+        payload
     )
 
-    event_type = (
-        str(
-            event_type
-        )
-        .strip()
-        .lower()
+    current_app.logger.info(
+        (
+            "Verified Yoco Checkout webhook received. "
+            "webhook_id=%s event_type=%s"
+        ),
+        webhook_id,
+        event_type,
     )
 
     # --------------------------------------------------------
-    # ONLY PROCESS PAYMENT.CREATED
-    # --------------------------------------------------------
-    #
-    # This webhook subscription was registered for:
-    #
-    #     payment.created
-    #
-    # payment.created itself is NOT proof of successful
-    # payment.
-    #
-    # We fetch the authoritative payment from Yoco below.
+    # IGNORE EVENTS WE DO NOT USE
     # --------------------------------------------------------
 
-    if event_type != "payment.created":
+    if event_type not in {
+        "payment.succeeded",
+        "payment.failed",
+    }:
 
         current_app.logger.info(
-            "Ignoring Yoco event type=%s",
+            (
+                "Ignoring Yoco Checkout event. "
+                "webhook_id=%s event_type=%s"
+            ),
+            webhook_id,
             event_type,
         )
 
@@ -619,178 +867,57 @@ def yoco_webhook():
             {
                 "ok": True,
                 "ignored": True,
+                "event_type": event_type,
             }
         ), 200
 
     # --------------------------------------------------------
-    # PAYMENT ID
+    # PAYMENT DATA
     # --------------------------------------------------------
 
-    payment_id = (
-        payload.get(
-            "payment_id"
-        )
-        or payload.get(
-            "paymentId"
-        )
+    payment_data = _get_event_data(
+        payload
     )
 
-    if not payment_id:
+    if payment_data is None:
 
         current_app.logger.error(
             (
-                "Yoco payment.created webhook "
-                "did not contain payment_id. "
-                "webhook_id=%s"
+                "Yoco Checkout webhook has no "
+                "payment data. webhook_id=%s "
+                "event_type=%s"
             ),
             webhook_id,
+            event_type,
         )
 
         return jsonify(
             {
                 "ok": False,
                 "error": (
-                    "Missing payment ID."
+                    "Missing payment data."
                 ),
             }
         ), 400
-
-    payment_id = str(
-        payment_id
-    )
-
-    # --------------------------------------------------------
-    # FETCH AUTHORITATIVE PAYMENT FROM YOCO
-    # --------------------------------------------------------
-    #
-    # YOCO_API_KEY is used here.
-    #
-    # This call gives us the authoritative:
-    #
-    #     status
-    #     checkout_id
-    #     amount
-    #     currency
-    #
-    # --------------------------------------------------------
-
-    try:
-
-        yoco_payment = fetch_payment(
-            payment_id
-        )
-
-    except YocoAPIError as exc:
-
-        current_app.logger.error(
-            (
-                "Unable to verify Yoco payment "
-                "%s: %s"
-            ),
-            payment_id,
-            str(exc),
-        )
-
-        # A server error tells Yoco that processing was not
-        # completed successfully.
-        return jsonify(
-            {
-                "ok": False,
-                "error": (
-                    "Payment verification unavailable."
-                ),
-            }
-        ), 500
-
-    if not isinstance(
-        yoco_payment,
-        dict,
-    ):
-
-        current_app.logger.error(
-            (
-                "Yoco returned an invalid payment "
-                "object. payment_id=%s"
-            ),
-            payment_id,
-        )
-
-        return jsonify(
-            {
-                "ok": False,
-                "error": (
-                    "Invalid payment response."
-                ),
-            }
-        ), 500
-
-    # --------------------------------------------------------
-    # AUTHORITATIVE PAYMENT STATUS
-    # --------------------------------------------------------
-
-    status = (
-        str(
-            yoco_payment.get(
-                "status",
-                "",
-            )
-        )
-        .strip()
-        .lower()
-    )
-
-    # --------------------------------------------------------
-    # PAYMENT NOT YET APPROVED
-    # --------------------------------------------------------
-    #
-    # Never grant subscription access for:
-    #
-    #     pending
-    #     failed
-    #     cancelled
-    #
-    # --------------------------------------------------------
-
-    if status != "approved":
-
-        current_app.logger.info(
-            (
-                "Yoco payment is not approved. "
-                "payment_id=%s status=%s"
-            ),
-            payment_id,
-            status,
-        )
-
-        return jsonify(
-            {
-                "ok": True,
-                "processed": False,
-                "payment_status": status,
-            }
-        ), 200
 
     # --------------------------------------------------------
     # CHECKOUT ID
     # --------------------------------------------------------
 
-    checkout_id = (
-        yoco_payment.get(
-            "checkout_id"
-        )
-        or yoco_payment.get(
-            "checkoutId"
-        )
+    checkout_id = _get_checkout_id(
+        payment_data
     )
 
     if not checkout_id:
 
         current_app.logger.error(
             (
-                "Approved Yoco payment has no "
-                "checkout ID. payment_id=%s"
+                "Yoco Checkout webhook has no "
+                "checkout ID. webhook_id=%s "
+                "event_type=%s"
             ),
-            payment_id,
+            webhook_id,
+            event_type,
         )
 
         return jsonify(
@@ -802,16 +929,22 @@ def yoco_webhook():
             }
         ), 400
 
-    checkout_id = str(
-        checkout_id
+    # --------------------------------------------------------
+    # PAYMENT ID
+    # --------------------------------------------------------
+
+    provider_payment_id = (
+        _get_provider_payment_id(
+            payment_data
+        )
     )
 
     # --------------------------------------------------------
     # FIND LOCAL PAYMENT
     # --------------------------------------------------------
     #
-    # We stored the Checkout ID in provider_reference before
-    # redirecting the creator to Yoco.
+    # The Checkout ID was stored BEFORE redirecting the
+    # creator to Yoco.
     # --------------------------------------------------------
 
     local_payment = (
@@ -828,9 +961,11 @@ def yoco_webhook():
         current_app.logger.error(
             (
                 "No local Kalxa payment matches "
-                "Yoco checkout_id=%s."
+                "Yoco checkout_id=%s "
+                "event_type=%s."
             ),
             checkout_id,
+            event_type,
         )
 
         return jsonify(
@@ -842,22 +977,115 @@ def yoco_webhook():
             }
         ), 404
 
+    # ========================================================
+    # PAYMENT.FAILED
+    # ========================================================
+
+    if event_type == "payment.failed":
+
+        # ----------------------------------------------------
+        # DO NOT OVERWRITE A PAYMENT ALREADY CONFIRMED PAID
+        # ----------------------------------------------------
+
+        if local_payment.status == "paid":
+
+            current_app.logger.warning(
+                (
+                    "Ignoring payment.failed for "
+                    "already-paid local payment. "
+                    "payment_id=%s checkout_id=%s"
+                ),
+                local_payment.id,
+                checkout_id,
+            )
+
+            return jsonify(
+                {
+                    "ok": True,
+                    "ignored": True,
+                    "reason": (
+                        "payment_already_paid"
+                    ),
+                }
+            ), 200
+
+        # ----------------------------------------------------
+        # MARK FAILED
+        # ----------------------------------------------------
+
+        local_payment.status = (
+            "failed"
+        )
+
+        try:
+
+            db.session.commit()
+
+        except Exception:
+
+            db.session.rollback()
+
+            current_app.logger.exception(
+                (
+                    "Unable to record failed Yoco "
+                    "payment. local_payment_id=%s "
+                    "checkout_id=%s"
+                ),
+                local_payment.id,
+                checkout_id,
+            )
+
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": (
+                        "Payment processing failed."
+                    ),
+                }
+            ), 500
+
+        current_app.logger.info(
+            (
+                "Yoco payment failed. "
+                "local_payment_id=%s "
+                "checkout_id=%s "
+                "provider_payment_id=%s"
+            ),
+            local_payment.id,
+            checkout_id,
+            provider_payment_id,
+        )
+
+        return jsonify(
+            {
+                "ok": True,
+                "processed": True,
+                "payment_status": "failed",
+            }
+        ), 200
+
+    # ========================================================
+    # PAYMENT.SUCCEEDED
+    # ========================================================
+    #
+    # From this point forward we are handling only:
+    #
+    #     payment.succeeded
+    #
+    # The webhook has already passed signature verification.
+    # ========================================================
+
     # --------------------------------------------------------
     # IDEMPOTENCY
-    # --------------------------------------------------------
-    #
-    # Yoco can retry webhook delivery.
-    #
-    # If we already processed this checkout successfully,
-    # acknowledge it without activating/renewing again.
     # --------------------------------------------------------
 
     if local_payment.status == "paid":
 
         current_app.logger.info(
             (
-                "Duplicate Yoco payment webhook "
-                "ignored. checkout_id=%s"
+                "Duplicate Yoco payment.succeeded "
+                "webhook ignored. "
+                "checkout_id=%s"
             ),
             checkout_id,
         )
@@ -896,7 +1124,7 @@ def yoco_webhook():
         ), 404
 
     # --------------------------------------------------------
-    # PLAN
+    # LOCAL PAYMENT PLAN
     # --------------------------------------------------------
 
     payment_plan = normalize_plan(
@@ -1021,18 +1249,59 @@ def yoco_webhook():
         ), 400
 
     # --------------------------------------------------------
-    # VERIFY YOCO CURRENCY
+    # PROVIDER STATUS
+    # --------------------------------------------------------
+    #
+    # payment.succeeded is already a successful event.
+    #
+    # If Yoco additionally provides a status field, it must
+    # represent a successful state.
+    # --------------------------------------------------------
+
+    provider_status = (
+        _get_payment_status(
+            payment_data
+        )
+    )
+
+    if (
+        provider_status
+        and provider_status
+        not in {
+            "succeeded",
+            "successful",
+            "approved",
+            "completed",
+        }
+    ):
+
+        current_app.logger.error(
+            (
+                "Yoco payment.succeeded event has "
+                "unexpected payment status. "
+                "checkout_id=%s status=%s"
+            ),
+            checkout_id,
+            provider_status,
+        )
+
+        return jsonify(
+            {
+                "ok": False,
+                "error": (
+                    "Provider status mismatch."
+                ),
+            }
+        ), 400
+
+    # --------------------------------------------------------
+    # PROVIDER CURRENCY
     # --------------------------------------------------------
 
     provider_currency = (
-        str(
-            yoco_payment.get(
-                "currency",
-                "",
-            )
+        _get_payment_currency(
+            payment_data
         )
-        .strip()
-        .upper()
     )
 
     if provider_currency != "ZAR":
@@ -1040,9 +1309,9 @@ def yoco_webhook():
         current_app.logger.error(
             (
                 "Yoco currency mismatch. "
-                "payment_id=%s currency=%s"
+                "checkout_id=%s currency=%s"
             ),
-            payment_id,
+            checkout_id,
             provider_currency,
         )
 
@@ -1056,85 +1325,23 @@ def yoco_webhook():
         ), 400
 
     # --------------------------------------------------------
-    # YOCO AMOUNT
+    # PROVIDER AMOUNT
     # --------------------------------------------------------
 
-    total_amount = (
-        yoco_payment.get(
-            "total_amount"
+    provider_amount = (
+        _get_payment_amount(
+            payment_data
         )
     )
 
-    provider_amount = None
-
-    if isinstance(
-        total_amount,
-        dict,
-    ):
-
-        provider_amount = (
-            total_amount.get(
-                "amount"
-            )
-        )
-
-    elif total_amount is not None:
-
-        provider_amount = (
-            total_amount
-        )
-
-    # --------------------------------------------------------
-    # CAMELCASE FALLBACK
-    # --------------------------------------------------------
-
     if provider_amount is None:
-
-        total_amount = (
-            yoco_payment.get(
-                "totalAmount"
-            )
-        )
-
-        if isinstance(
-            total_amount,
-            dict,
-        ):
-
-            provider_amount = (
-                total_amount.get(
-                    "amount"
-                )
-            )
-
-        elif total_amount is not None:
-
-            provider_amount = (
-                total_amount
-            )
-
-    # --------------------------------------------------------
-    # NORMALIZE PROVIDER AMOUNT
-    # --------------------------------------------------------
-
-    try:
-
-        provider_amount = int(
-            provider_amount
-        )
-
-    except (
-        TypeError,
-        ValueError,
-    ):
 
         current_app.logger.error(
             (
-                "Yoco payment has invalid amount. "
-                "payment_id=%s amount=%s"
+                "Yoco payment.succeeded event has "
+                "no valid amount. checkout_id=%s"
             ),
-            payment_id,
-            provider_amount,
+            checkout_id,
         )
 
         return jsonify(
@@ -1155,10 +1362,10 @@ def yoco_webhook():
         current_app.logger.error(
             (
                 "Yoco amount mismatch. "
-                "payment_id=%s expected=%s "
+                "checkout_id=%s expected=%s "
                 "received=%s"
             ),
-            payment_id,
+            checkout_id,
             expected_amount,
             provider_amount,
         )
@@ -1203,10 +1410,10 @@ def yoco_webhook():
     # FIRST CREATOR PAYMENT
     # --------------------------------------------------------
     #
-    # Payment does NOT automatically approve a brand-new
-    # creator.
+    # Successful payment does NOT automatically approve a
+    # brand-new creator.
     #
-    # The platform owner must approve the creator.
+    # Platform admin approval remains required.
     # --------------------------------------------------------
 
     if not already_approved:
@@ -1220,10 +1427,12 @@ def yoco_webhook():
                 "Creator subscription payment "
                 "confirmed. creator=%s "
                 "checkout_id=%s "
+                "provider_payment_id=%s "
                 "awaiting admin approval."
             ),
             creator.id,
             checkout_id,
+            provider_payment_id,
         )
 
     # --------------------------------------------------------
@@ -1243,11 +1452,13 @@ def yoco_webhook():
             (
                 "Creator subscription renewed. "
                 "creator=%s plan=%s "
-                "checkout_id=%s"
+                "checkout_id=%s "
+                "provider_payment_id=%s"
             ),
             creator.id,
             payment_plan,
             checkout_id,
+            provider_payment_id,
         )
 
     # --------------------------------------------------------
@@ -1265,10 +1476,13 @@ def yoco_webhook():
         current_app.logger.exception(
             (
                 "Unable to commit Yoco payment. "
-                "payment_id=%s checkout_id=%s"
+                "local_payment_id=%s "
+                "checkout_id=%s "
+                "provider_payment_id=%s"
             ),
-            payment_id,
+            local_payment.id,
             checkout_id,
+            provider_payment_id,
         )
 
         return jsonify(
@@ -1331,10 +1545,11 @@ def yoco_success():
     #
     # Reaching this URL is NOT proof of payment.
     #
-    # We deliberately do not change payment_status here.
+    # A user can reach a browser return URL without that URL
+    # being authoritative evidence that money was received.
     #
-    # The signed Yoco webhook + Fetch Payment API is
-    # authoritative.
+    # Only the signed payment.succeeded webhook may mark the
+    # local payment as paid.
     # --------------------------------------------------------
 
     flash(
@@ -1373,6 +1588,15 @@ def yoco_cancel():
             )
         )
 
+    # --------------------------------------------------------
+    # IMPORTANT
+    # --------------------------------------------------------
+    #
+    # We do not mutate the database here.
+    #
+    # The browser redirect is not authoritative payment state.
+    # --------------------------------------------------------
+
     flash(
         (
             "The Yoco payment was cancelled. "
@@ -1407,6 +1631,16 @@ def yoco_failure():
                 "creator_auth.login"
             )
         )
+
+    # --------------------------------------------------------
+    # IMPORTANT
+    # --------------------------------------------------------
+    #
+    # We do not mark a local payment failed merely because
+    # the browser reached this URL.
+    #
+    # payment.failed is the server-to-server source.
+    # --------------------------------------------------------
 
     flash(
         (
