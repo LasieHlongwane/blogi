@@ -15,6 +15,7 @@ from flask import (
     url_for,
     flash,
     session,
+    current_app,
 )
 
 from extensions import db
@@ -30,6 +31,13 @@ from services.plan_service import (
     VALID_PLANS,
     PLAN_PRICES,
     normalize_plan,
+)
+
+from services.subscription_service import (
+    enforce_subscription_lifecycle,
+    creator_subscription_is_current,
+    creator_grace_days_remaining,
+    get_creator_subscription,
 )
 
 
@@ -74,6 +82,7 @@ def get_logged_in_creator():
     )
 
     if not creator_id:
+
         return None
 
     return db.session.get(
@@ -81,6 +90,63 @@ def get_logged_in_creator():
         creator_id,
     )
 
+
+# ============================================================
+# ENFORCE CREATOR SUBSCRIPTION STATE
+# ============================================================
+
+def refresh_creator_subscription(
+    creator,
+):
+    """
+    Evaluate the creator's current subscription lifecycle
+    and persist any state transition.
+
+    Possible automatic transitions:
+
+        active
+          ↓
+        past_due
+          ↓
+        expired
+
+    This helper does not activate subscriptions.
+
+    Activation/renewal remains controlled by payment and
+    platform approval.
+    """
+
+    try:
+
+        subscription = (
+            enforce_subscription_lifecycle(
+                creator
+            )
+        )
+
+        db.session.commit()
+
+        return subscription
+
+    except Exception:
+
+        db.session.rollback()
+
+        current_app.logger.exception(
+            (
+                "Unable to refresh creator "
+                "subscription lifecycle. "
+                "creator_account_id=%s"
+            ),
+            creator.id,
+        )
+
+        return None
+
+
+# ============================================================
+# LOGIN REQUIRED
+# ============================================================
 
 def creator_login_required(
     view,
@@ -123,6 +189,38 @@ def creator_login_required(
 
 
 # ============================================================
+# CREATOR CAN ENTER STUDIO
+# ============================================================
+
+def creator_can_enter_studio(
+    creator,
+):
+    """
+    Return True when:
+
+        account_status == active
+
+    AND the subscription is currently usable.
+
+    Subscription access includes:
+
+        active
+        past_due while grace period remains
+    """
+
+    if (
+        creator.account_status
+        != "active"
+    ):
+
+        return False
+
+    return creator_subscription_is_current(
+        creator
+    )
+
+
+# ============================================================
 # REGISTER
 # ============================================================
 
@@ -145,11 +243,12 @@ def register():
 
     if existing_creator:
 
-        if (
-            existing_creator.account_status
-            == "active"
-            and existing_creator.subscription_status
-            == "active"
+        refresh_creator_subscription(
+            existing_creator
+        )
+
+        if creator_can_enter_studio(
+            existing_creator
         ):
 
             return redirect(
@@ -179,7 +278,10 @@ def register():
     )
 
     if selected_plan not in VALID_PLANS:
-        selected_plan = PLAN_STANDARD
+
+        selected_plan = (
+            PLAN_STANDARD
+        )
 
     selected_plan = normalize_plan(
         selected_plan,
@@ -248,7 +350,10 @@ def register():
         # PLAN VALIDATION
         # ====================================================
 
-        if selected_plan not in VALID_PLANS:
+        if (
+            selected_plan
+            not in VALID_PLANS
+        ):
 
             flash(
                 "Choose a valid creator plan.",
@@ -257,8 +362,12 @@ def register():
 
             return render_template(
                 "creator/register.html",
-                selected_plan=PLAN_STANDARD,
-                plan_prices=PLAN_PRICES,
+                selected_plan=(
+                    PLAN_STANDARD
+                ),
+                plan_prices=(
+                    PLAN_PRICES
+                ),
             )
 
         selected_plan = normalize_plan(
@@ -267,7 +376,7 @@ def register():
         )
 
         # ====================================================
-        # VALIDATION
+        # DISPLAY NAME
         # ====================================================
 
         if not display_name:
@@ -279,11 +388,18 @@ def register():
 
             return render_template(
                 "creator/register.html",
-                selected_plan=selected_plan,
-                plan_prices=PLAN_PRICES,
+                selected_plan=(
+                    selected_plan
+                ),
+                plan_prices=(
+                    PLAN_PRICES
+                ),
             )
 
-        if len(display_name) > 120:
+        if (
+            len(display_name)
+            > 120
+        ):
 
             flash(
                 "Display name is too long.",
@@ -292,9 +408,17 @@ def register():
 
             return render_template(
                 "creator/register.html",
-                selected_plan=selected_plan,
-                plan_prices=PLAN_PRICES,
+                selected_plan=(
+                    selected_plan
+                ),
+                plan_prices=(
+                    PLAN_PRICES
+                ),
             )
+
+        # ====================================================
+        # USERNAME
+        # ====================================================
 
         if not username:
 
@@ -305,25 +429,41 @@ def register():
 
             return render_template(
                 "creator/register.html",
-                selected_plan=selected_plan,
-                plan_prices=PLAN_PRICES,
+                selected_plan=(
+                    selected_plan
+                ),
+                plan_prices=(
+                    PLAN_PRICES
+                ),
             )
 
-        if len(username) < 3:
+        if (
+            len(username)
+            < 3
+        ):
 
             flash(
-                "Username must contain at least "
-                "3 characters.",
+                (
+                    "Username must contain "
+                    "at least 3 characters."
+                ),
                 "error",
             )
 
             return render_template(
                 "creator/register.html",
-                selected_plan=selected_plan,
-                plan_prices=PLAN_PRICES,
+                selected_plan=(
+                    selected_plan
+                ),
+                plan_prices=(
+                    PLAN_PRICES
+                ),
             )
 
-        if len(username) > 80:
+        if (
+            len(username)
+            > 80
+        ):
 
             flash(
                 "Username is too long.",
@@ -332,52 +472,92 @@ def register():
 
             return render_template(
                 "creator/register.html",
-                selected_plan=selected_plan,
-                plan_prices=PLAN_PRICES,
+                selected_plan=(
+                    selected_plan
+                ),
+                plan_prices=(
+                    PLAN_PRICES
+                ),
             )
+
+        # ====================================================
+        # EMAIL
+        # ====================================================
 
         if (
             not email
             or "@" not in email
-            or "." not in email.split("@")[-1]
+            or "." not in (
+                email.split("@")[-1]
+            )
         ):
 
             flash(
-                "Enter a valid email address.",
+                (
+                    "Enter a valid "
+                    "email address."
+                ),
                 "error",
             )
 
             return render_template(
                 "creator/register.html",
-                selected_plan=selected_plan,
-                plan_prices=PLAN_PRICES,
+                selected_plan=(
+                    selected_plan
+                ),
+                plan_prices=(
+                    PLAN_PRICES
+                ),
             )
 
-        if len(email) > 255:
+        if (
+            len(email)
+            > 255
+        ):
 
             flash(
-                "Email address is too long.",
+                (
+                    "Email address "
+                    "is too long."
+                ),
                 "error",
             )
 
             return render_template(
                 "creator/register.html",
-                selected_plan=selected_plan,
-                plan_prices=PLAN_PRICES,
+                selected_plan=(
+                    selected_plan
+                ),
+                plan_prices=(
+                    PLAN_PRICES
+                ),
             )
 
-        if len(password) < 8:
+        # ====================================================
+        # PASSWORD
+        # ====================================================
+
+        if (
+            len(password)
+            < 8
+        ):
 
             flash(
-                "Password must contain at least "
-                "8 characters.",
+                (
+                    "Password must contain "
+                    "at least 8 characters."
+                ),
                 "error",
             )
 
             return render_template(
                 "creator/register.html",
-                selected_plan=selected_plan,
-                plan_prices=PLAN_PRICES,
+                selected_plan=(
+                    selected_plan
+                ),
+                plan_prices=(
+                    PLAN_PRICES
+                ),
             )
 
         if (
@@ -392,12 +572,16 @@ def register():
 
             return render_template(
                 "creator/register.html",
-                selected_plan=selected_plan,
-                plan_prices=PLAN_PRICES,
+                selected_plan=(
+                    selected_plan
+                ),
+                plan_prices=(
+                    PLAN_PRICES
+                ),
             )
 
         # ====================================================
-        # DUPLICATE ACCOUNT
+        # DUPLICATE USERNAME
         # ====================================================
 
         duplicate_username = (
@@ -414,14 +598,21 @@ def register():
         if duplicate_username:
 
             flash(
-                "That username is already taken.",
+                (
+                    "That username is "
+                    "already taken."
+                ),
                 "error",
             )
 
             return render_template(
                 "creator/register.html",
-                selected_plan=selected_plan,
-                plan_prices=PLAN_PRICES,
+                selected_plan=(
+                    selected_plan
+                ),
+                plan_prices=(
+                    PLAN_PRICES
+                ),
             )
 
         duplicate_profile = (
@@ -438,15 +629,26 @@ def register():
         if duplicate_profile:
 
             flash(
-                "That username is already taken.",
+                (
+                    "That username is "
+                    "already taken."
+                ),
                 "error",
             )
 
             return render_template(
                 "creator/register.html",
-                selected_plan=selected_plan,
-                plan_prices=PLAN_PRICES,
+                selected_plan=(
+                    selected_plan
+                ),
+                plan_prices=(
+                    PLAN_PRICES
+                ),
             )
+
+        # ====================================================
+        # DUPLICATE EMAIL
+        # ====================================================
 
         duplicate_email = (
             CreatorAccount.query
@@ -462,15 +664,21 @@ def register():
         if duplicate_email:
 
             flash(
-                "An account already exists "
-                "for that email address.",
+                (
+                    "An account already exists "
+                    "for that email address."
+                ),
                 "error",
             )
 
             return render_template(
                 "creator/register.html",
-                selected_plan=selected_plan,
-                plan_prices=PLAN_PRICES,
+                selected_plan=(
+                    selected_plan
+                ),
+                plan_prices=(
+                    PLAN_PRICES
+                ),
             )
 
         # ====================================================
@@ -480,7 +688,6 @@ def register():
         creator = CreatorAccount(
             username=username,
             email=email,
-
             plan=selected_plan,
 
             account_status=(
@@ -504,7 +711,7 @@ def register():
             creator
         )
 
-        # Need the creator ID before creating the profile.
+        # Need creator ID before profile.
         db.session.flush()
 
         # ====================================================
@@ -512,8 +719,12 @@ def register():
         # ====================================================
 
         profile = CreatorProfile(
-            creator_account_id=creator.id,
-            display_name=display_name,
+            creator_account_id=(
+                creator.id
+            ),
+            display_name=(
+                display_name
+            ),
             username=username,
             tagline=None,
             bio=None,
@@ -549,7 +760,8 @@ def register():
 
         flash(
             (
-                "Your creator account has been created. "
+                "Your creator account has "
+                "been created. "
                 f"You selected the "
                 f"{selected_plan.title()} plan."
             ),
@@ -564,8 +776,12 @@ def register():
 
     return render_template(
         "creator/register.html",
-        selected_plan=selected_plan,
-        plan_prices=PLAN_PRICES,
+        selected_plan=(
+            selected_plan
+        ),
+        plan_prices=(
+            PLAN_PRICES
+        ),
     )
 
 
@@ -586,13 +802,18 @@ def login():
         get_logged_in_creator()
     )
 
+    # --------------------------------------------------------
+    # ALREADY LOGGED IN
+    # --------------------------------------------------------
+
     if creator:
 
-        if (
-            creator.account_status
-            == "active"
-            and creator.subscription_status
-            == "active"
+        refresh_creator_subscription(
+            creator
+        )
+
+        if creator_can_enter_studio(
+            creator
         ):
 
             return redirect(
@@ -606,6 +827,10 @@ def login():
                 "creator_auth.pending"
             )
         )
+
+    # --------------------------------------------------------
+    # LOGIN FORM
+    # --------------------------------------------------------
 
     if request.method == "POST":
 
@@ -633,8 +858,10 @@ def login():
         ):
 
             flash(
-                "Enter your username/email "
-                "and password.",
+                (
+                    "Enter your username/email "
+                    "and password."
+                ),
                 "error",
             )
 
@@ -686,7 +913,10 @@ def login():
         ):
 
             flash(
-                "This creator account was not approved.",
+                (
+                    "This creator account "
+                    "was not approved."
+                ),
                 "error",
             )
 
@@ -704,7 +934,10 @@ def login():
         ):
 
             flash(
-                "This creator account is currently suspended.",
+                (
+                    "This creator account "
+                    "is currently suspended."
+                ),
                 "error",
             )
 
@@ -729,14 +962,19 @@ def login():
         db.session.commit()
 
         # ----------------------------------------------------
-        # ACTIVE
+        # REFRESH SUBSCRIPTION LIFECYCLE
         # ----------------------------------------------------
 
-        if (
-            creator.account_status
-            == "active"
-            and creator.subscription_status
-            == "active"
+        refresh_creator_subscription(
+            creator
+        )
+
+        # ----------------------------------------------------
+        # STUDIO ACCESS
+        # ----------------------------------------------------
+
+        if creator_can_enter_studio(
+            creator
         ):
 
             flash(
@@ -762,7 +1000,7 @@ def login():
 
 
 # ============================================================
-# PENDING / ACCOUNT STATUS
+# PENDING / ACCOUNT / SUBSCRIPTION STATUS
 # ============================================================
 
 @creator_auth_bp.route(
@@ -775,11 +1013,32 @@ def pending():
         get_logged_in_creator()
     )
 
-    if (
-        creator.account_status
-        == "active"
-        and creator.subscription_status
-        == "active"
+    # --------------------------------------------------------
+    # REFRESH SUBSCRIPTION LIFECYCLE
+    # --------------------------------------------------------
+
+    subscription = (
+        refresh_creator_subscription(
+            creator
+        )
+    )
+
+    # --------------------------------------------------------
+    # ACTIVE OR GRACE-PERIOD CREATOR
+    # --------------------------------------------------------
+    #
+    # Both:
+    #
+    #   active
+    #   past_due within grace
+    #
+    # should enter Studio.
+    #
+    # The Studio itself shows the grace warning.
+    # --------------------------------------------------------
+
+    if creator_can_enter_studio(
+        creator
     ):
 
         return redirect(
@@ -788,24 +1047,110 @@ def pending():
             )
         )
 
+    # --------------------------------------------------------
+    # PLAN
+    # --------------------------------------------------------
+
     selected_plan = normalize_plan(
         creator.plan,
         default=PLAN_STANDARD,
     )
 
+    selected_plan_price = (
+        PLAN_PRICES.get(
+            selected_plan,
+            PLAN_PRICES[
+                PLAN_STANDARD
+            ],
+        )
+    )
+
+    # --------------------------------------------------------
+    # SUBSCRIPTION FALLBACK
+    # --------------------------------------------------------
+
+    if subscription is None:
+
+        subscription = (
+            get_creator_subscription(
+                creator,
+                create=False,
+            )
+        )
+
+    # --------------------------------------------------------
+    # SUBSCRIPTION STATUS
+    # --------------------------------------------------------
+
+    subscription_status = (
+        subscription.status
+        if subscription
+        else (
+            creator.subscription_status
+            or "inactive"
+        )
+    )
+
+    # --------------------------------------------------------
+    # GRACE DAYS
+    # --------------------------------------------------------
+
+    grace_days_remaining = (
+        creator_grace_days_remaining(
+            creator
+        )
+    )
+
+    # --------------------------------------------------------
+    # PUBLIC CREATOR URL
+    # --------------------------------------------------------
+
+    public_creator_url = (
+        url_for(
+            "public.creator_home",
+            username=creator.username,
+        )
+        if (
+            creator.account_status
+            == "active"
+        )
+        else None
+    )
+
     return render_template(
         "creator/pending.html",
 
-        creator_account=creator,
-
-        selected_plan=selected_plan,
-
-        selected_plan_price=PLAN_PRICES.get(
-            selected_plan,
-            PLAN_PRICES[PLAN_STANDARD],
+        creator_account=(
+            creator
         ),
 
-        plan_prices=PLAN_PRICES,
+        subscription=(
+            subscription
+        ),
+
+        subscription_status=(
+            subscription_status
+        ),
+
+        grace_days_remaining=(
+            grace_days_remaining
+        ),
+
+        selected_plan=(
+            selected_plan
+        ),
+
+        selected_plan_price=(
+            selected_plan_price
+        ),
+
+        plan_prices=(
+            PLAN_PRICES
+        ),
+
+        public_creator_url=(
+            public_creator_url
+        ),
     )
 
 
