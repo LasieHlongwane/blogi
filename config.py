@@ -121,23 +121,10 @@ class Config:
     # ========================================================
     # CREATOR SAAS
     # ========================================================
-    #
-    # Yoco is NOT connected yet.
-    #
-    # These values define the business rules so we don't
-    # hard-code prices throughout the application.
-    # ========================================================
 
     CREATOR_REGISTRATION_FEE_CENTS = int(
         os.getenv(
             "CREATOR_REGISTRATION_FEE_CENTS",
-            "0",
-        )
-    )
-
-    CREATOR_MONTHLY_FEE_CENTS = int(
-        os.getenv(
-            "CREATOR_MONTHLY_FEE_CENTS",
             "0",
         )
     )
@@ -147,4 +134,36 @@ class Config:
             "CREATOR_SUBSCRIPTION_DAYS",
             "30",
         )
+    )
+
+    # ========================================================
+    # YOCO
+    # ========================================================
+    #
+    # IMPORTANT:
+    #
+    # YOCO_SECRET_KEY must ONLY exist in the environment.
+    # Never commit the real/test secret key to GitHub.
+    #
+    # Test key:
+    #     sk_test_...
+    #
+    # Live key later:
+    #     sk_live_...
+    #
+    # ========================================================
+
+    YOCO_SECRET_KEY = os.getenv(
+        "YOCO_SECRET_KEY"
+    )
+
+    YOCO_CHECKOUT_URL = os.getenv(
+        "YOCO_CHECKOUT_URL",
+        "https://payments.yoco.com/api/checkouts",
+    )
+
+    # This will be populated after we register the
+    # Yoco webhook.
+    YOCO_WEBHOOK_SECRET = os.getenv(
+        "YOCO_WEBHOOK_SECRET"
     )
