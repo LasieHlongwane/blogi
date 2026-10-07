@@ -1,0 +1,25 @@
+{% extends "studio/base.html" %}
+{% block title %}Fundraising | Creator Studio{% endblock %}
+{% block content %}
+<style>
+.campaign-shell{max-width:1050px;margin:0 auto}.campaign-head{display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:24px}.campaign-head h1{margin:0 0 7px}.campaign-head p{margin:0;color:#68707a}.button{display:inline-block;padding:11px 15px;border-radius:10px;background:#111318;color:#fff;text-decoration:none;font-size:12px;font-weight:800;white-space:nowrap}.campaign-list{display:grid;gap:16px}.campaign-card{display:grid;grid-template-columns:1fr auto;gap:22px;background:#fff;border:1px solid #e2e5e9;border-radius:16px;padding:20px}.campaign-card h2{margin:0 0 6px;font-size:18px}.meta{font-size:12px;color:#737a84;margin-bottom:14px}.progress{height:9px;background:#eceef1;border-radius:999px;overflow:hidden}.progress span{display:block;height:100%;background:#111318}.progress-copy{display:flex;justify-content:space-between;margin-top:8px;font-size:12px;color:#606873}.status{display:inline-block;padding:5px 8px;border-radius:999px;background:#f0f2f4;font-size:9px;font-weight:800;text-transform:uppercase}.actions{text-align:right}.empty{padding:42px;background:#fff;border:1px dashed #cfd4da;border-radius:16px;text-align:center;color:#6e7680}.empty h2{color:#111318}.back{display:inline-block;margin-bottom:16px;color:#555d66;text-decoration:none;font-size:13px}@media(max-width:700px){.campaign-head,.campaign-card{display:block}.campaign-head .button,.actions{margin-top:15px}.actions{text-align:left}}
+</style>
+<div class="campaign-shell">
+<a class="back" href="{{ url_for('studio.monetisation') }}">← Monetisation</a>
+<div class="campaign-head"><div><h1>Fundraising campaigns</h1><p>Create goal-based campaigns for specific creator projects. Premium feature.</p></div><a class="button" href="{{ url_for('studio.fundraising_new') }}">+ New campaign</a></div>
+{% if campaigns %}
+<div class="campaign-list">
+{% for item in campaigns %}
+{% set campaign = item.campaign if item.campaign is defined else item %}
+{% set raised = item.raised_cents if item.raised_cents is defined else 0 %}
+{% set supporter_count = item.supporter_count if item.supporter_count is defined else 0 %}
+{% set percent = ((raised / campaign.goal_amount_cents) * 100) if campaign.goal_amount_cents else 0 %}
+<article class="campaign-card">
+<div><span class="status">{{ campaign.status|title }}</span><h2>{{ campaign.title }}</h2><div class="meta">{{ supporter_count }} supporter{% if supporter_count != 1 %}s{% endif %}{% if campaign.ends_at %} · Ends {{ campaign.ends_at.strftime('%d %b %Y') }}{% endif %}</div><div class="progress"><span style="width:{{ [percent, 100]|min }}%"></span></div><div class="progress-copy"><strong>R{{ '%.2f'|format(raised / 100) }} raised</strong><span>Goal R{{ '%.2f'|format(campaign.goal_amount_cents / 100) }}</span></div></div>
+<div class="actions"><a class="button" href="{{ url_for('studio.fundraising_edit', campaign_id=campaign.id) }}">Manage →</a></div>
+</article>
+{% endfor %}
+</div>
+{% else %}<div class="empty"><h2>No campaigns yet</h2><p>Create your first fundraising campaign and define its purpose and funding goal.</p><a class="button" href="{{ url_for('studio.fundraising_new') }}">Create campaign</a></div>{% endif %}
+</div>
+{% endblock %}
