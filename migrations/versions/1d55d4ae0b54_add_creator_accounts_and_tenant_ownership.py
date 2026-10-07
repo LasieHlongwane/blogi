@@ -38,6 +38,10 @@ def upgrade():
     #
     # For that reason, creator_account_id remains nullable on
     # existing tables during this migration.
+    #
+    # Existing/legacy creators default to Premium so that
+    # introducing SaaS plans does not unexpectedly remove
+    # functionality from the original creator.
     # ========================================================
 
     op.create_table(
@@ -65,6 +69,13 @@ def upgrade():
             "password_hash",
             sa.String(length=255),
             nullable=False,
+        ),
+
+        sa.Column(
+            "plan",
+            sa.String(length=30),
+            nullable=False,
+            server_default="premium",
         ),
 
         sa.Column(
@@ -127,7 +138,9 @@ def upgrade():
             nullable=False,
         ),
 
-        sa.PrimaryKeyConstraint("id"),
+        sa.PrimaryKeyConstraint(
+            "id",
+        ),
     )
 
     # ========================================================
@@ -247,7 +260,7 @@ def upgrade():
         ),
     )
 
-    # unique=True enforces one profile per creator account.
+    # One profile per creator account.
     op.create_index(
         "ix_creator_profiles_creator_account_id",
         "creator_profiles",
@@ -303,7 +316,7 @@ def upgrade():
         table_name="email_subscribers",
     )
 
-    # Re-create normal email index for lookup performance.
+    # Re-create email as a normal lookup index.
     op.create_index(
         "ix_email_subscribers_email",
         "email_subscribers",
@@ -480,4 +493,4 @@ def downgrade():
 
     op.drop_table(
         "creator_accounts",
-)
+    )
