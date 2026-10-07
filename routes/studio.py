@@ -9,6 +9,14 @@ from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from functools import wraps
 
+
+from services.paystack_service import (
+    PaystackError,
+    list_south_african_banks,
+    validate_south_african_account,
+    create_creator_subaccount,
+)
+
 from flask import (
     Blueprint,
     render_template,
@@ -1630,16 +1638,894 @@ def payout_setup():
 
 
 # Backwards-compatible endpoint.
+# ============================================================
+# CREATOR PAYOUT ACCOUNT
+# ============================================================
+#
+# Standard + Premium.
+#
+# Flow:
+#
+#   Creator enters bank details
+#       ↓
+#   Server validates SA bank account with Paystack
+#       ↓
+#   Server creates Paystack subaccount
+#       ↓
+#   Store:
+#
+#       provider_subaccount_code
+#       safe account display information
+#       last 4 account digits
+#
+#   DO NOT STORE:
+#
+#       full account number
+#       ID number
+#       passport number
+#       company registration number
+#
+# ============================================================
+
 @studio_bp.route(
-    "/monetisation/payout/legacy"
+    "/monetisation/payout",
+    methods=[
+        "GET",
+        "POST",
+    ],
 )
 @studio_required
 def monetisation_payout():
 
-    return redirect(
-        url_for(
-            "studio.payout_setup"
+    account = (
+        current_creator_account()
+    )
+
+    # --------------------------------------------------------
+    # PLAN FEATURE
+    # --------------------------------------------------------
+
+    if not require_creator_feature(
+        account,
+        FEATURE_PAYOUT_CONNECTION,
+    ):
+
+        return redirect(
+            url_for(
+                "studio.monetisation"
+            )
         )
+
+    creator = (
+        creator_profile(
+            account
+        )
+    )
+
+    payout_account = (
+        creator_payout_account(
+            account
+        )
+    )
+
+    # --------------------------------------------------------
+    # EXISTING ACTIVE PAYOUT ACCOUNT
+    # --------------------------------------------------------
+    #
+    # Do not create another Paystack subaccount.
+    #
+    # A separate "change payout account" workflow can be
+    # implemented later using Paystack's Update Subaccount
+    # endpoint.
+    # --------------------------------------------------------
+
+    payout_connected = bool(
+        payout_account
+        and payout_account.status
+        == "active"
+        and payout_account
+        .provider_subaccount_code
+    )
+
+    # --------------------------------------------------------
+    # LOAD SOUTH AFRICAN BANKS
+    # --------------------------------------------------------
+
+    banks = []
+
+    bank_load_error = None
+
+    if not payout_connected:
+
+        try:
+
+            banks = (
+                list_south_african_banks(
+                    verification_only=True
+                )
+            )
+
+        except PaystackError as exc:
+
+            bank_load_error = str(
+                exc
+            )
+
+            current_app.logger.exception(
+                (
+                    "Unable to load Paystack "
+                    "South African banks. "
+                    "creator_account_id=%s"
+                ),
+                account.id,
+            )
+
+    # --------------------------------------------------------
+    # POST
+    # --------------------------------------------------------
+
+    if request.method == "POST":
+
+        # ----------------------------------------------------
+        # PREVENT DUPLICATE SUBACCOUNTS
+        # ----------------------------------------------------
+
+        if payout_connected:
+
+            flash(
+                (
+                    "Your payout account is "
+                    "already connected."
+                ),
+                "warning",
+            )
+
+            return redirect(
+                url_for(
+                    "studio.monetisation_payout"
+                )
+            )
+
+        # ----------------------------------------------------
+        # INPUT
+        # ----------------------------------------------------
+
+        business_name = (
+            request.form
+            .get(
+                "business_name",
+                "",
+            )
+            .strip()
+        )
+
+        account_name = (
+            request.form
+            .get(
+                "account_name",
+                "",
+            )
+            .strip()
+        )
+
+        bank_code = (
+            request.form
+            .get(
+                "bank_code",
+                "",
+            )
+            .strip()
+        )
+
+        account_number = (
+            request.form
+            .get(
+                "account_number",
+                "",
+            )
+            .strip()
+            .replace(
+                " ",
+                "",
+            )
+        )
+
+        account_type = (
+            request.form
+            .get(
+                "account_type",
+                "personal",
+            )
+            .strip()
+            .lower()
+        )
+
+        document_type = (
+            request.form
+            .get(
+                "document_type",
+                "",
+            )
+            .strip()
+        )
+
+        document_number = (
+            request.form
+            .get(
+                "document_number",
+                "",
+            )
+            .strip()
+            .replace(
+                " ",
+                "",
+            )
+        )
+
+        # ----------------------------------------------------
+        # VALIDATION
+        # ----------------------------------------------------
+
+        if (
+            not business_name
+            or len(
+                business_name
+            ) > 180
+        ):
+
+            flash(
+                (
+                    "Enter a valid creator "
+                    "or business name."
+                ),
+                "error",
+            )
+
+            return render_template(
+                "studio/payout_setup.html",
+                creator=creator,
+                creator_account=account,
+                payout_account=(
+                    payout_account
+                ),
+                payout_connected=False,
+                banks=banks,
+                bank_load_error=(
+                    bank_load_error
+                ),
+                plan_summary=(
+                    creator_plan_summary(
+                        account
+                    )
+                ),
+            )
+
+        if (
+            not account_name
+            or len(
+                account_name
+            ) > 180
+        ):
+
+            flash(
+                (
+                    "Enter the account holder "
+                    "name exactly as registered "
+                    "with your bank."
+                ),
+                "error",
+            )
+
+            return render_template(
+                "studio/payout_setup.html",
+                creator=creator,
+                creator_account=account,
+                payout_account=(
+                    payout_account
+                ),
+                payout_connected=False,
+                banks=banks,
+                bank_load_error=(
+                    bank_load_error
+                ),
+                plan_summary=(
+                    creator_plan_summary(
+                        account
+                    )
+                ),
+            )
+
+        if not bank_code:
+
+            flash(
+                "Select your bank.",
+                "error",
+            )
+
+            return render_template(
+                "studio/payout_setup.html",
+                creator=creator,
+                creator_account=account,
+                payout_account=(
+                    payout_account
+                ),
+                payout_connected=False,
+                banks=banks,
+                bank_load_error=(
+                    bank_load_error
+                ),
+                plan_summary=(
+                    creator_plan_summary(
+                        account
+                    )
+                ),
+            )
+
+        # ----------------------------------------------------
+        # VERIFY BANK CODE CAME FROM PAYSTACK
+        # ----------------------------------------------------
+
+        selected_bank = next(
+            (
+                bank
+                for bank in banks
+                if str(
+                    bank.get(
+                        "code",
+                        ""
+                    )
+                )
+                == bank_code
+            ),
+            None,
+        )
+
+        if not selected_bank:
+
+            flash(
+                (
+                    "Select a valid South "
+                    "African bank."
+                ),
+                "error",
+            )
+
+            return redirect(
+                url_for(
+                    "studio.monetisation_payout"
+                )
+            )
+
+        if (
+            not account_number
+            or not account_number.isdigit()
+            or len(
+                account_number
+            ) > 30
+        ):
+
+            flash(
+                (
+                    "Enter a valid numeric "
+                    "bank account number."
+                ),
+                "error",
+            )
+
+            return render_template(
+                "studio/payout_setup.html",
+                creator=creator,
+                creator_account=account,
+                payout_account=(
+                    payout_account
+                ),
+                payout_connected=False,
+                banks=banks,
+                bank_load_error=(
+                    bank_load_error
+                ),
+                plan_summary=(
+                    creator_plan_summary(
+                        account
+                    )
+                ),
+            )
+
+        if account_type not in {
+            "personal",
+            "business",
+        }:
+
+            abort(400)
+
+        # ----------------------------------------------------
+        # DOCUMENT TYPE MUST MATCH ACCOUNT TYPE
+        # ----------------------------------------------------
+
+        if account_type == "business":
+
+            if (
+                document_type
+                != "businessRegistrationNumber"
+            ):
+
+                flash(
+                    (
+                        "Business bank accounts "
+                        "require the business "
+                        "registration number."
+                    ),
+                    "error",
+                )
+
+                return redirect(
+                    url_for(
+                        "studio.monetisation_payout"
+                    )
+                )
+
+        else:
+
+            if document_type not in {
+                "identityNumber",
+                "passportNumber",
+            }:
+
+                flash(
+                    (
+                        "Personal bank accounts "
+                        "require a South African "
+                        "ID or passport number."
+                    ),
+                    "error",
+                )
+
+                return redirect(
+                    url_for(
+                        "studio.monetisation_payout"
+                    )
+                )
+
+        if (
+            not document_number
+            or len(
+                document_number
+            ) > 80
+        ):
+
+            flash(
+                (
+                    "Enter the required "
+                    "identity or registration "
+                    "number."
+                ),
+                "error",
+            )
+
+            return redirect(
+                url_for(
+                    "studio.monetisation_payout"
+                )
+            )
+
+        # ----------------------------------------------------
+        # VALIDATE ACCOUNT WITH PAYSTACK
+        # ----------------------------------------------------
+        #
+        # Sensitive values exist only in memory for this
+        # request and are never written to our database.
+        # ----------------------------------------------------
+
+        try:
+
+            validation = (
+                validate_south_african_account(
+                    bank_code=bank_code,
+                    account_number=(
+                        account_number
+                    ),
+                    account_name=(
+                        account_name
+                    ),
+                    account_type=(
+                        account_type
+                    ),
+                    document_type=(
+                        document_type
+                    ),
+                    document_number=(
+                        document_number
+                    ),
+                )
+            )
+
+        except PaystackError as exc:
+
+            current_app.logger.warning(
+                (
+                    "Creator payout account "
+                    "validation failed. "
+                    "creator_account_id=%s "
+                    "error=%s"
+                ),
+                account.id,
+                str(exc),
+            )
+
+            flash(
+                (
+                    "Paystack could not verify "
+                    "those bank details. Check "
+                    "the account holder name, "
+                    "bank, account number and "
+                    "identity details."
+                ),
+                "error",
+            )
+
+            return redirect(
+                url_for(
+                    "studio.monetisation_payout"
+                )
+            )
+
+        # ----------------------------------------------------
+        # REQUIRE VERIFIED ACCOUNT
+        # ----------------------------------------------------
+
+        if not validation.get(
+            "verified"
+        ):
+
+            verification_message = (
+                validation.get(
+                    "verificationMessage"
+                )
+                or (
+                    "The bank account could "
+                    "not be verified."
+                )
+            )
+
+            current_app.logger.warning(
+                (
+                    "Creator bank validation "
+                    "returned unverified. "
+                    "creator_account_id=%s"
+                ),
+                account.id,
+            )
+
+            flash(
+                verification_message,
+                "error",
+            )
+
+            return redirect(
+                url_for(
+                    "studio.monetisation_payout"
+                )
+            )
+
+        # ----------------------------------------------------
+        # REQUIRE ACCOUNT TO ACCEPT CREDITS
+        # ----------------------------------------------------
+
+        accepts_credits = (
+            validation.get(
+                "accountAcceptsCredits"
+            )
+        )
+
+        if accepts_credits is False:
+
+            flash(
+                (
+                    "This bank account cannot "
+                    "currently receive credits. "
+                    "Please use another account."
+                ),
+                "error",
+            )
+
+            return redirect(
+                url_for(
+                    "studio.monetisation_payout"
+                )
+            )
+
+        # ----------------------------------------------------
+        # CREATE PAYSTACK SUBACCOUNT
+        # ----------------------------------------------------
+
+        try:
+
+            provider_account = (
+                create_creator_subaccount(
+                    business_name=(
+                        business_name
+                    ),
+                    bank_code=(
+                        bank_code
+                    ),
+                    account_number=(
+                        account_number
+                    ),
+                    creator_email=(
+                        account.email
+                    ),
+                    creator_name=(
+                        account_name
+                    ),
+                )
+            )
+
+        except PaystackError as exc:
+
+            current_app.logger.exception(
+                (
+                    "Paystack subaccount "
+                    "creation failed. "
+                    "creator_account_id=%s "
+                    "error=%s"
+                ),
+                account.id,
+                str(exc),
+            )
+
+            flash(
+                (
+                    "Your bank details were "
+                    "verified, but the payout "
+                    "account could not be "
+                    "connected. Please try again."
+                ),
+                "error",
+            )
+
+            return redirect(
+                url_for(
+                    "studio.monetisation_payout"
+                )
+            )
+
+        # ----------------------------------------------------
+        # PROVIDER IDENTIFIER
+        # ----------------------------------------------------
+
+        subaccount_code = (
+            str(
+                provider_account.get(
+                    "subaccount_code"
+                )
+                or ""
+            )
+            .strip()
+        )
+
+        if not subaccount_code:
+
+            current_app.logger.error(
+                (
+                    "Paystack created subaccount "
+                    "without subaccount code. "
+                    "creator_account_id=%s"
+                ),
+                account.id,
+            )
+
+            flash(
+                (
+                    "Paystack did not return "
+                    "a payout account identifier. "
+                    "Please contact support."
+                ),
+                "error",
+            )
+
+            return redirect(
+                url_for(
+                    "studio.monetisation_payout"
+                )
+            )
+
+        # ----------------------------------------------------
+        # SAFE PROVIDER DISPLAY VALUES
+        # ----------------------------------------------------
+
+        provider_account_name = (
+            str(
+                provider_account.get(
+                    "account_name"
+                )
+                or account_name
+            )
+            .strip()
+        )
+
+        provider_bank_name = (
+            str(
+                provider_account.get(
+                    "settlement_bank"
+                )
+                or selected_bank.get(
+                    "name"
+                )
+                or ""
+            )
+            .strip()
+        )
+
+        provider_business_name = (
+            str(
+                provider_account.get(
+                    "business_name"
+                )
+                or business_name
+            )
+            .strip()
+        )
+
+        # ----------------------------------------------------
+        # CREATE / UPDATE LOCAL PAYOUT RECORD
+        # ----------------------------------------------------
+
+        if not payout_account:
+
+            payout_account = (
+                CreatorPayoutAccount(
+                    creator_account_id=(
+                        account.id
+                    )
+                )
+            )
+
+            db.session.add(
+                payout_account
+            )
+
+        payout_account.provider = (
+            "paystack"
+        )
+
+        payout_account.provider_subaccount_code = (
+            subaccount_code
+        )
+
+        payout_account.business_name = (
+            provider_business_name[:180]
+            or None
+        )
+
+        payout_account.account_name = (
+            provider_account_name[:180]
+            or None
+        )
+
+        payout_account.settlement_bank = (
+            provider_bank_name[:180]
+            or None
+        )
+
+        # ----------------------------------------------------
+        # ONLY LAST FOUR DIGITS
+        # ----------------------------------------------------
+
+        payout_account.account_number_last4 = (
+            account_number[-4:]
+        )
+
+        payout_account.percentage_charge = (
+            0
+        )
+
+        payout_account.status = (
+            "active"
+        )
+
+        payout_account.connected_at = (
+            utc_now()
+        )
+
+        payout_account.disabled_at = (
+            None
+        )
+
+        try:
+
+            db.session.commit()
+
+        except Exception:
+
+            db.session.rollback()
+
+            current_app.logger.exception(
+                (
+                    "Local payout account save "
+                    "failed after Paystack "
+                    "subaccount creation. "
+                    "creator_account_id=%s "
+                    "subaccount_code=%s"
+                ),
+                account.id,
+                subaccount_code,
+            )
+
+            # IMPORTANT:
+            #
+            # The Paystack subaccount now exists even though
+            # our local save failed.
+            #
+            # Do NOT automatically create another one.
+            #
+            # This requires reconciliation by platform admin.
+
+            flash(
+                (
+                    "Paystack connected the bank "
+                    "account, but Kalxa could not "
+                    "finish saving the connection. "
+                    "Please contact support before "
+                    "trying again."
+                ),
+                "error",
+            )
+
+            return redirect(
+                url_for(
+                    "studio.monetisation_payout"
+                )
+            )
+
+        current_app.logger.info(
+            (
+                "Creator payout account "
+                "connected. "
+                "creator_account_id=%s "
+                "provider=paystack"
+            ),
+            account.id,
+        )
+
+        flash(
+            (
+                "Your payout account is "
+                "connected successfully. "
+                "You can now receive fan "
+                "support."
+            ),
+            "success",
+        )
+
+        return redirect(
+            url_for(
+                "studio.monetisation_payout"
+            )
+        )
+
+    # --------------------------------------------------------
+    # GET
+    # --------------------------------------------------------
+
+    return render_template(
+        "studio/payout_setup.html",
+        creator=creator,
+        creator_account=account,
+        payout_account=(
+            payout_account
+        ),
+        payout_connected=(
+            payout_connected
+        ),
+        banks=banks,
+        bank_load_error=(
+            bank_load_error
+        ),
+        plan_summary=(
+            creator_plan_summary(
+                account
+            )
+        ),
     )
 
 
