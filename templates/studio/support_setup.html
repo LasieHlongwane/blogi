@@ -1,0 +1,31 @@
+{% extends "studio/base.html" %}
+{% block title %}Fan Support | Creator Studio{% endblock %}
+{% block content %}
+<style>
+.support-shell{max-width:900px;margin:0 auto}.support-card{background:#fff;border:1px solid #e2e5e9;border-radius:18px;padding:26px;margin-bottom:18px}.support-card h1,.support-card h2{margin-top:0}.lead{color:#68707a;line-height:1.6}.amounts{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.amount{padding:10px 14px;border:1px solid #dfe2e6;border-radius:999px;font-weight:800}.rule-list{margin:0;padding-left:20px;color:#5e6670;line-height:1.8}.status{padding:14px;border-radius:12px;background:#f5f6f7;margin-top:18px}.status.ready{background:#eaf8ef;color:#176c3a}.button{display:inline-block;margin-top:18px;padding:11px 15px;border-radius:10px;background:#111318;color:#fff;text-decoration:none;font-size:12px;font-weight:800}.back{display:inline-block;margin-bottom:16px;color:#555d66;text-decoration:none;font-size:13px}
+</style>
+<div class="support-shell">
+<a class="back" href="{{ url_for('studio.monetisation') }}">← Monetisation</a>
+<section class="support-card">
+<h1>Buy me a coffee ☕</h1>
+<p class="lead">Give supporters a simple way to contribute voluntarily. Support does not unlock exclusive content and Kalxa takes 0% platform commission on these contributions. Payment processing fees may apply.</p>
+<div class="amounts"><span class="amount">R20</span><span class="amount">R50</span><span class="amount">R100</span><span class="amount">Custom amount</span></div>
+{% if payout_account and payout_account.status == 'active' %}
+<div class="status ready"><strong>Payout ready.</strong> Your payout account is active. The next backend step is enabling the public Paystack support checkout.</div>
+{% else %}
+<div class="status"><strong>Payout setup required.</strong> Connect an active payout account before accepting support.</div>
+<a class="button" href="{{ url_for('studio.payout_setup') }}">Set up payout →</a>
+{% endif %}
+</section>
+<section class="support-card">
+<h2>How support works</h2>
+<ul class="rule-list">
+<li>Available to Standard and Premium creators.</li>
+<li>Supporters can choose a suggested or custom amount.</li>
+<li>Support can include a name, email, message, or be shown anonymously.</li>
+<li>A browser success page will never mark a payment as paid.</li>
+<li>Only a verified payment-provider confirmation will update a FanPayment to paid.</li>
+</ul>
+</section>
+</div>
+{% endblock %}
