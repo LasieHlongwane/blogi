@@ -128,141 +128,85 @@ def _get_event_type(
 def _get_event_data(
     payload,
 ):
+    """
+    Return the Yoco Checkout payment object.
 
-    # --------------------------------------------------------
-    # SAFE PAYLOAD STRUCTURE DIAGNOSTIC
-    # --------------------------------------------------------
-    #
-    # IMPORTANT:
-    #
-    # Log KEYS ONLY.
-    #
-    # Do NOT log the complete Yoco webhook payload because
-    # payment objects can contain transaction information.
-    #
-    # We already know:
-    #
-    #     signature verification works
-    #     payment.succeeded reaches this application
-    #
-    # What we are determining now is exactly where Yoco puts
-    # the Checkout payment object inside the webhook payload.
-    # --------------------------------------------------------
+    Confirmed Yoco Checkout webhook structure:
 
-    try:
+        {
+            "id": "...",
+            "createdDate": "...",
+            "type": "payment.succeeded",
+            "payload": {
+                "id": "...",
+                "amount": 7900,
+                "currency": "ZAR",
+                "status": "...",
+                "metadata": {
+                    "checkoutId": "..."
+                }
+            }
+        }
 
-        current_app.logger.warning(
-            (
-                "Yoco webhook payload structure: "
-                "top_level_keys=%s"
-            ),
-            sorted(
-                payload.keys()
-            ),
-        )
+    The actual payment object therefore lives at:
 
-        for key, value in payload.items():
+        payload["payload"]
+    """
 
-            if isinstance(
-                value,
-                dict,
-            ):
-
-                current_app.logger.warning(
-                    (
-                        "Yoco webhook nested structure: "
-                        "key=%s nested_keys=%s"
-                    ),
-                    key,
-                    sorted(
-                        value.keys()
-                    ),
-                )
-
-                # --------------------------------------------
-                # ONE EXTRA NESTING LEVEL
-                # --------------------------------------------
-                #
-                # Still log KEYS ONLY.
-                # This helps if Yoco uses something such as:
-                #
-                #     payload
-                #       └── payload
-                #             └── payment
-                #
-                # or:
-                #
-                #     payload
-                #       └── data
-                #             └── object
-                #
-                # --------------------------------------------
-
-                for (
-                    nested_key,
-                    nested_value,
-                ) in value.items():
-
-                    if isinstance(
-                        nested_value,
-                        dict,
-                    ):
-
-                        current_app.logger.warning(
-                            (
-                                "Yoco webhook deep structure: "
-                                "parent=%s key=%s "
-                                "nested_keys=%s"
-                            ),
-                            key,
-                            nested_key,
-                            sorted(
-                                nested_value.keys()
-                            ),
-                        )
-
-    except Exception:
-
-        current_app.logger.exception(
-            (
-                "Unable to inspect Yoco webhook "
-                "payload structure."
-            )
-        )
-
-    # --------------------------------------------------------
-    # CURRENT EXPECTED LOCATION
-    # --------------------------------------------------------
-    #
-    # Keep the current parser intentionally strict until the
-    # real Checkout webhook structure has been observed.
-    #
-    # Do NOT guess another payment object location yet.
-    # --------------------------------------------------------
-
-    data = payload.get(
-        "data"
+    payment_data = payload.get(
+        "payload"
     )
 
-    if isinstance(
-        data,
+    if not isinstance(
+        payment_data,
         dict,
     ):
 
-        return data
+        return None
 
-    return None
+    return payment_data
+
+
+def _get_payment_metadata(
+    payment_data,
+):
+
+    metadata = payment_data.get(
+        "metadata"
+    )
+
+    if not isinstance(
+        metadata,
+        dict,
+    ):
+
+        return {}
+
+    return metadata
 
 
 def _get_checkout_id(
     payment_data,
 ):
+    """
+    Return the Yoco Checkout ID.
+
+    Confirmed location:
+
+        webhook["payload"]
+               ["metadata"]
+               ["checkoutId"]
+    """
+
+    metadata = _get_payment_metadata(
+        payment_data
+    )
 
     checkout_id = (
-        payment_data.get(
+        metadata.get(
             "checkoutId"
         )
-        or payment_data.get(
+        or metadata.get(
             "checkout_id"
         )
     )
@@ -364,7 +308,7 @@ def _get_payment_amount(
     )
 
     # --------------------------------------------------------
-    # SOME PAYMENT OBJECTS MAY WRAP THE AMOUNT
+    # DEFENSIVE SUPPORT FOR WRAPPED AMOUNTS
     # --------------------------------------------------------
 
     if isinstance(
@@ -475,13 +419,8 @@ def creator_checkout():
     #
     # The creator's stored plan is authoritative.
     #
-    # Never trust:
-    #
-    #     plan
-    #     price
-    #     amount
-    #
-    # supplied by the browser.
+    # Never trust plan, price, or amount supplied by the
+    # browser.
     # --------------------------------------------------------
 
     selected_plan = normalize_plan(
@@ -567,22 +506,6 @@ def creator_checkout():
 
     # --------------------------------------------------------
     # CREATE YOCO CHECKOUT
-    # --------------------------------------------------------
-    #
-    # This uses the Yoco Online Checkout API:
-    #
-    #     payments.yoco.com/api/checkouts
-    #
-    # and YOCO_SECRET_KEY.
-    #
-    # Test Checkout:
-    #
-    #     sk_test_...
-    #
-    # Live Checkout:
-    #
-    #     sk_live_...
-    #
     # --------------------------------------------------------
 
     try:
@@ -748,20 +671,26 @@ def creator_checkout():
             )
         )
 
-    checkout_id = str(
-        checkout_id
+    checkout_id = (
+        str(
+            checkout_id
+        )
+        .strip()
     )
 
     # --------------------------------------------------------
     # RECORD PENDING PAYMENT
     # --------------------------------------------------------
     #
-    # provider_reference stores the Yoco Checkout ID.
+    # provider_reference contains the Yoco Checkout ID.
     #
-    # This is created BEFORE the browser leaves Kalxa.
+    # This allows:
     #
-    # The signed Yoco webhook later needs to match back to
-    # this server-created pending payment.
+    # webhook payload
+    #       ↓
+    # metadata.checkoutId
+    #       ↓
+    # PlatformSubscriptionPayment.provider_reference
     # --------------------------------------------------------
 
     try:
@@ -828,12 +757,11 @@ def yoco_webhook():
     # RAW REQUEST BODY
     # --------------------------------------------------------
     #
-    # IMPORTANT:
+    # The webhook signature is calculated using the exact
+    # request body.
     #
-    # Signature verification must use the exact bytes sent
-    # by Yoco.
-    #
-    # Do not parse/rebuild the JSON before verification.
+    # Therefore signature verification happens BEFORE we
+    # trust the JSON payload.
     # --------------------------------------------------------
 
     raw_body = request.get_data(
@@ -959,10 +887,6 @@ def yoco_webhook():
     # --------------------------------------------------------
     # PAYMENT DATA
     # --------------------------------------------------------
-    #
-    # During this diagnostic deployment, this call also logs
-    # the safe KEY STRUCTURE of the verified Yoco payload.
-    # --------------------------------------------------------
 
     payment_data = _get_event_data(
         payload
@@ -973,7 +897,7 @@ def yoco_webhook():
         current_app.logger.error(
             (
                 "Yoco Checkout webhook has no "
-                "payment data. webhook_id=%s "
+                "payment payload. webhook_id=%s "
                 "event_type=%s"
             ),
             webhook_id,
@@ -984,13 +908,18 @@ def yoco_webhook():
             {
                 "ok": False,
                 "error": (
-                    "Missing payment data."
+                    "Missing payment payload."
                 ),
             }
         ), 400
 
     # --------------------------------------------------------
     # CHECKOUT ID
+    # --------------------------------------------------------
+    #
+    # Confirmed Yoco location:
+    #
+    #     payload.metadata.checkoutId
     # --------------------------------------------------------
 
     checkout_id = _get_checkout_id(
@@ -1002,8 +931,8 @@ def yoco_webhook():
         current_app.logger.error(
             (
                 "Yoco Checkout webhook has no "
-                "checkout ID. webhook_id=%s "
-                "event_type=%s"
+                "checkout ID in metadata. "
+                "webhook_id=%s event_type=%s"
             ),
             webhook_id,
             event_type,
@@ -1069,7 +998,7 @@ def yoco_webhook():
     if event_type == "payment.failed":
 
         # ----------------------------------------------------
-        # NEVER OVERWRITE A CONFIRMED PAYMENT
+        # NEVER OVERWRITE A CONFIRMED PAID PAYMENT
         # ----------------------------------------------------
 
         if local_payment.status == "paid":
@@ -1148,16 +1077,16 @@ def yoco_webhook():
     # ========================================================
     # PAYMENT.SUCCEEDED
     # ========================================================
-    #
-    # From this point forward:
-    #
-    #     event_type == payment.succeeded
-    #
-    # and the webhook signature has already been verified.
-    # ========================================================
 
     # --------------------------------------------------------
     # IDEMPOTENCY
+    # --------------------------------------------------------
+    #
+    # Yoco/Svix may deliver the same event more than once.
+    #
+    # Once our local payment has been marked paid, repeated
+    # payment.succeeded events must not extend the
+    # subscription again.
     # --------------------------------------------------------
 
     if local_payment.status == "paid":
@@ -1453,6 +1382,88 @@ def yoco_webhook():
         ), 400
 
     # --------------------------------------------------------
+    # OPTIONAL METADATA CROSS-CHECKS
+    # --------------------------------------------------------
+    #
+    # These fields came from metadata we supplied when
+    # creating the Yoco Checkout.
+    #
+    # They are useful as additional consistency checks.
+    # The local database remains authoritative for plan and
+    # price.
+    # --------------------------------------------------------
+
+    metadata = _get_payment_metadata(
+        payment_data
+    )
+
+    metadata_creator_id = metadata.get(
+        "creatorAccountId"
+    )
+
+    if metadata_creator_id is not None:
+
+        if (
+            str(
+                metadata_creator_id
+            ).strip()
+            != str(
+                creator.id
+            )
+        ):
+
+            current_app.logger.error(
+                (
+                    "Yoco creator metadata mismatch. "
+                    "checkout_id=%s"
+                ),
+                checkout_id,
+            )
+
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": (
+                        "Creator metadata mismatch."
+                    ),
+                }
+            ), 400
+
+    metadata_plan = metadata.get(
+        "plan"
+    )
+
+    if metadata_plan:
+
+        metadata_plan = normalize_plan(
+            metadata_plan,
+            default="",
+        )
+
+        if metadata_plan != payment_plan:
+
+            current_app.logger.error(
+                (
+                    "Yoco plan metadata mismatch. "
+                    "checkout_id=%s "
+                    "local_plan=%s "
+                    "metadata_plan=%s"
+                ),
+                checkout_id,
+                payment_plan,
+                metadata_plan,
+            )
+
+            return jsonify(
+                {
+                    "ok": False,
+                    "error": (
+                        "Plan metadata mismatch."
+                    ),
+                }
+            ), 400
+
+    # --------------------------------------------------------
     # FIRST PAYMENT OR RENEWAL?
     # --------------------------------------------------------
 
@@ -1485,10 +1496,12 @@ def yoco_webhook():
     # FIRST CREATOR PAYMENT
     # --------------------------------------------------------
     #
-    # Payment does NOT automatically approve a brand-new
-    # creator.
+    # A successful first payment moves the creator to:
     #
-    # Platform admin approval remains required.
+    #     pending_approval
+    #
+    # The platform administrator still decides whether the
+    # creator account becomes active.
     # --------------------------------------------------------
 
     if not already_approved:
@@ -1620,8 +1633,8 @@ def yoco_success():
     #
     # Reaching this URL is NOT proof of payment.
     #
-    # Only the verified server-to-server Yoco webhook may
-    # change a payment to paid.
+    # Only a correctly signed payment.succeeded webhook may
+    # mark the local payment as paid.
     # --------------------------------------------------------
 
     flash(
@@ -1663,9 +1676,6 @@ def yoco_cancel():
     # --------------------------------------------------------
     # DO NOT MUTATE PAYMENT STATE HERE
     # --------------------------------------------------------
-    #
-    # Browser redirects are not authoritative payment state.
-    # --------------------------------------------------------
 
     flash(
         (
@@ -1706,8 +1716,8 @@ def yoco_failure():
     # DO NOT MUTATE PAYMENT STATE HERE
     # --------------------------------------------------------
     #
-    # payment.failed from the verified Yoco webhook is the
-    # authoritative server-to-server failure event.
+    # A verified payment.failed webhook is the authoritative
+    # server-to-server failure event.
     # --------------------------------------------------------
 
     flash(
