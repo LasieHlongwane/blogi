@@ -361,6 +361,31 @@
 
 
         /* =====================================================
+           NAVIGATION GROUP
+        ===================================================== */
+
+        .sidebar-nav-label {
+
+            display: block;
+
+            margin: 20px 0 7px;
+
+            padding: 0 12px;
+
+            font-size: 9px;
+
+            font-weight: 800;
+
+            letter-spacing: 0.12em;
+
+            text-transform: uppercase;
+
+            opacity: 0.45;
+
+        }
+
+
+        /* =====================================================
            PREMIUM NAV
         ===================================================== */
 
@@ -391,6 +416,52 @@
                 255,
                 0.12
             );
+
+        }
+
+
+        /* =====================================================
+           MONETISATION NAV
+        ===================================================== */
+
+        .monetisation-nav-item {
+
+            position: relative;
+
+        }
+
+
+        .monetisation-nav-icon {
+
+            display: inline-block;
+
+            margin-right: 5px;
+
+        }
+
+
+        .standard-feature-badge {
+
+            margin-left: 6px;
+
+            padding: 2px 5px;
+
+            border-radius: 999px;
+
+            font-size: 8px;
+
+            font-weight: 700;
+
+            letter-spacing: 0.05em;
+
+            background: rgba(
+                47,
+                181,
+                104,
+                0.16
+            );
+
+            color: #74dfa1;
 
         }
 
@@ -490,7 +561,10 @@
                 </strong>
 
 
-                {% if creator_account.plan == "premium" %}
+                {% if
+                    creator_account.plan
+                    == "premium"
+                %}
 
                     <small>
                         R149/month
@@ -502,7 +576,11 @@
                         R79/month
                     </small>
 
-                    <a href="#premium-features">
+                    <a
+                        href="{{ url_for(
+                            'studio.monetisation'
+                        ) }}#premium-features"
+                    >
                         Upgrade to Premium →
                     </a>
 
@@ -702,11 +780,93 @@
 
 
                 <!-- =========================================
-                     PREMIUM FEATURES STAY VISIBLE
+                     MONETISATION
+                ========================================== -->
+
+                <span
+                    class="sidebar-nav-label"
+                >
+                    Earnings
+                </span>
+
+
+                <a
+                    href="{{ url_for(
+                        'studio.monetisation'
+                    ) }}"
+                    class="
+                        monetisation-nav-item
+                    "
+                >
+
+                    <span
+                        class="
+                            monetisation-nav-icon
+                        "
+                    >
+                        $
+                    </span>
+
+                    Monetisation
+
+                </a>
+
+
+                <a
+                    href="{{ url_for(
+                        'studio.monetisation_support'
+                    ) }}"
+                    class="
+                        monetisation-nav-item
+                    "
+                >
+
+                    <span
+                        class="
+                            monetisation-nav-icon
+                        "
+                    >
+                        ☕
+                    </span>
+
+                    Buy me a coffee
+
+                </a>
+
+
+                <!-- =========================================
+                     PREMIUM FEATURES
                 ========================================== -->
 
                 <a
-                    href="#premium-features"
+                    href="{% if creator_account.plan == 'premium' %}{{ url_for('studio.fundraising_campaigns') }}{% else %}{{ url_for('studio.monetisation') }}#fundraising{% endif %}"
+                    class="premium-nav-item"
+                >
+
+                    Fundraising
+
+                    {% if
+                        creator_account.plan
+                        != "premium"
+                    %}
+
+                        <span
+                            class="
+                                premium-nav-badge
+                            "
+                        >
+                            PREMIUM
+                        </span>
+
+                    {% endif %}
+
+                </a>
+
+
+                <a
+                    href="{{ url_for(
+                        'studio.content_new'
+                    ) }}"
                     class="premium-nav-item"
                 >
 
@@ -730,29 +890,15 @@
                 </a>
 
 
-                <a
-                    href="#premium-features"
-                    class="premium-nav-item"
+                <!-- =========================================
+                     ACCOUNT
+                ========================================== -->
+
+                <span
+                    class="sidebar-nav-label"
                 >
-
-                    Fan support
-
-                    {% if
-                        creator_account.plan
-                        != "premium"
-                    %}
-
-                        <span
-                            class="
-                                premium-nav-badge
-                            "
-                        >
-                            PREMIUM
-                        </span>
-
-                    {% endif %}
-
-                </a>
+                    Account
+                </span>
 
 
                 <a href="{{ url_for(
