@@ -53,6 +53,10 @@ def create_app():
         creator_auth_bp,
     )
 
+    from routes.fan_payments import (
+        fan_payments_bp,
+    )
+
     from routes.studio import (
         studio_bp,
     )
@@ -83,6 +87,11 @@ def create_app():
 
     app.register_blueprint(
         creator_auth_bp
+    )
+
+
+    app.register_blueprint(
+        fan_payments_bp
     )
 
     # --------------------------------------------------------
