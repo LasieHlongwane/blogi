@@ -1,1225 +1,204 @@
 <!DOCTYPE html>
-
 <html lang="en">
-
 <head>
-
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1"
-    >
-
-    <meta
-        name="theme-color"
-        content="#111318"
-    >
-
-    <title>
-        {% block title %}
-            Creator Studio
-        {% endblock %}
-    </title>
-
-
-    <link
-        rel="stylesheet"
-        href="{{ url_for(
-            'static',
-            filename='css/admin.css'
-        ) }}"
-    >
-
-
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#111318">
+    <title>{% block title %}Creator Studio{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
     <style>
-
-        /* =====================================================
-           PLAN CARD
-        ===================================================== */
-
-        .studio-plan-card {
-
-            margin: 18px 0;
-
-            padding: 16px;
-
-            border-radius: 12px;
-
-            background: rgba(
-                255,
-                255,
-                255,
-                0.07
-            );
-
+        .studio-plan-card { margin:18px 0; padding:16px; border-radius:12px; background:rgba(255,255,255,.07); }
+        .studio-plan-card > span { display:block; margin-bottom:4px; font-size:10px; letter-spacing:.12em; opacity:.65; }
+        .studio-plan-card strong { display:block; font-size:16px; }
+        .studio-plan-card small { display:block; margin-top:4px; opacity:.72; }
+        .studio-plan-card a { display:inline-block; margin-top:10px; font-size:12px; font-weight:700; }
+        .subscription-status { display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:5px 9px; border-radius:999px; font-size:9px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+        .subscription-status.active { background:rgba(47,181,104,.14); color:#74dfa1; }
+        .subscription-status.past-due { background:rgba(255,180,60,.15); color:#ffc76b; }
+        .subscription-status.inactive { background:rgba(255,255,255,.09); color:rgba(255,255,255,.75); }
+        .subscription-status-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:currentColor; }
+        .subscription-date { display:block; margin-top:8px; font-size:10px; line-height:1.5; opacity:.68; }
+        .subscription-warning { display:flex; align-items:center; justify-content:space-between; gap:22px; margin-bottom:24px; padding:18px 20px; border:1px solid #e2b15d; border-radius:14px; background:#fff7e8; color:#33230b; }
+        .subscription-warning-content { min-width:0; }
+        .subscription-warning-label { display:block; margin-bottom:5px; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:#8b5c0c; }
+        .subscription-warning strong { display:block; margin-bottom:5px; font-size:16px; line-height:1.25; }
+        .subscription-warning p { margin:0; max-width:720px; font-size:13px; line-height:1.55; color:#6d501f; }
+        .subscription-warning-days { font-weight:800; color:#8b5c0c; }
+        .subscription-renew-form { flex:0 0 auto; margin:0; }
+        .subscription-renew-button { appearance:none; border:0; border-radius:10px; padding:11px 16px; background:#111318; color:#fff; font-family:inherit; font-size:12px; font-weight:800; cursor:pointer; white-space:nowrap; }
+        .subscription-renew-button:hover { opacity:.9; }
+        .subscription-renew-button:focus { outline:2px solid #111318; outline-offset:2px; }
+        .sidebar-nav-label { display:block; margin:20px 0 7px; padding:0 12px; font-size:9px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; opacity:.45; }
+        .premium-nav-item, .monetisation-nav-item { position:relative; }
+        .premium-nav-badge { margin-left:6px; padding:2px 5px; border-radius:999px; font-size:8px; font-weight:700; letter-spacing:.05em; background:rgba(255,255,255,.12); }
+        .monetisation-nav-icon { display:inline-block; margin-right:5px; }
+        .standard-feature-badge { margin-left:6px; padding:2px 5px; border-radius:999px; font-size:8px; font-weight:700; letter-spacing:.05em; background:rgba(47,181,104,.16); color:#74dfa1; }
+        @media (max-width:760px) {
+            .subscription-warning { align-items:flex-start; flex-direction:column; gap:14px; }
+            .subscription-renew-form, .subscription-renew-button { width:100%; }
         }
-
-
-        .studio-plan-card span {
-
-            display: block;
-
-            margin-bottom: 4px;
-
-            font-size: 10px;
-
-            letter-spacing: 0.12em;
-
-            opacity: 0.65;
-
-        }
-
-
-        .studio-plan-card strong {
-
-            display: block;
-
-            font-size: 16px;
-
-        }
-
-
-        .studio-plan-card small {
-
-            display: block;
-
-            margin-top: 4px;
-
-            opacity: 0.72;
-
-        }
-
-
-        .studio-plan-card a {
-
-            display: inline-block;
-
-            margin-top: 10px;
-
-            font-size: 12px;
-
-            font-weight: 700;
-
-        }
-
-
-        /* =====================================================
-           SUBSCRIPTION STATUS
-        ===================================================== */
-
-        .subscription-status {
-
-            display: inline-flex;
-
-            align-items: center;
-
-            gap: 6px;
-
-            margin-top: 10px;
-
-            padding: 5px 9px;
-
-            border-radius: 999px;
-
-            font-size: 9px;
-
-            font-weight: 800;
-
-            letter-spacing: 0.08em;
-
-            text-transform: uppercase;
-
-        }
-
-
-        .subscription-status.active {
-
-            background: rgba(
-                47,
-                181,
-                104,
-                0.14
-            );
-
-            color: #74dfa1;
-
-        }
-
-
-        .subscription-status.past-due {
-
-            background: rgba(
-                255,
-                180,
-                60,
-                0.15
-            );
-
-            color: #ffc76b;
-
-        }
-
-
-        .subscription-status.inactive {
-
-            background: rgba(
-                255,
-                255,
-                255,
-                0.09
-            );
-
-            color: rgba(
-                255,
-                255,
-                255,
-                0.75
-            );
-
-        }
-
-
-        .subscription-status-dot {
-
-            width: 6px;
-
-            height: 6px;
-
-            border-radius: 50%;
-
-            background: currentColor;
-
-        }
-
-
-        /* =====================================================
-           SUBSCRIPTION DATE
-        ===================================================== */
-
-        .subscription-date {
-
-            display: block;
-
-            margin-top: 8px;
-
-            font-size: 10px;
-
-            line-height: 1.5;
-
-            opacity: 0.68;
-
-        }
-
-
-        /* =====================================================
-           GRACE PERIOD BANNER
-        ===================================================== */
-
-        .subscription-warning {
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: space-between;
-
-            gap: 22px;
-
-            margin-bottom: 24px;
-
-            padding: 18px 20px;
-
-            border: 1px solid #e2b15d;
-
-            border-radius: 14px;
-
-            background: #fff7e8;
-
-            color: #33230b;
-
-        }
-
-
-        .subscription-warning-content {
-
-            min-width: 0;
-
-        }
-
-
-        .subscription-warning-label {
-
-            display: block;
-
-            margin-bottom: 5px;
-
-            font-size: 10px;
-
-            font-weight: 800;
-
-            letter-spacing: 0.1em;
-
-            text-transform: uppercase;
-
-            color: #8b5c0c;
-
-        }
-
-
-        .subscription-warning strong {
-
-            display: block;
-
-            margin-bottom: 5px;
-
-            font-size: 16px;
-
-            line-height: 1.25;
-
-        }
-
-
-        .subscription-warning p {
-
-            margin: 0;
-
-            max-width: 720px;
-
-            font-size: 13px;
-
-            line-height: 1.55;
-
-            color: #6d501f;
-
-        }
-
-
-        .subscription-warning-days {
-
-            font-weight: 800;
-
-            color: #8b5c0c;
-
-        }
-
-
-        /* =====================================================
-           RENEW BUTTON
-        ===================================================== */
-
-        .subscription-renew-form {
-
-            flex: 0 0 auto;
-
-            margin: 0;
-
-        }
-
-
-        .subscription-renew-button {
-
-            appearance: none;
-
-            border: 0;
-
-            border-radius: 10px;
-
-            padding: 11px 16px;
-
-            background: #111318;
-
-            color: #ffffff;
-
-            font-family: inherit;
-
-            font-size: 12px;
-
-            font-weight: 800;
-
-            cursor: pointer;
-
-            white-space: nowrap;
-
-        }
-
-
-        .subscription-renew-button:hover {
-
-            opacity: 0.9;
-
-        }
-
-
-        .subscription-renew-button:focus {
-
-            outline: 2px solid #111318;
-
-            outline-offset: 2px;
-
-        }
-
-
-        /* =====================================================
-           NAVIGATION GROUP
-        ===================================================== */
-
-        .sidebar-nav-label {
-
-            display: block;
-
-            margin: 20px 0 7px;
-
-            padding: 0 12px;
-
-            font-size: 9px;
-
-            font-weight: 800;
-
-            letter-spacing: 0.12em;
-
-            text-transform: uppercase;
-
-            opacity: 0.45;
-
-        }
-
-
-        /* =====================================================
-           PREMIUM NAV
-        ===================================================== */
-
-        .premium-nav-item {
-
-            position: relative;
-
-        }
-
-
-        .premium-nav-badge {
-
-            margin-left: 6px;
-
-            padding: 2px 5px;
-
-            border-radius: 999px;
-
-            font-size: 8px;
-
-            font-weight: 700;
-
-            letter-spacing: 0.05em;
-
-            background: rgba(
-                255,
-                255,
-                255,
-                0.12
-            );
-
-        }
-
-
-        /* =====================================================
-           MONETISATION NAV
-        ===================================================== */
-
-        .monetisation-nav-item {
-
-            position: relative;
-
-        }
-
-
-        .monetisation-nav-icon {
-
-            display: inline-block;
-
-            margin-right: 5px;
-
-        }
-
-
-        .standard-feature-badge {
-
-            margin-left: 6px;
-
-            padding: 2px 5px;
-
-            border-radius: 999px;
-
-            font-size: 8px;
-
-            font-weight: 700;
-
-            letter-spacing: 0.05em;
-
-            background: rgba(
-                47,
-                181,
-                104,
-                0.16
-            );
-
-            color: #74dfa1;
-
-        }
-
-
-        /* =====================================================
-           MOBILE
-        ===================================================== */
-
-        @media (
-            max-width: 760px
-        ) {
-
-            .subscription-warning {
-
-                align-items: flex-start;
-
-                flex-direction: column;
-
-                gap: 14px;
-
-            }
-
-
-            .subscription-renew-form {
-
-                width: 100%;
-
-            }
-
-
-            .subscription-renew-button {
-
-                width: 100%;
-
-            }
-
-        }
-
     </style>
-
+    {% block extra_head %}{% endblock %}
 </head>
-
-
 <body>
-
-
+{# --------------------------------------------------------------------
+   SAFE SHARED CONTEXT
+   Not every Studio view passes creator_account to render_template().
+   Use an explicitly supplied account first, then g.creator_account.
+   Never read .plan or .username from an undefined/null account.
+   -------------------------------------------------------------------- #}
+{% set studio_account = creator_account|default(none, true) %}
+{% if studio_account is none %}
+    {% set studio_account = g.get('creator_account', none) %}
+{% endif %}
+{% set account_plan = (studio_account.plan|default('standard', true)|lower) if studio_account else 'standard' %}
+{% set subscription_status = g.get('creator_subscription_status', 'inactive') or 'inactive' %}
+{% set subscription = g.get('creator_subscription', none) %}
+{% set grace_days = g.get('creator_grace_days_remaining', none) %}
 <div class="admin-shell">
-
-
-    <!-- =====================================================
-         SIDEBAR
-    ====================================================== -->
-
     <aside class="sidebar">
-
-
         <div>
-
-
-            <a
-                href="{{ url_for(
-                    'studio.dashboard'
-                ) }}"
-                class="studio-brand"
-            >
-
-                <span>
-                    CREATOR
-                </span>
-
-                <strong>
-                    Studio
-                </strong>
-
+            <a href="{{ url_for('studio.dashboard') }}" class="studio-brand">
+                <span>CREATOR</span>
+                <strong>Studio</strong>
             </a>
-
-
-            <!-- =============================================
-                 CURRENT PLAN
-            ============================================== -->
 
             <div class="studio-plan-card">
-
-
-                <span>
-                    YOUR PLAN
-                </span>
-
-
-                <strong>
-
-                    {{ creator_account.plan|default(
-                        "standard",
-                        true
-                    )|upper }}
-
-                </strong>
-
-
-                {% if
-                    creator_account.plan
-                    == "premium"
-                %}
-
-                    <small>
-                        R149/month
-                    </small>
-
+                <span>YOUR PLAN</span>
+                <strong>{{ account_plan|upper }}</strong>
+                {% if account_plan == 'premium' %}
+                    <small>R149/month</small>
                 {% else %}
-
-                    <small>
-                        R79/month
-                    </small>
-
-                    <a
-                        href="{{ url_for(
-                            'studio.monetisation'
-                        ) }}#premium-features"
-                    >
-                        Upgrade to Premium →
-                    </a>
-
+                    <small>R79/month</small>
+                    <a href="{{ url_for('studio.monetisation') }}#premium-features">Upgrade to Premium →</a>
                 {% endif %}
 
-
-                <!-- =========================================
-                     SUBSCRIPTION STATUS
-                ========================================== -->
-
-                {% if
-                    g.creator_subscription_status
-                    == "active"
-                %}
-
-                    <div
-                        class="
-                            subscription-status
-                            active
-                        "
-                    >
-
-                        <span
-                            class="
-                                subscription-status-dot
-                            "
-                        ></span>
-
-                        Active
-
+                {% if subscription_status == 'active' %}
+                    <div class="subscription-status active">
+                        <span class="subscription-status-dot"></span> Active
                     </div>
-
-
-                    {% if
-                        g.creator_subscription
-                        and
-                        g.creator_subscription.current_period_end
-                    %}
-
-                        <small
-                            class="subscription-date"
-                        >
-
-                            Renews by
-
-                            {{ g.creator_subscription.current_period_end.strftime(
-                                "%d %b %Y"
-                            ) }}
-
+                    {% if subscription and subscription.current_period_end %}
+                        <small class="subscription-date">
+                            Renews by {{ subscription.current_period_end.strftime('%d %b %Y') }}
                         </small>
-
                     {% endif %}
-
-
-                {% elif
-                    g.creator_subscription_status
-                    == "past_due"
-                %}
-
-                    <div
-                        class="
-                            subscription-status
-                            past-due
-                        "
-                    >
-
-                        <span
-                            class="
-                                subscription-status-dot
-                            "
-                        ></span>
-
-                        Payment due
-
+                {% elif subscription_status == 'past_due' %}
+                    <div class="subscription-status past-due">
+                        <span class="subscription-status-dot"></span> Payment due
                     </div>
-
-
-                    {% if
-                        g.creator_grace_days_remaining
-                        is not none
-                    %}
-
-                        <small
-                            class="subscription-date"
-                        >
-
-                            {{ g.creator_grace_days_remaining }}
-
-                            {% if
-                                g.creator_grace_days_remaining
-                                == 1
-                            %}
-
-                                day remaining
-
-                            {% else %}
-
-                                days remaining
-
-                            {% endif %}
-
+                    {% if grace_days is not none %}
+                        <small class="subscription-date">
+                            {{ grace_days }} {{ 'day' if grace_days == 1 else 'days' }} remaining
                         </small>
-
                     {% endif %}
-
-
                 {% else %}
-
-                    <div
-                        class="
-                            subscription-status
-                            inactive
-                        "
-                    >
-
-                        <span
-                            class="
-                                subscription-status-dot
-                            "
-                        ></span>
-
-                        {{
-                            g.creator_subscription_status
-                            |default(
-                                "inactive",
-                                true
-                            )
-                            |replace(
-                                "_",
-                                " "
-                            )
-                            |title
-                        }}
-
+                    <div class="subscription-status inactive">
+                        <span class="subscription-status-dot"></span>
+                        {{ subscription_status|replace('_', ' ')|title }}
                     </div>
-
                 {% endif %}
-
-
             </div>
 
+            <nav class="sidebar-nav" aria-label="Creator Studio navigation">
+                <a href="{{ url_for('studio.dashboard') }}">Dashboard</a>
+                <a href="{{ url_for('studio.content_list') }}">Content</a>
+                <a href="{{ url_for('studio.content_new') }}">Create</a>
+                <a href="{{ url_for('studio.categories') }}">Folders</a>
+                <a href="{{ url_for('studio.comments') }}">Comments</a>
+                <a href="{{ url_for('studio.website_settings') }}">Website Settings</a>
+                <a href="{{ url_for('studio.subscribers') }}">Subscribers</a>
+                <a href="{{ url_for('studio.analytics') }}">Analytics</a>
 
-            <!-- =============================================
-                 NAVIGATION
-            ============================================== -->
-
-            <nav class="sidebar-nav">
-
-
-                <a href="{{ url_for(
-                    'studio.dashboard'
-                ) }}">
-                    Dashboard
+                <span class="sidebar-nav-label">Earnings</span>
+                <a href="{{ url_for('studio.monetisation') }}" class="monetisation-nav-item">
+                    <span class="monetisation-nav-icon">$</span> Monetisation
+                </a>
+                <a href="{{ url_for('studio.monetisation_support') }}" class="monetisation-nav-item">
+                    <span class="monetisation-nav-icon">☕</span> Buy me a coffee
                 </a>
 
-
-                <a href="{{ url_for(
-                    'studio.content_list'
-                ) }}">
-                    Content
-                </a>
-
-
-                <a href="{{ url_for(
-                    'studio.content_new'
-                ) }}">
-                    Create
-                </a>
-
-
-                <a href="{{ url_for(
-                    'studio.categories'
-                ) }}">
-                    Folders
-                </a>
-
-
-                <a href="{{ url_for(
-                    'studio.comments'
-                ) }}">
-                    Comments
-                </a>
-
-                <a href="{{ url_for(
-                    'studio.website_settings'
-                ) }}">
-                     Website Settings
-                </a>
-
-
-                <a href="{{ url_for(
-                    'studio.subscribers'
-                ) }}">
-                    Subscribers
-                </a>
-
-
-                <a href="{{ url_for(
-                    'studio.analytics'
-                ) }}">
-                    Analytics
-                </a>
-
-
-                <!-- =========================================
-                     MONETISATION
-                ========================================== -->
-
-                <span
-                    class="sidebar-nav-label"
-                >
-                    Earnings
-                </span>
-
-
-                <a
-                    href="{{ url_for(
-                        'studio.monetisation'
-                    ) }}"
-                    class="
-                        monetisation-nav-item
-                    "
-                >
-
-                    <span
-                        class="
-                            monetisation-nav-icon
-                        "
-                    >
-                        $
-                    </span>
-
-                    Monetisation
-
-                </a>
-
-
-                <a
-                    href="{{ url_for(
-                        'studio.monetisation_support'
-                    ) }}"
-                    class="
-                        monetisation-nav-item
-                    "
-                >
-
-                    <span
-                        class="
-                            monetisation-nav-icon
-                        "
-                    >
-                        ☕
-                    </span>
-
-                    Buy me a coffee
-
-                </a>
-
-
-                <!-- =========================================
-                     PREMIUM FEATURES
-                ========================================== -->
-
-                <a
-                    href="{% if creator_account.plan == 'premium' %}{{ url_for('studio.fundraising_campaigns') }}{% else %}{{ url_for('studio.monetisation') }}#fundraising{% endif %}"
-                    class="premium-nav-item"
-                >
-
-                    Fundraising
-
-                    {% if
-                        creator_account.plan
-                        != "premium"
-                    %}
-
-                        <span
-                            class="
-                                premium-nav-badge
-                            "
-                        >
-                            PREMIUM
-                        </span>
-
-                    {% endif %}
-
-                </a>
-
-
-                <a
-                    href="{{ url_for(
-                        'studio.content_new'
-                    ) }}"
-                    class="premium-nav-item"
-                >
-
+                {% if account_plan == 'premium' %}
+                    <a href="{{ url_for('studio.fundraising_campaigns') }}" class="premium-nav-item">
+                        Fundraising
+                    </a>
+                {% else %}
+                    <a href="{{ url_for('studio.monetisation') }}#fundraising" class="premium-nav-item">
+                        Fundraising <span class="premium-nav-badge">PREMIUM</span>
+                    </a>
+                {% endif %}
+                <a href="{{ url_for('studio.content_new') }}" class="premium-nav-item">
                     Exclusive content
-
-                    {% if
-                        creator_account.plan
-                        != "premium"
-                    %}
-
-                        <span
-                            class="
-                                premium-nav-badge
-                            "
-                        >
-                            PREMIUM
-                        </span>
-
+                    {% if account_plan != 'premium' %}
+                        <span class="premium-nav-badge">PREMIUM</span>
                     {% endif %}
-
                 </a>
 
-
-                <!-- =========================================
-                     ACCOUNT
-                ========================================== -->
-
-                <span
-                    class="sidebar-nav-label"
-                >
-                    Account
-                </span>
-
-
-                <a href="{{ url_for(
-                    'studio.profile'
-                ) }}">
-                    Profile
-                </a>
-
-
+                <span class="sidebar-nav-label">Account</span>
+                <a href="{{ url_for('studio.profile') }}">Profile</a>
             </nav>
-
-
         </div>
-
-
-        <!-- =================================================
-             SIDEBAR BOTTOM
-        ================================================== -->
 
         <div class="sidebar-bottom">
-
-
-            {% if creator_account %}
-
-                <a
-                    href="{{ url_for(
-                        'public.creator_home',
-                        username=creator_account.username
-                    ) }}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    View website ↗
-                </a>
-
+            {% if studio_account and studio_account.username %}
+                <a href="{{ url_for('public.creator_home', username=studio_account.username) }}"
+                   target="_blank" rel="noopener noreferrer">View website ↗</a>
             {% else %}
-
-                <a
-                    href="{{ url_for(
-                        'public.home'
-                    ) }}"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    View website ↗
-                </a>
-
+                <a href="{{ url_for('public.home') }}"
+                   target="_blank" rel="noopener noreferrer">View website ↗</a>
             {% endif %}
-
-
-            <form
-                method="POST"
-                action="{{ url_for(
-                    'creator_auth.logout'
-                ) }}"
-            >
-
-                <button type="submit">
-                    Sign out
-                </button>
-
+            <form method="POST" action="{{ url_for('creator_auth.logout') }}">
+                <button type="submit">Sign out</button>
             </form>
-
-
         </div>
-
-
     </aside>
 
-
-    <!-- =====================================================
-         MAIN
-    ====================================================== -->
-
     <div class="admin-main">
-
-
-        <!-- =================================================
-             TOP BAR
-        ================================================== -->
-
         <header class="admin-topbar">
-
-
-            <div>
-
-                <span class="mobile-brand">
-                    Creator Studio
-                </span>
-
-            </div>
-
-
-            <a
-                href="{{ url_for(
-                    'studio.content_new'
-                ) }}"
-                class="create-button"
-            >
-                + New content
-            </a>
-
-
+            <div><span class="mobile-brand">Creator Studio</span></div>
+            <a href="{{ url_for('studio.content_new') }}" class="create-button">+ New content</a>
         </header>
-
-
-        <!-- =================================================
-             CONTENT
-        ================================================== -->
-
         <main class="admin-content">
-
-
-            <!-- =============================================
-                 FLASH MESSAGES
-            ============================================== -->
-
-            {% with messages =
-                get_flashed_messages(
-                    with_categories=true
-                )
-            %}
-
+            {% with messages = get_flashed_messages(with_categories=true) %}
                 {% if messages %}
-
                     <div class="flash-stack">
-
-                        {% for
-                            category,
-                            message
-                            in messages
-                        %}
-
-                            <div
-                                class="
-                                    flash-message
-                                    {{ category }}
-                                "
-                            >
-                                {{ message }}
-                            </div>
-
+                        {% for category, message in messages %}
+                            <div class="flash-message {{ category|e }}">{{ message }}</div>
                         {% endfor %}
-
                     </div>
-
                 {% endif %}
-
             {% endwith %}
 
-
-            <!-- =============================================
-                 SUBSCRIPTION GRACE PERIOD WARNING
-            ============================================== -->
-
-            {% if
-                g.creator_subscription_status
-                == "past_due"
-            %}
-
-                <section
-                    class="subscription-warning"
-                    aria-label="
-                        Subscription payment due
-                    "
-                >
-
-
-                    <div
-                        class="
-                            subscription-warning-content
-                        "
-                    >
-
-                        <span
-                            class="
-                                subscription-warning-label
-                            "
-                        >
-                            Subscription payment due
-                        </span>
-
-
-                        <strong>
-
-                            Your Creator Studio
-                            is still available.
-
-                        </strong>
-
-
+            {% if subscription_status == 'past_due' %}
+                <section class="subscription-warning" aria-label="Subscription payment due">
+                    <div class="subscription-warning-content">
+                        <span class="subscription-warning-label">Subscription payment due</span>
+                        <strong>Your Creator Studio is still available.</strong>
                         <p>
-
-                            Your paid subscription
-                            period has ended.
-
-                            {% if
-                                g.creator_grace_days_remaining
-                                is not none
-                            %}
-
-                                You have
-
-                                <span
-                                    class="
-                                        subscription-warning-days
-                                    "
-                                >
-
-                                    {{ g.creator_grace_days_remaining }}
-
-                                    {% if
-                                        g.creator_grace_days_remaining
-                                        == 1
-                                    %}
-
-                                        day
-
-                                    {% else %}
-
-                                        days
-
-                                    {% endif %}
-
-                                    remaining
-
-                                </span>
-
-                                in your grace period.
-
+                            Your paid subscription period has ended.
+                            {% if grace_days is not none %}
+                                You have <span class="subscription-warning-days">
+                                    {{ grace_days }} {{ 'day' if grace_days == 1 else 'days' }} remaining
+                                </span> in your grace period.
                             {% else %}
-
-                                You are currently
-                                in your grace period.
-
+                                You are currently in your grace period.
                             {% endif %}
-
-                            Renew now to avoid losing
-                            access to Creator Studio.
-
-                            Your public creator page
-                            and published content will
-                            remain online.
-
+                            Renew now to avoid losing access to Creator Studio.
+                            Your public creator page and published content will remain online.
                         </p>
-
-
                     </div>
-
-
-                    <!-- =====================================
-                         YOCO RENEWAL
-                    ====================================== -->
-
-                    <form
-                        method="POST"
-                        action="{{ url_for(
-                            'payments.creator_checkout'
-                        ) }}"
-                        class="
-                            subscription-renew-form
-                        "
-                    >
-
-                        <button
-                            type="submit"
-                            class="
-                                subscription-renew-button
-                            "
-                        >
-
-                            Renew
-
-                            {% if
-                                creator_account.plan
-                                == "premium"
-                            %}
-
-                                R149
-
-                            {% else %}
-
-                                R79
-
-                            {% endif %}
-
-                            →
-
+                    <form method="POST" action="{{ url_for('payments.creator_checkout') }}"
+                          class="subscription-renew-form">
+                        <button type="submit" class="subscription-renew-button">
+                            Renew {{ 'R149' if account_plan == 'premium' else 'R79' }} →
                         </button>
-
                     </form>
-
-
                 </section>
-
             {% endif %}
 
-
-            <!-- =============================================
-                 PAGE CONTENT
-            ============================================== -->
-
-            {% block content %}
-            {% endblock %}
-
-
+            {% block content %}{% endblock %}
         </main>
-
-
     </div>
-
-
 </div>
-
-
+{% block extra_scripts %}{% endblock %}
 </body>
-
 </html>
