@@ -7,3 +7,4 @@ gunicorn==23.0.0
 cloudinary
 requests>=2.32,<3
 svix
+dnspython
