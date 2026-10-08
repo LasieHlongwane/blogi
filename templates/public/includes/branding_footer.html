@@ -1,0 +1,6 @@
+{% if site_brand %}
+<footer class="creator-brand-footer">
+  {% if site_brand.footer_text %}<p>{{ site_brand.footer_text }}</p>{% endif %}
+  {% if site_brand.show_platform_branding %}<p>Powered by Kalxa Creator</p>{% endif %}
+</footer>
+{% endif %}
