@@ -1,737 +1,134 @@
 {% extends "base.html" %}
-
-{% block title %}
-{{ post.title }} | {{ creator.display_name if creator else "Creator" }}
-{% endblock %}
-
+{% block title %}{{ post.title }} | {{ site_brand.title if site_brand else (creator.display_name if creator else 'Creator') }}{% endblock %}
 {% block content %}
-
-<!-- =========================================================
-     ARTICLE HEADER
-========================================================== --><main class="content-detail-page"><article class="content-detail">
-
-
-    <header class="content-detail-header">
-
-
-        <div class="content-detail-meta">
-
-            <span class="content-type-pill">
-                {{ post.content_type|upper }}
-            </span>
-
-
-            {% if post.category %}
-
-                <span>
-                    {{ post.category.name }}
-                </span>
-
-            {% endif %}
-
-
-            {% if post.published_at %}
-
-                <span>
-                    {{ post.published_at.strftime(
-                        "%d %b %Y"
-                    ) }}
-                </span>
-
-            {% endif %}
-
-
-            {% if post.access_level == "subscriber" %}
-
-                <span class="exclusive-pill">
-                    🔒 MEMBERS
-                </span>
-
-            {% endif %}
-
-        </div>
-
-
-        <h1>
-            {{ post.title }}
-        </h1>
-
-
-        {% if post.excerpt %}
-
-            <p class="content-detail-excerpt">
-                {{ post.excerpt }}
-            </p>
-
-        {% endif %}
-
-
-    </header>
-
-
-
-    <!-- =================================================
-         COVER
-    ================================================== -->
-
-    {% if post.cover_image_url %}
-
-        <div class="content-detail-cover">
-
-            <img
-                src="{{ post.cover_image_url }}"
-                alt="{{ post.title }}"
-            >
-
-        </div>
-
+{% include "public/includes/branding_head.html" %}
+<div class="creator-site creator-public-detail" data-creator-theme="{{ site_brand.theme if site_brand else 'light' }}" data-creator-font="{{ site_brand.font_family if site_brand else 'system' }}">
+<style>
+.creator-site {background:var(--creator-background,inherit);color:var(--creator-text,inherit)}
+.creator-site[data-creator-font="serif"]{font-family:Georgia,'Times New Roman',serif}
+.creator-site[data-creator-font="mono"]{font-family:Consolas,monospace}
+.creator-site[data-creator-font="sans"]{font-family:Arial,Helvetica,sans-serif}
+.creator-site[data-creator-font="system"]{font-family:system-ui,-apple-system,sans-serif}
+.creator-site .comment-form button,.creator-site .reply-form button {background:var(--creator-primary,#17191d);color:white}
+.creator-site .comments-eyebrow,.creator-site .content-type-pill,.creator-site .creator-badge {color:var(--creator-accent,var(--creator-primary,#17191d))}
+.creator-site .reply-toggle {color:var(--creator-primary,#17191d)}
+.creator-site .creator-brand-header {overflow:hidden;margin-bottom:1.5rem}
+.creator-site .creator-brand-identity {display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem}
+.creator-site .creator-brand-identity h1 {margin:0;font-size:1.4rem}
+.creator-site .creator-brand-identity p {margin:.25rem 0 0}
+.creator-site .creator-brand-footer {padding:2rem 1.25rem;text-align:center}
+.creator-site .creator-brand-footer p {margin:.3rem 0}
+</style>
+{% include "public/includes/branding_header.html" %}
+<main class="content-detail-page"><article class="content-detail">
+  <header class="content-detail-header">
+    <div class="content-detail-meta">
+      <span class="content-type-pill">{{ post.content_type|upper }}</span>
+      {% if post.category %}<span>{{ post.category.name }}</span>{% endif %}
+      {% if post.published_at %}<span>{{ post.published_at.strftime('%d %b %Y') }}</span>{% endif %}
+      {% if post.access_level == 'subscriber' %}<span class="exclusive-pill">🔒 MEMBERS</span>{% endif %}
+    </div>
+    <h1>{{ post.title }}</h1>
+    {% if post.excerpt %}<p class="content-detail-excerpt">{{ post.excerpt }}</p>{% endif %}
+  </header>
+  {% if post.cover_image_url %}
+  <div class="content-detail-cover"><img src="{{ post.cover_image_url }}" alt="{{ post.title }}"></div>
+  {% endif %}
+  {% if post.content_type in ['reel','vlog'] and video %}
+  <div class="public-video-player {% if post.content_type == 'reel' %}reel-player{% endif %}">
+    <video controls playsinline preload="metadata" {% if video.thumbnail_url %}poster="{{ video.thumbnail_url }}"{% endif %}>
+      <source src="{{ video.media_url }}">Your browser does not support video.
+    </video>
+  </div>
+  {% endif %}
+  {% if post.body %}
+  <div class="content-body">
+    {% for paragraph in post.body.split('\n') %}
+      {% if paragraph.strip() %}<p>{{ paragraph }}</p>{% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if post.content_type == 'story' and gallery_images %}
+  <div class="public-story-gallery">
+    {% for image in gallery_images %}
+    <figure><img src="{{ image.media_url }}" alt="{{ image.caption or post.title }}" loading="lazy">{% if image.caption %}<figcaption>{{ image.caption }}</figcaption>{% endif %}</figure>
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% if creator %}
+  <section class="post-creator-card">
+    {% if creator.profile_image_url %}<img src="{{ creator.profile_image_url }}" alt="{{ creator.display_name }}">{% else %}<div class="creator-mini-placeholder">{{ creator.display_name[:1] }}</div>{% endif %}
+    <div><small>CREATED BY</small><strong>{{ creator.display_name }}</strong>{% if creator.tagline %}<p>{{ creator.tagline }}</p>{% endif %}</div>
+  </section>
+  {% endif %}
+  <section class="comments-section" id="comments">
+    <div class="comments-heading"><div><span class="comments-eyebrow">CONVERSATION</span><h2>Comments</h2></div><span class="comment-count">{{ comment_count }} {{ 'comment' if comment_count == 1 else 'comments' }}</span></div>
+    {% if creator and creator.creator_account_id and public_username %}
+    <form method="POST" action="{{ url_for('public.creator_add_comment',username=public_username,post_id=post.id) }}" class="comment-form">
+    {% else %}
+    <form method="POST" action="{{ url_for('public.add_comment',post_id=post.id) }}" class="comment-form">
     {% endif %}
-
-
-
-    <!-- =================================================
-         VIDEO
-    ================================================== -->
-
-    {% if
-        post.content_type in ["reel", "vlog"]
-        and video
-    %}
-
-        <div
-            class="
-                public-video-player
-                {% if post.content_type == 'reel' %}
-                    reel-player
-                {% endif %}
-            "
-        >
-
-            <video
-                controls
-                playsinline
-                preload="metadata"
-
-                {% if video.thumbnail_url %}
-                    poster="{{ video.thumbnail_url }}"
-                {% endif %}
-            >
-
-                <source
-                    src="{{ video.media_url }}"
-                >
-
-                Your browser does not support video.
-
-            </video>
-
+      <div class="comment-honeypot" aria-hidden="true"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
+      <label>Your name<input type="text" name="author_name" maxlength="80" required placeholder="How should we call you?"></label>
+      <label>Join the conversation<textarea name="body" maxlength="1500" rows="4" required placeholder="Share your thoughts..."></textarea></label>
+      <div class="comment-form-footer"><small>No account required.</small><button type="submit">Post comment</button></div>
+    </form>
+    <div class="comments-list">
+      {% for comment in comments %}
+      <article class="comment-card" id="comment-{{ comment.id }}">
+        <div class="comment-author-row">
+          <div class="comment-avatar">{{ comment.author_name[:1]|upper }}</div>
+          <div><strong>{{ comment.author_name }}</strong>{% if comment.is_creator %}<span class="creator-badge">CREATOR</span>{% endif %}<small>{{ comment.created_at.strftime('%d %b %Y · %H:%M') }}</small></div>
         </div>
-
-    {% endif %}
-
-
-
-    <!-- =================================================
-         BODY
-    ================================================== -->
-
-    {% if post.body %}
-
-        <div class="content-body">
-
-            {% for paragraph in post.body.split('\n') %}
-
-                {% if paragraph.strip() %}
-
-                    <p>
-                        {{ paragraph }}
-                    </p>
-
-                {% endif %}
-
-            {% endfor %}
-
-        </div>
-
-    {% endif %}
-
-
-
-    <!-- =================================================
-         STORY GALLERY
-    ================================================== -->
-
-    {% if
-        post.content_type == "story"
-        and gallery_images
-    %}
-
-        <div class="public-story-gallery">
-
-            {% for image in gallery_images %}
-
-                <figure>
-
-                    <img
-                        src="{{ image.media_url }}"
-                        alt="{{ image.caption or post.title }}"
-                        loading="lazy"
-                    >
-
-                    {% if image.caption %}
-
-                        <figcaption>
-                            {{ image.caption }}
-                        </figcaption>
-
-                    {% endif %}
-
-                </figure>
-
-            {% endfor %}
-
-        </div>
-
-    {% endif %}
-
-
-
-    <!-- =================================================
-         CREATOR
-    ================================================== -->
-
-    {% if creator %}
-
-        <section class="post-creator-card">
-
-
-            {% if creator.profile_image_url %}
-
-                <img
-                    src="{{ creator.profile_image_url }}"
-                    alt="{{ creator.display_name }}"
-                >
-
-            {% else %}
-
-                <div class="creator-mini-placeholder">
-
-                    {{ creator.display_name[:1] }}
-
-                </div>
-
-            {% endif %}
-
-
-            <div>
-
-                <small>
-                    CREATED BY
-                </small>
-
-                <strong>
-                    {{ creator.display_name }}
-                </strong>
-
-                {% if creator.tagline %}
-
-                    <p>
-                        {{ creator.tagline }}
-                    </p>
-
-                {% endif %}
-
-            </div>
-
-
-        </section>
-
-    {% endif %}
-
-
-
-    <!-- =================================================
-         COMMENTS
-    ================================================== -->
-
-    <section
-        class="comments-section"
-        id="comments"
-    >
-
-
-        <div class="comments-heading">
-
-            <div>
-
-                <span class="comments-eyebrow">
-                    CONVERSATION
-                </span>
-
-                <h2>
-                    Comments
-                </h2>
-
-            </div>
-
-
-            <span class="comment-count">
-
-                {{ comment_count }}
-
-                {% if comment_count == 1 %}
-                    comment
-                {% else %}
-                    comments
-                {% endif %}
-
-            </span>
-
-        </div>
-
-
-
-        <!-- =============================================
-             NEW COMMENT
-        ============================================== -->
-
-        {% if
-            creator
-            and creator.creator_account_id
-        %}
-
-            <form
-                method="POST"
-                action="{{ url_for(
-                    'public.creator_add_comment',
-                    username=creator.username,
-                    post_id=post.id
-                ) }}"
-                class="comment-form"
-            >
-
+        <div class="comment-body">{{ comment.body }}</div>
+        <button type="button" class="reply-toggle" data-reply-target="reply-form-{{ comment.id }}">Reply</button>
+        {% if creator and creator.creator_account_id and public_username %}
+        <form method="POST" action="{{ url_for('public.creator_add_reply',username=public_username,comment_id=comment.id) }}" class="reply-form" id="reply-form-{{ comment.id }}">
         {% else %}
-
-            <form
-                method="POST"
-                action="{{ url_for(
-                    'public.add_comment',
-                    post_id=post.id
-                ) }}"
-                class="comment-form"
-            >
-
+        <form method="POST" action="{{ url_for('public.add_reply',comment_id=comment.id) }}" class="reply-form" id="reply-form-{{ comment.id }}">
         {% endif %}
-
-
-            <!-- HONEYPOT -->
-
-            <div
-                class="comment-honeypot"
-                aria-hidden="true"
-            >
-
-                <label>
-
-                    Website
-
-                    <input
-                        type="text"
-                        name="website"
-                        tabindex="-1"
-                        autocomplete="off"
-                    >
-
-                </label>
-
-            </div>
-
-
-            <label>
-
-                Your name
-
-                <input
-                    type="text"
-                    name="author_name"
-                    maxlength="80"
-                    required
-                    placeholder="How should we call you?"
-                >
-
-            </label>
-
-
-            <label>
-
-                Join the conversation
-
-                <textarea
-                    name="body"
-                    maxlength="1500"
-                    rows="4"
-                    required
-                    placeholder="Share your thoughts..."
-                ></textarea>
-
-            </label>
-
-
-            <div class="comment-form-footer">
-
-                <small>
-                    No account required.
-                </small>
-
-                <button type="submit">
-                    Post comment
-                </button>
-
-            </div>
-
-
+          <div class="comment-honeypot" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
+          <label>Your name<input type="text" name="author_name" maxlength="80" required placeholder="Your name"></label>
+          <label>Reply<textarea name="body" maxlength="1500" rows="3" required placeholder="Write a reply..."></textarea></label>
+          <button type="submit">Post reply</button>
         </form>
-
-
-
-        <!-- =============================================
-             COMMENTS LIST
-        ============================================== -->
-
-        <div class="comments-list">
-
-
-            {% for comment in comments %}
-
-                <article
-                    class="comment-card"
-                    id="comment-{{ comment.id }}"
-                >
-
-
-                    <div class="comment-author-row">
-
-
-                        <div class="comment-avatar">
-
-                            {{ comment.author_name[:1]|upper }}
-
-                        </div>
-
-
-                        <div>
-
-                            <strong>
-                                {{ comment.author_name }}
-                            </strong>
-
-                            {% if comment.is_creator %}
-
-                                <span class="creator-badge">
-                                    CREATOR
-                                </span>
-
-                            {% endif %}
-
-
-                            <small>
-
-                                {{ comment.created_at.strftime(
-                                    "%d %b %Y · %H:%M"
-                                ) }}
-
-                            </small>
-
-                        </div>
-
-
-                    </div>
-
-
-                    <div class="comment-body">
-
-                        {{ comment.body }}
-
-                    </div>
-
-
-                    <button
-                        type="button"
-                        class="reply-toggle"
-                        data-reply-target="reply-form-{{ comment.id }}"
-                    >
-                        Reply
-                    </button>
-
-
-
-                    <!-- =================================
-                         REPLY FORM
-                    ================================== -->
-
-                    {% if
-                        creator
-                        and creator.creator_account_id
-                    %}
-
-                        <form
-                            method="POST"
-                            action="{{ url_for(
-                                'public.creator_add_reply',
-                                username=creator.username,
-                                comment_id=comment.id
-                            ) }}"
-                            class="reply-form"
-                            id="reply-form-{{ comment.id }}"
-                        >
-
-                    {% else %}
-
-                        <form
-                            method="POST"
-                            action="{{ url_for(
-                                'public.add_reply',
-                                comment_id=comment.id
-                            ) }}"
-                            class="reply-form"
-                            id="reply-form-{{ comment.id }}"
-                        >
-
-                    {% endif %}
-
-
-                        <div
-                            class="comment-honeypot"
-                            aria-hidden="true"
-                        >
-
-                            <input
-                                type="text"
-                                name="website"
-                                tabindex="-1"
-                                autocomplete="off"
-                            >
-
-                        </div>
-
-
-                        <label>
-
-                            Your name
-
-                            <input
-                                type="text"
-                                name="author_name"
-                                maxlength="80"
-                                required
-                                placeholder="Your name"
-                            >
-
-                        </label>
-
-
-                        <label>
-
-                            Reply
-
-                            <textarea
-                                name="body"
-                                maxlength="1500"
-                                rows="3"
-                                required
-                                placeholder="Write a reply..."
-                            ></textarea>
-
-                        </label>
-
-
-                        <button type="submit">
-                            Post reply
-                        </button>
-
-
-                    </form>
-
-
-
-                    <!-- =================================
-                         REPLIES
-                    ================================== -->
-
-                    {% if comment.replies %}
-
-                        <div class="comment-replies">
-
-
-                            {% for reply in comment.replies %}
-
-
-                                {% if reply.status == "approved" %}
-
-                                    <article
-                                        class="comment-reply"
-                                        id="comment-{{ reply.id }}"
-                                    >
-
-
-                                        <div class="comment-author-row">
-
-
-                                            <div class="comment-avatar small">
-
-                                                {{ reply.author_name[:1]|upper }}
-
-                                            </div>
-
-
-                                            <div>
-
-                                                <strong>
-                                                    {{ reply.author_name }}
-                                                </strong>
-
-
-                                                {% if reply.is_creator %}
-
-                                                    <span class="creator-badge">
-                                                        CREATOR
-                                                    </span>
-
-                                                {% endif %}
-
-
-                                                <small>
-
-                                                    {{ reply.created_at.strftime(
-                                                        "%d %b %Y · %H:%M"
-                                                    ) }}
-
-                                                </small>
-
-
-                                            </div>
-
-
-                                        </div>
-
-
-                                        <div class="comment-body">
-
-                                            {{ reply.body }}
-
-                                        </div>
-
-
-                                    </article>
-
-                                {% endif %}
-
-
-                            {% endfor %}
-
-
-                        </div>
-
-                    {% endif %}
-
-
-                </article>
-
-
-            {% else %}
-
-
-                <div class="comments-empty">
-
-                    <span>
-                        💬
-                    </span>
-
-                    <h3>
-                        Start the conversation.
-                    </h3>
-
-                    <p>
-                        Be the first person to leave
-                        a comment on this post.
-                    </p>
-
-                </div>
-
-
-            {% endfor %}
-
-
+        {% if comment.replies %}
+        <div class="comment-replies">
+          {% for reply in comment.replies %}
+            {% if reply.status == 'approved' %}
+            <article class="comment-reply" id="comment-{{ reply.id }}">
+              <div class="comment-author-row">
+                <div class="comment-avatar small">{{ reply.author_name[:1]|upper }}</div>
+                <div><strong>{{ reply.author_name }}</strong>{% if reply.is_creator %}<span class="creator-badge">CREATOR</span>{% endif %}<small>{{ reply.created_at.strftime('%d %b %Y · %H:%M') }}</small></div>
+              </div>
+              <div class="comment-body">{{ reply.body }}</div>
+            </article>
+            {% endif %}
+          {% endfor %}
         </div>
-
-
-    </section>
-
-
-</article>
-
-</main><!-- =========================================================
-     REPLY TOGGLE
-========================================================== --><script>
-
-document.addEventListener(
-    "DOMContentLoaded",
-    function () {
-
-        const buttons =
-            document.querySelectorAll(
-                ".reply-toggle"
-            );
-
-
-        buttons.forEach(
-            function (button) {
-
-                button.addEventListener(
-                    "click",
-                    function () {
-
-                        const targetId =
-                            button.dataset.replyTarget;
-
-                        const form =
-                            document.getElementById(
-                                targetId
-                            );
-
-                        if (!form) {
-                            return;
-                        }
-
-                        form.classList.toggle(
-                            "visible"
-                        );
-
-
-                        if (
-                            form.classList.contains(
-                                "visible"
-                            )
-                        ) {
-
-                            const nameInput =
-                                form.querySelector(
-                                    'input[name="author_name"]'
-                                );
-
-                            if (nameInput) {
-                                nameInput.focus();
-                            }
-
-                        }
-
-                    }
-                );
-
-            }
-        );
-
-    }
-);
-
-</script>{% endblock %}
+        {% endif %}
+      </article>
+      {% else %}
+      <div class="comments-empty"><span>💬</span><h3>Start the conversation.</h3><p>Be the first person to leave a comment on this post.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+</article></main>
+{% include "public/includes/branding_footer.html" %}
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  document.querySelectorAll('.reply-toggle').forEach(function (button) {
+    button.addEventListener('click', function () {
+      const form = document.getElementById(button.dataset.replyTarget);
+      if (!form) return;
+      form.classList.toggle('visible');
+      if (form.classList.contains('visible')) {
+        const input = form.querySelector('input[name="author_name"]');
+        if (input) input.focus();
+      }
+    });
+  });
+});
+</script>
+{% endblock %}
