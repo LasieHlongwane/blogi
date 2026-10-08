@@ -6071,3 +6071,18 @@ def profile_remove_intro_reel():
             "studio.profile"
         )
     )
+
+
+# ============================================================
+# WEBSITE SETTINGS
+# ============================================================
+
+from routes.website_settings_routes import (
+    register_website_settings,
+)
+
+register_website_settings(
+    studio_bp,
+    studio_required,
+    current_creator_account,
+)
