@@ -3,7 +3,7 @@ import secrets
 import time
 from flask import Blueprint, render_template, request, redirect, url_for, flash, session, abort, g
 from extensions import db
-from models import CreatorAccount, CreatorProfile, ContentCategory, ContentPost, ContentMedia, Comment, EmailSubscriber, utc_now
+from models import CreatorAccount, CreatorProfile, CreatorBranding, ContentCategory, ContentPost, ContentMedia, Comment, EmailSubscriber, utc_now
 from services.email_service import send_verification_email, send_welcome_email
 
 public_bp = Blueprint("public", __name__)
@@ -62,6 +62,57 @@ def creator_content_url(account, post):
     return url_for("public.creator_content_detail", username=account.username, slug=post.slug)
 
 
+# ============================================================
+# PUBLIC BRANDING (SCOPED TO THE VIEWED CREATOR)
+# ============================================================
+
+BRANDING_DEFAULTS = {
+    "primary_color": "#111318",
+    "accent_color": "#F4B942",
+    "background_color": "#FFFFFF",
+    "text_color": "#17191D",
+    "theme": "light",
+    "font_family": "system",
+}
+
+
+def public_branding_context(creator, account_id):
+    """Read branding only for the creator whose public page is being rendered."""
+    account = db.session.get(CreatorAccount, account_id) if account_id else None
+    branding = (CreatorBranding.query.filter_by(creator_account_id=account_id).first()
+                if account else None)
+    premium = bool(account and (account.plan or "").lower() == "premium")
+    def color(field):
+        value = getattr(branding, field, None) if branding else None
+        import re
+        return value if isinstance(value, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", value) else BRANDING_DEFAULTS[field]
+    theme = getattr(branding, "theme", "light") if premium and branding else "light"
+    font = getattr(branding, "font_family", "system") if premium and branding else "system"
+    theme = theme if theme in {"light", "dark"} else "light"
+    font = font if font in {"system", "sans", "serif", "mono"} else "system"
+    title = (getattr(branding, "site_title", None) if branding else None) or creator.display_name
+    tagline = (getattr(branding, "site_tagline", None) if branding else None) or (creator.tagline or "")
+    return {
+        "creator_account": account,
+        "branding": branding,
+        "site_brand": {
+            "title": title,
+            "tagline": tagline,
+            "logo_url": getattr(branding, "logo_url", None) if branding else None,
+            "favicon_url": getattr(branding, "favicon_url", None) if branding else None,
+            "cover_image_url": getattr(branding, "cover_image_url", None) if branding else None,
+            "primary_color": color("primary_color"),
+            "accent_color": color("accent_color"),
+            "background_color": color("background_color") if premium else BRANDING_DEFAULTS["background_color"],
+            "text_color": color("text_color") if premium else BRANDING_DEFAULTS["text_color"],
+            "theme": theme,
+            "font_family": font,
+            "footer_text": (getattr(branding, "footer_text", None) if premium and branding else None),
+            "show_platform_branding": not premium,
+        },
+    }
+
+
 def get_anonymous_session_id():
     anonymous_id = session.get("anonymous_session_id")
     if not anonymous_id:
@@ -87,7 +138,8 @@ def render_creator_home(creator, creator_account_id, public_username=None):
         creator_account_id=creator_account_id, status="published"
     ).order_by(ContentPost.published_at.desc(), ContentPost.created_at.desc()).limit(12).all()
     return render_template("public/home.html", creator=creator, categories=categories,
-                           posts=posts, public_username=public_username)
+                           posts=posts, public_username=public_username,
+                           **public_branding_context(creator, creator_account_id))
 
 
 def render_content_detail(creator, post, public_username=None):
@@ -101,7 +153,8 @@ def render_content_detail(creator, post, public_username=None):
     comment_count = Comment.query.filter_by(post_id=post.id, status="approved").count()
     return render_template("public/content_detail.html", creator=creator, post=post,
                            gallery_images=gallery_images, video=video, comments=comments,
-                           comment_count=comment_count, public_username=public_username)
+                           comment_count=comment_count, public_username=public_username,
+                           **public_branding_context(creator, post.creator_account_id))
 
 
 @public_bp.route("/")
@@ -119,7 +172,8 @@ def home():
         posts = ContentPost.query.filter_by(creator_account_id=None, status="published").order_by(
             ContentPost.published_at.desc(), ContentPost.created_at.desc()).limit(12).all()
         return render_template("public/home.html", creator=creator, categories=categories,
-                               posts=posts, public_username=None)
+                               posts=posts, public_username=None,
+                               **public_branding_context(creator, None))
     return render_creator_home(creator, creator_account_id, public_username=None)
 
 
@@ -365,7 +419,8 @@ def newsletter_verify(token):
     send_welcome_email(subscriber)
     return render_template("public/newsletter_message.html", title="Subscription confirmed",
                            heading="You're in.", message="Your email is confirmed. You'll now receive updates when new content is published.",
-                           creator_username=account.username)
+                           creator_username=account.username,
+                           **public_branding_context(get_public_creator_profile(account), account.id))
 
 
 @public_bp.route("/newsletter/unsubscribe/<string:token>")
@@ -385,4 +440,5 @@ def newsletter_unsubscribe(token):
     return render_template("public/newsletter_message.html", title="Unsubscribed",
                            heading="You've been unsubscribed.",
                            message="You won't receive new-post emails from this creator anymore. You can subscribe again from their website at any time.",
-                           creator_username=account.username if account else None)
+                           creator_username=account.username if account else None,
+                           **(public_branding_context(get_public_creator_profile(account), account.id) if account else {}))
