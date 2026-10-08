@@ -1,0 +1,13 @@
+{% if site_brand %}
+<header class="creator-brand-header" aria-label="Creator website branding">
+  {% if site_brand.cover_image_url %}
+  <img class="creator-brand-cover" src="{{ site_brand.cover_image_url }}" alt="{{ site_brand.title }} cover">
+  {% endif %}
+  <div class="creator-brand-identity">
+    {% if site_brand.logo_url %}
+    <img class="creator-brand-logo" src="{{ site_brand.logo_url }}" alt="{{ site_brand.title }} logo">
+    {% endif %}
+    <div><h1>{{ site_brand.title }}</h1>{% if site_brand.tagline %}<p>{{ site_brand.tagline }}</p>{% endif %}</div>
+  </div>
+</header>
+{% endif %}
