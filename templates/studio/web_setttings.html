@@ -1,0 +1,52 @@
+{% extends 'studio/base.html' %}
+{% block title %}Website Settings | Creator Studio{% endblock %}
+{% block content %}
+<section style="max-width:900px;margin:auto;padding:24px">
+<h1>Website Settings</h1>
+<p>Manage your public creator website, branding and domain.</p>
+<h2>Branding</h2>
+<form action="{{ url_for('studio.website_branding_save') }}" method="post">
+  <label>Website title <input name="site_title" maxlength="120" value="{{ branding.site_title if branding and branding.site_title else '' }}"></label><br>
+  <label>Tagline <input name="site_tagline" maxlength="255" value="{{ branding.site_tagline if branding and branding.site_tagline else '' }}"></label><br>
+  <label>Primary colour <input type="color" name="primary_color" value="{{ branding.primary_color if branding else '#111318' }}"></label>
+  <label>Accent colour <input type="color" name="accent_color" value="{{ branding.accent_color if branding else '#F4B942' }}"></label>
+  {% if plan_summary.can_use_advanced_branding %}
+  <h3>Premium styling</h3>
+  <label>Background <input type="color" name="background_color" value="{{ branding.background_color if branding else '#FFFFFF' }}"></label>
+  <label>Text <input type="color" name="text_color" value="{{ branding.text_color if branding else '#17191D' }}"></label>
+  <label>Theme <select name="theme"><option value="light" {% if branding and branding.theme == 'light' %}selected{% endif %}>Light</option><option value="dark" {% if branding and branding.theme == 'dark' %}selected{% endif %}>Dark</option></select></label>
+  <label>Font <select name="font_family">{% for f in ['system','sans','serif','mono'] %}<option value="{{ f }}" {% if branding and branding.font_family == f %}selected{% endif %}>{{ f|title }}</option>{% endfor %}</select></label>
+  <label>Footer <input name="footer_text" maxlength="255" value="{{ branding.footer_text if branding and branding.footer_text else '' }}"></label>
+  {% endif %}
+  <button type="submit">Save branding</button>
+</form>
+<h2>Images</h2>
+{% for kind, label in [('logo','Logo'),('favicon','Favicon'),('cover_image','Website cover')] %}
+  <h3>{{ label }}</h3>
+  {% if branding and branding[kind ~ '_url'] %}<img src="{{ branding[kind ~ '_url'] }}" alt="{{ label }}" style="max-width:220px;max-height:120px;object-fit:contain">{% endif %}
+  <form action="{{ url_for('studio.website_media_upload', kind=kind) }}" method="post" enctype="multipart/form-data"><input type="file" name="image" accept="image/*" required><button>Upload</button></form>
+  {% if branding and branding[kind ~ '_url'] %}<form action="{{ url_for('studio.website_media_remove', kind=kind) }}" method="post"><button>Remove</button></form>{% endif %}
+{% endfor %}
+<h2>Your Kalxa subdomain</h2>
+<p><code>{{ expected_subdomain }}</code></p>
+<form action="{{ url_for('studio.website_subdomain_create') }}" method="post"><button>Register / restore subdomain</button></form>
+<p>Subdomain availability depends on wildcard DNS and TLS being configured for the platform.</p>
+<h2>Connected domains</h2>
+{% for domain in domains %}
+  <article style="border:1px solid #ddd;padding:12px;margin:12px 0">
+    <strong>{{ domain.hostname }}</strong> — {{ domain.domain_type }} — {{ domain.verification_status }} — {{ 'active' if domain.is_active else 'inactive' }}
+    {% if domain.domain_type == 'custom' %}
+      {% if domain.verification_status != 'verified' %}
+        <p>Add a DNS TXT record at <code>_kalxa-verification.{{ domain.hostname }}</code> with value:</p><code style="overflow-wrap:anywhere">{{ domain.verification_token }}</code>
+        <form action="{{ url_for('studio.website_domain_verify', domain_id=domain.id) }}" method="post"><button>Verify ownership</button></form>
+      {% else %}<p>Verified. Activation requires DNS routing and TLS provisioning by Kalxa.</p>{% endif %}
+      <form action="{{ url_for('studio.website_domain_remove', domain_id=domain.id) }}" method="post"><button>Disconnect</button></form>
+    {% endif %}
+  </article>
+{% else %}<p>No domains registered yet.</p>{% endfor %}
+{% if plan_summary.can_use_custom_domain %}
+  <h2>Add a custom domain</h2>
+  <form action="{{ url_for('studio.website_domain_add') }}" method="post"><label>Hostname <input name="hostname" placeholder="www.yourdomain.co.za" required></label><button>Add domain</button></form>
+{% else %}<p>Custom domains are available on Premium.</p>{% endif %}
+</section>
+{% endblock %}
