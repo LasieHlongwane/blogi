@@ -1,0 +1,29 @@
+{# Place in <head> of public/home.html, content_detail.html and newsletter_message.html #}
+{% if site_brand %}
+<meta name="theme-color" content="{{ site_brand.primary_color }}">
+<meta name="description" content="{{ site_brand.tagline }}">
+{% if site_brand.favicon_url %}<link rel="icon" href="{{ site_brand.favicon_url }}">{% endif %}
+<style>
+:root {
+  --creator-primary: {{ site_brand.primary_color }};
+  --creator-accent: {{ site_brand.accent_color }};
+  --creator-background: {{ site_brand.background_color }};
+  --creator-text: {{ site_brand.text_color }};
+  /* Optional aliases for existing public CSS */
+  --primary: var(--creator-primary);
+  --accent: var(--creator-accent);
+  --page-bg: var(--creator-background);
+  --text: var(--creator-text);
+}
+body.creator-site { background: var(--creator-background); color: var(--creator-text); }
+body.creator-site[data-creator-font="serif"] { font-family: Georgia, 'Times New Roman', serif; }
+body.creator-site[data-creator-font="mono"] { font-family: ui-monospace, Consolas, monospace; }
+body.creator-site[data-creator-font="sans"] { font-family: Arial, Helvetica, sans-serif; }
+body.creator-site[data-creator-font="system"] { font-family: system-ui, -apple-system, sans-serif; }
+.creator-brand-button { background: var(--creator-primary); color: #fff; border: 0; }
+.creator-brand-link { color: var(--creator-primary); }
+.creator-brand-accent { color: var(--creator-accent); }
+.creator-brand-cover { width:100%;max-height:340px;object-fit:cover;display:block; }
+.creator-brand-logo { width:64px;height:64px;object-fit:contain; }
+</style>
+{% endif %}
