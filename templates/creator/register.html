@@ -1,522 +1,872 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8">
+<!DOCTYPE html>
+<html lang="en">
 
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1"
->
+<head>
 
-<title>
-    Become a Creator
-</title>
+    <meta charset="UTF-8">
 
-<link
-    rel="stylesheet"
-    href="{{ url_for(
-        'static',
-        filename='css/admin.css'
-    ) }}"
->
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
 
-<style>
+    <meta
+        name="theme-color"
+        content="#111318"
+    >
 
-    .creator-plan-section {
-        margin: 28px 0;
-    }
+    <title>
+        Become a Creator | Kalxa
+    </title>
 
-    .creator-plan-heading {
-        margin-bottom: 18px;
-    }
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/admin.css') }}"
+    >
 
-    .creator-plan-heading span {
-        display: block;
-        font-size: 12px;
-        font-weight: 700;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-        opacity: 0.65;
-        margin-bottom: 6px;
-    }
+    <style>
 
-    .creator-plan-heading h2 {
-        margin: 0 0 6px;
-    }
-
-    .creator-plan-heading p {
-        margin: 0;
-        opacity: 0.72;
-    }
-
-    .creator-plan-grid {
-        display: grid;
-        grid-template-columns: repeat(
-            2,
-            minmax(0, 1fr)
-        );
-        gap: 14px;
-    }
-
-    .creator-plan-option {
-        position: relative;
-        display: block;
-        cursor: pointer;
-    }
-
-    .creator-plan-option input {
-        position: absolute;
-        opacity: 0;
-        pointer-events: none;
-    }
-
-    .creator-plan-card {
-        height: 100%;
-        padding: 22px;
-        border: 2px solid #d8dadd;
-        border-radius: 16px;
-        background: #ffffff;
-        transition:
-            border-color 0.2s ease,
-            transform 0.2s ease,
-            box-shadow 0.2s ease;
-    }
-
-    .creator-plan-option:hover
-    .creator-plan-card {
-        transform: translateY(-2px);
-    }
-
-    .creator-plan-option input:checked
-    + .creator-plan-card {
-        border-color: #111318;
-        box-shadow:
-            0 0 0 2px rgba(
-                17,
-                19,
-                24,
-                0.08
-            );
-    }
-
-    .creator-plan-badge {
-        display: inline-block;
-        margin-bottom: 12px;
-        padding: 5px 9px;
-        border-radius: 999px;
-        background: #111318;
-        color: #ffffff;
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-    }
-
-    .creator-plan-card h3 {
-        margin: 0 0 4px;
-        font-size: 20px;
-    }
-
-    .creator-plan-price {
-        margin: 0 0 10px;
-        font-size: 22px;
-        font-weight: 800;
-    }
-
-    .creator-plan-price span {
-        font-size: 13px;
-        font-weight: 500;
-        opacity: 0.65;
-    }
-
-    .creator-plan-positioning {
-        margin: 0 0 18px;
-        font-weight: 600;
-    }
-
-    .creator-plan-features {
-        display: grid;
-        gap: 8px;
-        font-size: 14px;
-    }
-
-    .creator-plan-feature {
-        display: flex;
-        gap: 7px;
-        align-items: flex-start;
-    }
-
-    .creator-plan-feature.locked {
-        opacity: 0.48;
-    }
-
-    .premium-plan-card {
-        background:
-            linear-gradient(
-                145deg,
-                #111318,
-                #262a31
-            );
-        color: #ffffff;
-        border-color: #111318;
-    }
-
-    .premium-plan-card
-    .creator-plan-badge {
-        background: #ffffff;
-        color: #111318;
-    }
-
-    .creator-plan-option input:checked
-    + .premium-plan-card {
-        border-color: #111318;
-        box-shadow:
-            0 0 0 3px rgba(
-                17,
-                19,
-                24,
-                0.18
-            );
-    }
-
-    @media (
-        max-width: 700px
-    ) {
-
-        .creator-plan-grid {
-            grid-template-columns: 1fr;
+        * {
+            box-sizing: border-box;
         }
 
-    }
+        .creator-register-card {
+            width: min(100%, 1000px);
+            max-width: 1000px;
+        }
 
-</style>
+        .creator-register-intro {
+            margin-bottom: 28px;
+        }
 
-</head><body class="login-page"><div class="login-card"><div class="login-heading">
+        .creator-register-intro h1 {
+            margin-bottom: 10px;
+        }
 
-    <span>
-        CREATOR PLATFORM
-    </span>
+        .creator-register-intro p {
+            max-width: 620px;
+            line-height: 1.6;
+        }
 
-    <h1>
-        Create your space.
-    </h1>
+        .creator-register-form {
+            display: grid;
+            gap: 24px;
+        }
 
-    <p>
-        Publish your work, build your audience
-        and choose how far you want to grow.
-    </p>
+        .creator-fields-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .creator-field {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 0;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .creator-field input {
+            width: 100%;
+            min-width: 0;
+            padding: 13px 14px;
+            border: 1px solid #d9dce0;
+            border-radius: 10px;
+            background: #ffffff;
+            color: #111318;
+            font: inherit;
+        }
+
+        .creator-field input:focus {
+            outline: 2px solid #111318;
+            outline-offset: 1px;
+        }
+
+        .creator-field small {
+            font-size: 12px;
+            color: #737881;
+            font-weight: 400;
+        }
+
+        /* ================================================
+           PLAN SECTION
+        ================================================= */
+
+        .creator-plan-section {
+            margin: 8px 0;
+        }
+
+        .creator-plan-heading {
+            margin-bottom: 20px;
+        }
+
+        .creator-plan-heading > span {
+            display: block;
+            margin-bottom: 7px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            opacity: 0.65;
+        }
+
+        .creator-plan-heading h2 {
+            margin: 0 0 8px;
+            font-size: 25px;
+        }
+
+        .creator-plan-heading p {
+            margin: 0;
+            color: #686d75;
+            line-height: 1.6;
+        }
+
+        .creator-plan-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .creator-plan-option {
+            position: relative;
+            display: block;
+            cursor: pointer;
+            min-width: 0;
+        }
+
+        .creator-plan-option > input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            opacity: 0;
+        }
+
+        .creator-plan-card {
+            position: relative;
+            height: 100%;
+            padding: 20px;
+            border: 2px solid #d9dce0;
+            border-radius: 16px;
+            background: #ffffff;
+            transition:
+                border-color 0.2s ease,
+                transform 0.2s ease,
+                box-shadow 0.2s ease;
+        }
+
+        .creator-plan-option:hover .creator-plan-card {
+            transform: translateY(-2px);
+        }
+
+        .creator-plan-option input:checked + .creator-plan-card {
+            border-color: #111318;
+            box-shadow: 0 0 0 3px rgba(17, 19, 24, 0.08);
+        }
+
+        .creator-plan-option input:focus-visible + .creator-plan-card {
+            outline: 3px solid #587bb6;
+            outline-offset: 3px;
+        }
+
+        .creator-plan-badge {
+            display: inline-block;
+            margin-bottom: 16px;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: #edf0f2;
+            color: #111318;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+        }
+
+        .creator-plan-card h3 {
+            margin: 0 0 8px;
+            font-size: 21px;
+        }
+
+        .creator-plan-price {
+            margin: 0 0 6px;
+            font-size: 30px;
+            font-weight: 800;
+            letter-spacing: -0.04em;
+        }
+
+        .creator-plan-price span {
+            font-size: 12px;
+            font-weight: 500;
+            letter-spacing: 0;
+            opacity: 0.7;
+        }
+
+        .creator-plan-positioning {
+            min-height: 42px;
+            margin: 12px 0 18px;
+            font-size: 13px;
+            line-height: 1.5;
+            opacity: 0.8;
+        }
+
+        .creator-plan-features {
+            display: grid;
+            gap: 11px;
+        }
+
+        .creator-plan-feature {
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            font-size: 13px;
+            line-height: 1.45;
+        }
+
+        .creator-plan-feature .check {
+            flex-shrink: 0;
+            font-weight: 800;
+        }
+
+        .creator-plan-feature.locked {
+            opacity: 0.48;
+        }
+
+        .creator-plan-commission {
+            margin-top: 18px;
+            padding: 12px;
+            border-radius: 10px;
+            background: #f1f2f4;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .creator-plan-commission strong {
+            display: block;
+            margin-bottom: 3px;
+            font-size: 15px;
+        }
+
+        /* ================================================
+           STANDARD
+        ================================================= */
+
+        .standard-plan-card {
+            border-color: #aeb4bc;
+        }
+
+        .standard-plan-card .creator-plan-badge {
+            background: #111318;
+            color: #ffffff;
+        }
+
+        /* ================================================
+           PREMIUM
+        ================================================= */
+
+        .premium-plan-card {
+            background: linear-gradient(145deg, #111318, #292d34);
+            border-color: #111318;
+            color: #ffffff;
+        }
+
+        .premium-plan-card .creator-plan-badge {
+            background: #ffffff;
+            color: #111318;
+        }
+
+        .premium-plan-card .creator-plan-commission {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .creator-plan-option input:checked + .premium-plan-card {
+            box-shadow: 0 0 0 3px rgba(17, 19, 24, 0.22);
+        }
+
+        /* ================================================
+           PAYMENT EXPLANATION
+        ================================================= */
+
+        .creator-pricing-note {
+            margin-top: 18px;
+            padding: 15px 17px;
+            border: 1px solid #e0e3e6;
+            border-radius: 12px;
+            background: #f7f8f9;
+            color: #535962;
+            font-size: 13px;
+            line-height: 1.65;
+        }
+
+        .creator-pricing-note strong {
+            color: #111318;
+        }
+
+        /* ================================================
+           SUBMIT
+        ================================================= */
+
+        .creator-register-submit {
+            width: 100%;
+            padding: 15px 20px;
+            border: 0;
+            border-radius: 11px;
+            background: #111318;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .creator-register-submit:hover {
+            background: #292d34;
+        }
+
+        .creator-register-footer {
+            margin-top: 24px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .creator-register-footer a {
+            color: #111318;
+            font-weight: 700;
+        }
+
+        @media (max-width: 850px) {
+
+            .creator-plan-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .creator-plan-positioning {
+                min-height: 0;
+            }
+
+        }
+
+        @media (max-width: 600px) {
+
+            .creator-fields-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .creator-plan-card {
+                padding: 18px;
+            }
+
+            .creator-plan-heading h2 {
+                font-size: 22px;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+<body class="login-page">
+
+<div class="login-card creator-register-card">
+
+    <!-- ================================================
+         HEADER
+    ================================================= -->
+
+    <div class="login-heading creator-register-intro">
+
+        <span>
+            KALXA CREATOR PLATFORM
+        </span>
+
+        <h1>
+            Create your space.
+        </h1>
+
+        <p>
+            Publish your stories, grow your audience
+            and earn support from your community.
+            Start free and upgrade whenever you're ready.
+        </p>
+
+    </div>
+
+    <!-- ================================================
+         FLASH MESSAGES
+    ================================================= -->
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+
+        {% if messages %}
+
+            <div class="flash-stack">
+
+                {% for category, message in messages %}
+
+                    <div class="flash-message {{ category }}">
+                        {{ message }}
+                    </div>
+
+                {% endfor %}
+
+            </div>
+
+        {% endif %}
+
+    {% endwith %}
+
+    <!-- ================================================
+         SELECTED PLAN
+    ================================================= -->
+
+    {% set current_plan = request.form.get('plan', selected_plan|default('free', true)) %}
+
+    <form
+        method="POST"
+        action="{{ url_for('creator_auth.register') }}"
+        class="creator-register-form"
+    >
+
+        {# Include your application's CSRF field here if enabled. #}
+
+        <!-- ============================================
+             PERSONAL DETAILS
+        ============================================= -->
+
+        <div class="creator-fields-grid">
+
+            <label class="creator-field">
+
+                Display name
+
+                <input
+                    type="text"
+                    name="display_name"
+                    maxlength="120"
+                    required
+                    autocomplete="name"
+                    value="{{ request.form.get('display_name', '') }}"
+                    placeholder="Your creator name"
+                >
+
+            </label>
+
+            <label class="creator-field">
+
+                Username
+
+                <input
+                    type="text"
+                    name="username"
+                    minlength="3"
+                    maxlength="80"
+                    required
+                    autocomplete="username"
+                    pattern="[A-Za-z0-9_]{3,80}"
+                    title="Use letters, numbers and underscores only."
+                    value="{{ request.form.get('username', '') }}"
+                    placeholder="yourusername"
+                >
+
+                <small>
+                    Your username will identify your creator page.
+                </small>
+
+            </label>
+
+        </div>
+
+        <label class="creator-field">
+
+            Email address
+
+            <input
+                type="email"
+                name="email"
+                maxlength="255"
+                required
+                autocomplete="email"
+                value="{{ request.form.get('email', '') }}"
+                placeholder="you@example.com"
+            >
+
+        </label>
+
+        <!-- ================================================
+             CREATOR PLANS
+        ================================================= -->
+
+        <section class="creator-plan-section">
+
+            <div class="creator-plan-heading">
+
+                <span>
+                    CHOOSE YOUR PLAN
+                </span>
+
+                <h2>
+                    Your space. Your choice.
+                </h2>
+
+                <p>
+                    One-time activation for paid plans.
+                    No monthly subscription fees.
+                </p>
+
+            </div>
+
+            <div class="creator-plan-grid">
+
+                <!-- ========================================
+                     FREE
+                ========================================= -->
+
+                <label class="creator-plan-option">
+
+                    <input
+                        type="radio"
+                        name="plan"
+                        value="free"
+                        {% if current_plan == 'free' %}
+                            checked
+                        {% endif %}
+                    >
+
+                    <div class="creator-plan-card">
+
+                        <span class="creator-plan-badge">
+                            START HERE
+                        </span>
+
+                        <h3>
+                            Free
+                        </h3>
+
+                        <p class="creator-plan-price">
+                            R0
+                            <span>
+                                / forever
+                            </span>
+                        </p>
+
+                        <p class="creator-plan-positioning">
+                            Everything you need to start sharing your work.
+                        </p>
+
+                        <div class="creator-plan-features">
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                Publish stories, reels and vlogs
+                            </div>
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                Email newsletter
+                            </div>
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                Basic analytics
+                            </div>
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                Kalxa creator page
+                            </div>
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                Buy Me a Coffee
+                            </div>
+
+                            <div class="creator-plan-feature locked">
+                                <span>—</span>
+                                Exclusive paid content
+                            </div>
+
+                            <div class="creator-plan-feature locked">
+                                <span>—</span>
+                                Fundraising campaigns
+                            </div>
+
+                        </div>
+
+                        <div class="creator-plan-commission">
+
+                            <strong>
+                                23% Kalxa commission
+                            </strong>
+
+                            On fan contributions.
+                            Payment processing fees may also apply.
+
+                        </div>
+
+                    </div>
+
+                </label>
+
+                <!-- ========================================
+                     STANDARD
+                ========================================= -->
+
+                <label class="creator-plan-option">
+
+                    <input
+                        type="radio"
+                        name="plan"
+                        value="standard"
+                        {% if current_plan == 'standard' %}
+                            checked
+                        {% endif %}
+                    >
+
+                    <div class="creator-plan-card standard-plan-card">
+
+                        <span class="creator-plan-badge">
+                            GROW YOUR INCOME
+                        </span>
+
+                        <h3>
+                            Standard
+                        </h3>
+
+                        <p class="creator-plan-price">
+                            R100
+                            <span>
+                                / once-off
+                            </span>
+                        </p>
+
+                        <p class="creator-plan-positioning">
+                            Unlock monetization tools and keep more
+                            of your fan contributions.
+                        </p>
+
+                        <div class="creator-plan-features">
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                Everything in Free
+                            </div>
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                Exclusive content
+                            </div>
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                Buy Me a Coffee
+                            </div>
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                Creator payout account
+                            </div>
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                No recurring platform fee
+                            </div>
+
+                            <div class="creator-plan-feature locked">
+                                <span>—</span>
+                                Fundraising campaigns
+                            </div>
+
+                            <div class="creator-plan-feature locked">
+                                <span>—</span>
+                                Custom domains
+                            </div>
+
+                        </div>
+
+                        <div class="creator-plan-commission">
+
+                            <strong>
+                                3% Kalxa commission
+                            </strong>
+
+                            On fan contributions.
+                            Payment processing fees may also apply.
+
+                        </div>
+
+                    </div>
+
+                </label>
+
+                <!-- ========================================
+                     PREMIUM
+                ========================================= -->
+
+                <label class="creator-plan-option">
+
+                    <input
+                        type="radio"
+                        name="plan"
+                        value="premium"
+                        {% if current_plan == 'premium' %}
+                            checked
+                        {% endif %}
+                    >
+
+                    <div class="creator-plan-card premium-plan-card">
+
+                        <span class="creator-plan-badge">
+                            FULL CREATOR EXPERIENCE
+                        </span>
+
+                        <h3>
+                            Premium
+                        </h3>
+
+                        <p class="creator-plan-price">
+                            R150
+                            <span>
+                                / once-off
+                            </span>
+                        </p>
+
+                        <p class="creator-plan-positioning">
+                            More ways to earn, grow and build
+                            your own creator brand.
+                        </p>
+
+                        <div class="creator-plan-features">
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                Everything in Standard
+                            </div>
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                Paid memberships
+                            </div>
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                Fundraising campaigns
+                            </div>
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                Advanced analytics
+                            </div>
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                Custom domains
+                            </div>
+
+                            <div class="creator-plan-feature">
+                                <span class="check">✓</span>
+                                Advanced branding
+                            </div>
+
+                        </div>
+
+                        <div class="creator-plan-commission">
+
+                            <strong>
+                                3% Kalxa commission
+                            </strong>
+
+                            On applicable fan payments.
+                            Payment processing fees may also apply.
+
+                        </div>
+
+                    </div>
+
+                </label>
+
+            </div>
+
+            <div class="creator-pricing-note">
+
+                <strong>
+                    How activation works:
+                </strong>
+
+                Your account starts with Free access.
+                If you select Standard or Premium, you'll
+                complete a secure one-time payment through
+                Yoco before the paid features are activated.
+
+                You can upgrade from Standard to Premium
+                later for R50 once-off.
+
+            </div>
+
+        </section>
+
+        <!-- ================================================
+             PASSWORD
+        ================================================= -->
+
+        <div class="creator-fields-grid">
+
+            <label class="creator-field">
+
+                Password
+
+                <input
+                    type="password"
+                    name="password"
+                    minlength="8"
+                    required
+                    autocomplete="new-password"
+                    placeholder="At least 8 characters"
+                >
+
+            </label>
+
+            <label class="creator-field">
+
+                Confirm password
+
+                <input
+                    type="password"
+                    name="confirm_password"
+                    minlength="8"
+                    required
+                    autocomplete="new-password"
+                    placeholder="Repeat your password"
+                >
+
+            </label>
+
+        </div>
+
+        <!-- ================================================
+             SUBMIT
+        ================================================= -->
+
+        <button
+            type="submit"
+            class="creator-register-submit"
+        >
+            Create my creator account
+        </button>
+
+    </form>
+
+    <div class="creator-register-footer">
+
+        Already have an account?
+
+        <a href="{{ url_for('creator_auth.login') }}">
+            Sign in
+        </a>
+
+    </div>
 
 </div>
 
+</body>
 
-{% with messages = get_flashed_messages(
-    with_categories=true
-) %}
-
-    {% if messages %}
-
-        <div class="flash-stack">
-
-            {% for category, message in messages %}
-
-                <div
-                    class="flash-message {{ category }}"
-                >
-                    {{ message }}
-                </div>
-
-            {% endfor %}
-
-        </div>
-
-    {% endif %}
-
-{% endwith %}
-
-
-<form
-    method="POST"
-    class="login-form"
->
-
-
-    <label>
-
-        Display name
-
-        <input
-            type="text"
-            name="display_name"
-            maxlength="120"
-            required
-            value="{{ request.form.get(
-                'display_name',
-                ''
-            ) }}"
-        >
-
-    </label>
-
-
-    <label>
-
-        Username
-
-        <input
-            type="text"
-            name="username"
-            maxlength="80"
-            required
-            autocomplete="username"
-            value="{{ request.form.get(
-                'username',
-                ''
-            ) }}"
-        >
-
-    </label>
-
-
-    <label>
-
-        Email
-
-        <input
-            type="email"
-            name="email"
-            maxlength="255"
-            required
-            autocomplete="email"
-            value="{{ request.form.get(
-                'email',
-                ''
-            ) }}"
-        >
-
-    </label>
-
-
-    <!-- =================================================
-         CREATOR PLAN
-    ================================================== -->
-
-    <section class="creator-plan-section">
-
-        <div class="creator-plan-heading">
-
-            <span>
-                CHOOSE YOUR PLAN
-            </span>
-
-            <h2>
-                How do you want to grow?
-            </h2>
-
-            <p>
-                You can upgrade later as your
-                audience grows.
-            </p>
-
-        </div>
-
-
-        <div class="creator-plan-grid">
-
-
-            <!-- =========================================
-                 STANDARD
-            ========================================== -->
-
-            <label class="creator-plan-option">
-
-                <input
-                    type="radio"
-                    name="plan"
-                    value="standard"
-
-                    {% if
-                        request.form.get(
-                            'plan',
-                            'standard'
-                        )
-                        == 'standard'
-                    %}
-                        checked
-                    {% endif %}
-                >
-
-                <div class="creator-plan-card">
-
-                    <span class="creator-plan-badge">
-                        STANDARD
-                    </span>
-
-                    <h3>
-                        Standard
-                    </h3>
-
-                    <p class="creator-plan-price">
-                        R79
-                        <span>
-                            /month
-                        </span>
-                    </p>
-
-                    <p class="creator-plan-positioning">
-                        Build your audience
-                    </p>
-
-                    <div class="creator-plan-features">
-
-                        <div class="creator-plan-feature">
-                            ✓ Publishing
-                        </div>
-
-                        <div class="creator-plan-feature">
-                            ✓ Newsletter
-                        </div>
-
-                        <div class="creator-plan-feature">
-                            ✓ Analytics
-                        </div>
-
-                        <div class="creator-plan-feature locked">
-                            🔒 Exclusive content
-                        </div>
-
-                        <div class="creator-plan-feature locked">
-                            🔒 Fan support
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </label>
-
-
-
-            <!-- =========================================
-                 PREMIUM
-            ========================================== -->
-
-            <label class="creator-plan-option">
-
-                <input
-                    type="radio"
-                    name="plan"
-                    value="premium"
-
-                    {% if
-                        request.form.get('plan')
-                        == 'premium'
-                    %}
-                        checked
-                    {% endif %}
-                >
-
-                <div
-                    class="
-                        creator-plan-card
-                        premium-plan-card
-                    "
-                >
-
-                    <span class="creator-plan-badge">
-                        PREMIUM
-                    </span>
-
-                    <h3>
-                        Premium
-                    </h3>
-
-                    <p class="creator-plan-price">
-                        R149
-                        <span>
-                            /month
-                        </span>
-                    </p>
-
-                    <p class="creator-plan-positioning">
-                        Earn from your audience
-                    </p>
-
-                    <div class="creator-plan-features">
-
-                        <div class="creator-plan-feature">
-                            ✓ Publishing
-                        </div>
-
-                        <div class="creator-plan-feature">
-                            ✓ Newsletter
-                        </div>
-
-                        <div class="creator-plan-feature">
-                            ✓ Advanced analytics
-                        </div>
-
-                        <div class="creator-plan-feature">
-                            ✓ Exclusive content
-                        </div>
-
-                        <div class="creator-plan-feature">
-                            ✓ Fan support
-                        </div>
-
-                    </div>
-
-                </div>
-
-            </label>
-
-
-        </div>
-
-    </section>
-
-
-    <label>
-
-        Password
-
-        <input
-            type="password"
-            name="password"
-            minlength="8"
-            required
-            autocomplete="new-password"
-        >
-
-    </label>
-
-
-    <label>
-
-        Confirm password
-
-        <input
-            type="password"
-            name="confirm_password"
-            minlength="8"
-            required
-            autocomplete="new-password"
-        >
-
-    </label>
-
-
-    <button type="submit">
-        Create creator account
-    </button>
-
-
-</form>
-
-
-<p>
-    Already registered?
-
-    <a href="{{ url_for(
-        'creator_auth.login'
-    ) }}">
-        Sign in
-    </a>
-</p>
-
-</div></body></html>
+</html>
