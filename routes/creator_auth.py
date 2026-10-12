@@ -1,1182 +1,185 @@
-# ============================================================
-# CREATOR PLATFORM
-# CREATOR AUTHENTICATION
-# ============================================================
+"""Creator registration/login for one-time activation plans.
 
+Free creators enter Studio immediately; paid plans require verified Yoco
+activation. Existing legacy pending accounts retain their approval state.
+"""
 import re
-
 from functools import wraps
-
-from flask import (
-    Blueprint,
-    render_template,
-    request,
-    redirect,
-    url_for,
-    flash,
-    session,
-    current_app,
-)
-
+from sqlalchemy.exc import IntegrityError
+from flask import Blueprint, render_template, request, redirect, url_for, flash, session, current_app
 from extensions import db
+from models import CreatorAccount, CreatorProfile, utc_now
 
-from models import (
-    CreatorAccount,
-    CreatorProfile,
-    utc_now,
-)
-
-from services.plan_service import (
-    PLAN_STANDARD,
-    VALID_PLANS,
-    PLAN_PRICES,
-    normalize_plan,
-)
-
-from services.subscription_service import (
-    enforce_subscription_lifecycle,
-    creator_subscription_is_current,
-    creator_grace_days_remaining,
-    get_creator_subscription,
-)
+creator_auth_bp = Blueprint('creator_auth', __name__, url_prefix='/creator')
+PLAN_PRICES = {'free': 0, 'standard': 100, 'premium': 150}
+VALID_PLANS = frozenset(PLAN_PRICES)
 
 
-# ============================================================
-# BLUEPRINT
-# ============================================================
-
-creator_auth_bp = Blueprint(
-    "creator_auth",
-    __name__,
-    url_prefix="/creator",
-)
-
-
-# ============================================================
-# HELPERS
-# ============================================================
-
-def normalize_username(
-    value,
-):
-
-    value = (
-        value
-        .strip()
-        .lower()
-    )
-
-    value = re.sub(
-        r"[^a-z0-9_]+",
-        "",
-        value,
-    )
-
-    return value
+def normalize_username(value):
+    return re.sub(r'[^a-z0-9_]+', '', str(value or '').strip().lower())
 
 
 def get_logged_in_creator():
-
-    creator_id = session.get(
-        "creator_account_id"
-    )
-
-    if not creator_id:
-
-        return None
-
-    return db.session.get(
-        CreatorAccount,
-        creator_id,
-    )
+    creator_id = session.get('creator_account_id')
+    return db.session.get(CreatorAccount, creator_id) if creator_id else None
 
 
-# ============================================================
-# ENFORCE CREATOR SUBSCRIPTION STATE
-# ============================================================
-
-def refresh_creator_subscription(
-    creator,
-):
-    """
-    Evaluate the creator's current subscription lifecycle
-    and persist any state transition.
-
-    Possible automatic transitions:
-
-        active
-          ↓
-        past_due
-          ↓
-        expired
-
-    This helper does not activate subscriptions.
-
-    Activation/renewal remains controlled by payment and
-    platform approval.
-    """
-
-    try:
-
-        subscription = (
-            enforce_subscription_lifecycle(
-                creator
-            )
-        )
-
-        db.session.commit()
-
-        return subscription
-
-    except Exception:
-
-        db.session.rollback()
-
-        current_app.logger.exception(
-            (
-                "Unable to refresh creator "
-                "subscription lifecycle. "
-                "creator_account_id=%s"
-            ),
-            creator.id,
-        )
-
-        return None
+def refresh_creator_subscription(creator):
+    """Compatibility shim: no expiry enforcement for one-time plans."""
+    return getattr(creator, 'platform_subscription', None)
 
 
-# ============================================================
-# LOGIN REQUIRED
-# ============================================================
+def creator_can_enter_studio(creator):
+    if not creator or creator.account_status != 'active':
+        return False
+    if creator.plan == 'free':
+        return True
+    return bool(creator.plan in ('standard', 'premium')
+                and creator.payment_status == 'paid'
+                and creator.registration_paid_at is not None)
 
-def creator_login_required(
-    view,
-):
 
+def creator_login_required(view):
     @wraps(view)
-    def wrapped_view(
-        *args,
-        **kwargs,
-    ):
-
-        creator = (
-            get_logged_in_creator()
-        )
-
-        if not creator:
-
-            session.pop(
-                "creator_account_id",
-                None,
-            )
-
-            flash(
-                "Please sign in to continue.",
-                "warning",
-            )
-
-            return redirect(
-                url_for(
-                    "creator_auth.login"
-                )
-            )
-
-        return view(
-            *args,
-            **kwargs,
-        )
-
+    def wrapped_view(*args, **kwargs):
+        creator = get_logged_in_creator()
+        if creator is None:
+            session.pop('creator_account_id', None)
+            flash('Please sign in to continue.', 'warning')
+            return redirect(url_for('creator_auth.login'))
+        return view(*args, **kwargs)
     return wrapped_view
 
 
-# ============================================================
-# CREATOR CAN ENTER STUDIO
-# ============================================================
-
-def creator_can_enter_studio(
-    creator,
-):
-    """
-    Return True when:
-
-        account_status == active
-
-    AND the subscription is currently usable.
-
-    Subscription access includes:
-
-        active
-        past_due while grace period remains
-    """
-
-    if (
-        creator.account_status
-        != "active"
-    ):
-
-        return False
-
-    return creator_subscription_is_current(
-        creator
-    )
+def _register_page(selected_plan):
+    return render_template('creator/register.html', selected_plan=selected_plan,
+                           plan_prices=PLAN_PRICES)
 
 
-# ============================================================
-# REGISTER
-# ============================================================
-
-@creator_auth_bp.route(
-    "/register",
-    methods=[
-        "GET",
-        "POST",
-    ],
-)
+@creator_auth_bp.route('/register', methods=['GET', 'POST'])
 def register():
+    existing = get_logged_in_creator()
+    if existing:
+        return redirect(url_for('studio.dashboard') if creator_can_enter_studio(existing)
+                        else url_for('creator_auth.pending'))
 
-    # --------------------------------------------------------
-    # ALREADY LOGGED IN
-    # --------------------------------------------------------
-
-    existing_creator = (
-        get_logged_in_creator()
-    )
-
-    if existing_creator:
-
-        refresh_creator_subscription(
-            existing_creator
-        )
-
-        if creator_can_enter_studio(
-            existing_creator
-        ):
-
-            return redirect(
-                url_for(
-                    "studio.dashboard"
-                )
-            )
-
-        return redirect(
-            url_for(
-                "creator_auth.pending"
-            )
-        )
-
-    # --------------------------------------------------------
-    # DEFAULT PLAN
-    # --------------------------------------------------------
-
-    selected_plan = (
-        request.args
-        .get(
-            "plan",
-            PLAN_STANDARD,
-        )
-        .strip()
-        .lower()
-    )
-
+    selected_plan = str(request.values.get('plan') or 'free').strip().lower()
     if selected_plan not in VALID_PLANS:
-
-        selected_plan = (
-            PLAN_STANDARD
-        )
-
-    selected_plan = normalize_plan(
-        selected_plan,
-        default=PLAN_STANDARD,
-    )
-
-    # --------------------------------------------------------
-    # FORM
-    # --------------------------------------------------------
-
-    if request.method == "POST":
-
-        display_name = (
-            request.form
-            .get(
-                "display_name",
-                "",
-            )
-            .strip()
-        )
-
-        username = normalize_username(
-            request.form.get(
-                "username",
-                "",
-            )
-        )
-
-        email = (
-            request.form
-            .get(
-                "email",
-                "",
-            )
-            .strip()
-            .lower()
-        )
-
-        password = (
-            request.form
-            .get(
-                "password",
-                "",
-            )
-        )
-
-        confirm_password = (
-            request.form
-            .get(
-                "confirm_password",
-                "",
-            )
-        )
-
-        selected_plan = (
-            request.form
-            .get(
-                "plan",
-                PLAN_STANDARD,
-            )
-            .strip()
-            .lower()
-        )
-
-        # ====================================================
-        # PLAN VALIDATION
-        # ====================================================
-
-        if (
-            selected_plan
-            not in VALID_PLANS
-        ):
-
-            flash(
-                "Choose a valid creator plan.",
-                "error",
-            )
-
-            return render_template(
-                "creator/register.html",
-                selected_plan=(
-                    PLAN_STANDARD
-                ),
-                plan_prices=(
-                    PLAN_PRICES
-                ),
-            )
-
-        selected_plan = normalize_plan(
-            selected_plan,
-            default=PLAN_STANDARD,
-        )
-
-        # ====================================================
-        # DISPLAY NAME
-        # ====================================================
-
-        if not display_name:
-
-            flash(
-                "Enter your display name.",
-                "error",
-            )
-
-            return render_template(
-                "creator/register.html",
-                selected_plan=(
-                    selected_plan
-                ),
-                plan_prices=(
-                    PLAN_PRICES
-                ),
-            )
-
-        if (
-            len(display_name)
-            > 120
-        ):
-
-            flash(
-                "Display name is too long.",
-                "error",
-            )
-
-            return render_template(
-                "creator/register.html",
-                selected_plan=(
-                    selected_plan
-                ),
-                plan_prices=(
-                    PLAN_PRICES
-                ),
-            )
-
-        # ====================================================
-        # USERNAME
-        # ====================================================
-
-        if not username:
-
-            flash(
-                "Choose a username.",
-                "error",
-            )
-
-            return render_template(
-                "creator/register.html",
-                selected_plan=(
-                    selected_plan
-                ),
-                plan_prices=(
-                    PLAN_PRICES
-                ),
-            )
-
-        if (
-            len(username)
-            < 3
-        ):
-
-            flash(
-                (
-                    "Username must contain "
-                    "at least 3 characters."
-                ),
-                "error",
-            )
-
-            return render_template(
-                "creator/register.html",
-                selected_plan=(
-                    selected_plan
-                ),
-                plan_prices=(
-                    PLAN_PRICES
-                ),
-            )
-
-        if (
-            len(username)
-            > 80
-        ):
-
-            flash(
-                "Username is too long.",
-                "error",
-            )
-
-            return render_template(
-                "creator/register.html",
-                selected_plan=(
-                    selected_plan
-                ),
-                plan_prices=(
-                    PLAN_PRICES
-                ),
-            )
-
-        # ====================================================
-        # EMAIL
-        # ====================================================
-
-        if (
-            not email
-            or "@" not in email
-            or "." not in (
-                email.split("@")[-1]
-            )
-        ):
-
-            flash(
-                (
-                    "Enter a valid "
-                    "email address."
-                ),
-                "error",
-            )
-
-            return render_template(
-                "creator/register.html",
-                selected_plan=(
-                    selected_plan
-                ),
-                plan_prices=(
-                    PLAN_PRICES
-                ),
-            )
-
-        if (
-            len(email)
-            > 255
-        ):
-
-            flash(
-                (
-                    "Email address "
-                    "is too long."
-                ),
-                "error",
-            )
-
-            return render_template(
-                "creator/register.html",
-                selected_plan=(
-                    selected_plan
-                ),
-                plan_prices=(
-                    PLAN_PRICES
-                ),
-            )
-
-        # ====================================================
-        # PASSWORD
-        # ====================================================
-
-        if (
-            len(password)
-            < 8
-        ):
-
-            flash(
-                (
-                    "Password must contain "
-                    "at least 8 characters."
-                ),
-                "error",
-            )
-
-            return render_template(
-                "creator/register.html",
-                selected_plan=(
-                    selected_plan
-                ),
-                plan_prices=(
-                    PLAN_PRICES
-                ),
-            )
-
-        if (
-            password
-            != confirm_password
-        ):
-
-            flash(
-                "Passwords do not match.",
-                "error",
-            )
-
-            return render_template(
-                "creator/register.html",
-                selected_plan=(
-                    selected_plan
-                ),
-                plan_prices=(
-                    PLAN_PRICES
-                ),
-            )
-
-        # ====================================================
-        # DUPLICATE USERNAME
-        # ====================================================
-
-        duplicate_username = (
-            CreatorAccount.query
-            .filter(
-                db.func.lower(
-                    CreatorAccount.username
-                )
-                == username
-            )
-            .first()
-        )
-
-        if duplicate_username:
-
-            flash(
-                (
-                    "That username is "
-                    "already taken."
-                ),
-                "error",
-            )
-
-            return render_template(
-                "creator/register.html",
-                selected_plan=(
-                    selected_plan
-                ),
-                plan_prices=(
-                    PLAN_PRICES
-                ),
-            )
-
-        duplicate_profile = (
-            CreatorProfile.query
-            .filter(
-                db.func.lower(
-                    CreatorProfile.username
-                )
-                == username
-            )
-            .first()
-        )
-
-        if duplicate_profile:
-
-            flash(
-                (
-                    "That username is "
-                    "already taken."
-                ),
-                "error",
-            )
-
-            return render_template(
-                "creator/register.html",
-                selected_plan=(
-                    selected_plan
-                ),
-                plan_prices=(
-                    PLAN_PRICES
-                ),
-            )
-
-        # ====================================================
-        # DUPLICATE EMAIL
-        # ====================================================
-
-        duplicate_email = (
-            CreatorAccount.query
-            .filter(
-                db.func.lower(
-                    CreatorAccount.email
-                )
-                == email
-            )
-            .first()
-        )
-
-        if duplicate_email:
-
-            flash(
-                (
-                    "An account already exists "
-                    "for that email address."
-                ),
-                "error",
-            )
-
-            return render_template(
-                "creator/register.html",
-                selected_plan=(
-                    selected_plan
-                ),
-                plan_prices=(
-                    PLAN_PRICES
-                ),
-            )
-
-        # ====================================================
-        # CREATE ACCOUNT
-        # ====================================================
-
-        creator = CreatorAccount(
-            username=username,
-            email=email,
-            plan=selected_plan,
-
-            account_status=(
-                "pending_payment"
-            ),
-
-            payment_status=(
-                "unpaid"
-            ),
-
-            subscription_status=(
-                "inactive"
-            ),
-        )
-
-        creator.set_password(
-            password
-        )
-
-        db.session.add(
-            creator
-        )
-
-        # Need creator ID before profile.
-        db.session.flush()
-
-        # ====================================================
-        # CREATE PROFILE
-        # ====================================================
-
-        profile = CreatorProfile(
-            creator_account_id=(
-                creator.id
-            ),
-            display_name=(
-                display_name
-            ),
-            username=username,
-            tagline=None,
-            bio=None,
-            profile_image_url=None,
-            intro_reel_url=None,
-            instagram_url=None,
-            tiktok_url=None,
-            youtube_url=None,
-        )
-
-        db.session.add(
-            profile
-        )
-
+        selected_plan = 'free'
+    if request.method == 'GET':
+        return _register_page(selected_plan)
+
+    display_name = str(request.form.get('display_name') or '').strip()
+    username = normalize_username(request.form.get('username'))
+    email = str(request.form.get('email') or '').strip().lower()
+    password = request.form.get('password') or ''
+    confirmation = request.form.get('confirm_password') or ''
+    if not (1 <= len(display_name) <= 120):
+        flash('Enter a display name of up to 120 characters.', 'error')
+    elif not (3 <= len(username) <= 80):
+        flash('Username must be 3–80 letters, digits or underscores.', 'error')
+    elif len(email) > 255 or not re.fullmatch(r'[^\s@]+@[^\s@]+\.[^\s@]+', email):
+        flash('Enter a valid email address.', 'error')
+    elif len(password) < 8:
+        flash('Password must contain at least 8 characters.', 'error')
+    elif password != confirmation:
+        flash('Passwords do not match.', 'error')
+    elif (CreatorAccount.query.filter(db.func.lower(CreatorAccount.username) == username).first()
+          or CreatorProfile.query.filter(db.func.lower(CreatorProfile.username) == username).first()):
+        flash('That username is already taken.', 'error')
+    elif CreatorAccount.query.filter(db.func.lower(CreatorAccount.email) == email).first():
+        flash('An account already exists for that email address.', 'error')
+    else:
+        # A requested paid plan is an INTENT, not an entitlement. Persist
+        # free until the Yoco webhook confirms the paid activation.
+        creator = CreatorAccount(username=username, email=email, plan='free',
+                                 account_status='active', payment_status='unpaid',
+                                 subscription_status='inactive')
+        creator.set_password(password)
         try:
-
+            db.session.add(creator)
+            db.session.flush()
+            db.session.add(CreatorProfile(creator_account_id=creator.id,
+                                          display_name=display_name, username=username))
             db.session.commit()
-
-        except Exception:
-
+        except IntegrityError:
             db.session.rollback()
-            raise
-
-        # ====================================================
-        # LOGIN NEW CREATOR
-        # ====================================================
-
+            flash('That username or email is already registered.', 'error')
+            return _register_page(selected_plan)
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception('Creator registration failed')
+            flash('Registration is temporarily unavailable.', 'error')
+            return _register_page(selected_plan)
         session.clear()
-
-        session[
-            "creator_account_id"
-        ] = creator.id
-
-        flash(
-            (
-                "Your creator account has "
-                "been created. "
-                f"You selected the "
-                f"{selected_plan.title()} plan."
-            ),
-            "success",
-        )
-
-        return redirect(
-            url_for(
-                "creator_auth.pending"
-            )
-        )
-
-    return render_template(
-        "creator/register.html",
-        selected_plan=(
-            selected_plan
-        ),
-        plan_prices=(
-            PLAN_PRICES
-        ),
-    )
+        session['creator_account_id'] = creator.id
+        if selected_plan in ('standard', 'premium'):
+            # Session hint only; payment route still validates plan and price.
+            session['requested_creator_plan'] = selected_plan
+            flash('Your free account is ready. Activate your selected paid plan when ready.', 'success')
+            return redirect(url_for('creator_auth.pending'))
+        flash('Your free creator account is ready.', 'success')
+        return redirect(url_for('studio.dashboard'))
+    return _register_page(selected_plan)
 
 
-# ============================================================
-# LOGIN
-# ============================================================
-
-@creator_auth_bp.route(
-    "/login",
-    methods=[
-        "GET",
-        "POST",
-    ],
-)
+@creator_auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-
-    creator = (
-        get_logged_in_creator()
-    )
-
-    # --------------------------------------------------------
-    # ALREADY LOGGED IN
-    # --------------------------------------------------------
-
-    if creator:
-
-        refresh_creator_subscription(
-            creator
-        )
-
-        if creator_can_enter_studio(
-            creator
-        ):
-
-            return redirect(
-                url_for(
-                    "studio.dashboard"
-                )
-            )
-
-        return redirect(
-            url_for(
-                "creator_auth.pending"
-            )
-        )
-
-    # --------------------------------------------------------
-    # LOGIN FORM
-    # --------------------------------------------------------
-
-    if request.method == "POST":
-
-        identity = (
-            request.form
-            .get(
-                "identity",
-                "",
-            )
-            .strip()
-            .lower()
-        )
-
-        password = (
-            request.form
-            .get(
-                "password",
-                "",
-            )
-        )
-
-        if (
-            not identity
-            or not password
-        ):
-
-            flash(
-                (
-                    "Enter your username/email "
-                    "and password."
-                ),
-                "error",
-            )
-
-            return render_template(
-                "creator/login.html"
-            )
-
-        creator = (
-            CreatorAccount.query
-            .filter(
-                db.or_(
-                    db.func.lower(
-                        CreatorAccount.username
-                    )
-                    == identity,
-
-                    db.func.lower(
-                        CreatorAccount.email
-                    )
-                    == identity,
-                )
-            )
-            .first()
-        )
-
-        if (
-            not creator
-            or not creator.check_password(
-                password
-            )
-        ):
-
-            flash(
-                "Invalid login details.",
-                "error",
-            )
-
-            return render_template(
-                "creator/login.html"
-            )
-
-        # ----------------------------------------------------
-        # REJECTED
-        # ----------------------------------------------------
-
-        if (
-            creator.account_status
-            == "rejected"
-        ):
-
-            flash(
-                (
-                    "This creator account "
-                    "was not approved."
-                ),
-                "error",
-            )
-
-            return render_template(
-                "creator/login.html"
-            )
-
-        # ----------------------------------------------------
-        # SUSPENDED
-        # ----------------------------------------------------
-
-        if (
-            creator.account_status
-            == "suspended"
-        ):
-
-            flash(
-                (
-                    "This creator account "
-                    "is currently suspended."
-                ),
-                "error",
-            )
-
-            return render_template(
-                "creator/login.html"
-            )
-
-        # ----------------------------------------------------
-        # LOGIN
-        # ----------------------------------------------------
-
-        session.clear()
-
-        session[
-            "creator_account_id"
-        ] = creator.id
-
-        creator.last_login_at = (
-            utc_now()
-        )
-
+    existing = get_logged_in_creator()
+    if existing:
+        return redirect(url_for('studio.dashboard') if creator_can_enter_studio(existing)
+                        else url_for('creator_auth.pending'))
+    if request.method == 'GET':
+        return render_template('creator/login.html')
+    identity = str(request.form.get('identity') or '').strip().lower()
+    password = request.form.get('password') or ''
+    creator = (CreatorAccount.query.filter(db.or_(
+        db.func.lower(CreatorAccount.username) == identity,
+        db.func.lower(CreatorAccount.email) == identity)).first()) if identity else None
+    if not creator or not password or not creator.check_password(password):
+        flash('Invalid login details.', 'error')
+        return render_template('creator/login.html')
+    if creator.account_status in ('rejected', 'suspended'):
+        flash('This account is not currently available.', 'error')
+        return render_template('creator/login.html')
+    session.clear()
+    session['creator_account_id'] = creator.id
+    creator.last_login_at = utc_now()
+    try:
         db.session.commit()
-
-        # ----------------------------------------------------
-        # REFRESH SUBSCRIPTION LIFECYCLE
-        # ----------------------------------------------------
-
-        refresh_creator_subscription(
-            creator
-        )
-
-        # ----------------------------------------------------
-        # STUDIO ACCESS
-        # ----------------------------------------------------
-
-        if creator_can_enter_studio(
-            creator
-        ):
-
-            flash(
-                "Welcome back.",
-                "success",
-            )
-
-            return redirect(
-                url_for(
-                    "studio.dashboard"
-                )
-            )
-
-        return redirect(
-            url_for(
-                "creator_auth.pending"
-            )
-        )
-
-    return render_template(
-        "creator/login.html"
-    )
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception('Could not record creator login')
+    return redirect(url_for('studio.dashboard') if creator_can_enter_studio(creator)
+                    else url_for('creator_auth.pending'))
 
 
-# ============================================================
-# PENDING / ACCOUNT / SUBSCRIPTION STATUS
-# ============================================================
-
-@creator_auth_bp.route(
-    "/pending"
-)
+@creator_auth_bp.route('/pending')
 @creator_login_required
 def pending():
-
-    creator = (
-        get_logged_in_creator()
-    )
-
-    # --------------------------------------------------------
-    # REFRESH SUBSCRIPTION LIFECYCLE
-    # --------------------------------------------------------
-
-    subscription = (
-        refresh_creator_subscription(
-            creator
-        )
-    )
-
-    # --------------------------------------------------------
-    # ACTIVE OR GRACE-PERIOD CREATOR
-    # --------------------------------------------------------
-    #
-    # Both:
-    #
-    #   active
-    #   past_due within grace
-    #
-    # should enter Studio.
-    #
-    # The Studio itself shows the grace warning.
-    # --------------------------------------------------------
-
-    if creator_can_enter_studio(
-        creator
-    ):
-
-        return redirect(
-            url_for(
-                "studio.dashboard"
-            )
-        )
-
-    # --------------------------------------------------------
-    # PLAN
-    # --------------------------------------------------------
-
-    selected_plan = normalize_plan(
-        creator.plan,
-        default=PLAN_STANDARD,
-    )
-
-    selected_plan_price = (
-        PLAN_PRICES.get(
-            selected_plan,
-            PLAN_PRICES[
-                PLAN_STANDARD
-            ],
-        )
-    )
-
-    # --------------------------------------------------------
-    # SUBSCRIPTION FALLBACK
-    # --------------------------------------------------------
-
-    if subscription is None:
-
-        subscription = (
-            get_creator_subscription(
-                creator,
-                create=False,
-            )
-        )
-
-    # --------------------------------------------------------
-    # SUBSCRIPTION STATUS
-    # --------------------------------------------------------
-
-    subscription_status = (
-        subscription.status
-        if subscription
-        else (
-            creator.subscription_status
-            or "inactive"
-        )
-    )
-
-    # --------------------------------------------------------
-    # GRACE DAYS
-    # --------------------------------------------------------
-
-    grace_days_remaining = (
-        creator_grace_days_remaining(
-            creator
-        )
-    )
-
-    # --------------------------------------------------------
-    # PUBLIC CREATOR URL
-    # --------------------------------------------------------
-
-    public_creator_url = (
-        url_for(
-            "public.creator_home",
-            username=creator.username,
-        )
-        if (
-            creator.account_status
-            == "active"
-        )
-        else None
-    )
-
-    return render_template(
-        "creator/pending.html",
-
-        creator_account=(
-            creator
-        ),
-
-        subscription=(
-            subscription
-        ),
-
-        subscription_status=(
-            subscription_status
-        ),
-
-        grace_days_remaining=(
-            grace_days_remaining
-        ),
-
-        selected_plan=(
-            selected_plan
-        ),
-
-        selected_plan_price=(
-            selected_plan_price
-        ),
-
-        plan_prices=(
-            PLAN_PRICES
-        ),
-
-        public_creator_url=(
-            public_creator_url
-        ),
-    )
+    creator = get_logged_in_creator()
+    subscription = refresh_creator_subscription(creator)
+    plan = creator.plan if creator.plan in VALID_PLANS else 'free'
+    requested_plan = session.get('requested_creator_plan')
+    if requested_plan not in ('standard', 'premium'):
+        requested_plan = None
+    # Do not redirect free users automatically: this page doubles as the
+    # plan activation screen for free users.
+    public_url = (url_for('public.creator_home', username=creator.username)
+                  if creator.account_status == 'active' else None)
+    return render_template('creator/pending.html', creator_account=creator,
+                           subscription=subscription,
+                           subscription_status=creator.subscription_status or 'inactive',
+                           grace_days_remaining=0, selected_plan=plan,
+                           selected_plan_price=PLAN_PRICES[plan],
+                           plan_prices=PLAN_PRICES,
+                           requested_plan=requested_plan,
+                           public_creator_url=public_url)
 
 
-# ============================================================
-# LOGOUT
-# ============================================================
-
-@creator_auth_bp.route(
-    "/logout",
-    methods=["POST"],
-)
+@creator_auth_bp.route('/logout', methods=['POST'])
 @creator_login_required
 def logout():
-
-    session.pop(
-        "creator_account_id",
-        None,
-    )
-
-    flash(
-        "You have been signed out.",
-        "success",
-    )
-
-    return redirect(
-        url_for(
-            "creator_auth.login"
-        )
-    )
+    session.clear()
+    flash('You have been signed out.', 'success')
+    return redirect(url_for('creator_auth.login'))
