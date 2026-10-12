@@ -50,11 +50,13 @@ class CreatorAccount(PasswordMixin, db.Model):
 
     @property
     def monetization_enabled(self):
-        return (
-            self.account_status == 'active'
-            and self.plan in ('standard', 'premium')
-            and self.payment_status == 'paid'
-            and self.registration_paid_at is not None
+        # Free creators may accept Buy Me a Coffee support.
+        return self.account_status == 'active' and (
+            self.plan == 'free' or (
+                self.plan in ('standard', 'premium')
+                and self.payment_status == 'paid'
+                and self.registration_paid_at is not None
+            )
         )
 
 
@@ -106,8 +108,9 @@ class CreatorPayoutAccount(db.Model):
     account_name = db.Column(db.String(180))
     settlement_bank = db.Column(db.String(180))
     account_number_last4 = db.Column(db.String(4))
-    # 3.00 = Kalxa's nominal percentage. Verify Paystack split/fee settings.
-    percentage_charge = db.Column(db.Numeric(5, 2), nullable=False, default=3)
+    # Default for Free creators; paid plans use 3%. Do not trust this field
+    # as the sole source of truth for transaction fee calculation.
+    percentage_charge = db.Column(db.Numeric(5, 2), nullable=False, default=23)
     status = db.Column(db.String(30), nullable=False, default='pending', index=True)
     connected_at = db.Column(db.DateTime(timezone=True))
     disabled_at = db.Column(db.DateTime(timezone=True))
@@ -317,7 +320,7 @@ class FanPayment(db.Model):
     is_anonymous = db.Column(db.Boolean, nullable=False, default=False)
     amount_cents = db.Column(db.Integer, nullable=False)
     currency = db.Column(db.String(10), nullable=False, default='ZAR')
-    # Platform's 3% fee, calculated and stored at payment creation time.
+    # Platform's 23% (Free) or 3% (paid) fee, stored per payment.
     platform_fee_cents = db.Column(db.Integer, nullable=False, default=0)
     provider = db.Column(db.String(30), nullable=False, default='paystack', index=True)
     provider_reference = db.Column(db.String(255), unique=True, index=True)
