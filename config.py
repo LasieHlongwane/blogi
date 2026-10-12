@@ -1,6 +1,7 @@
 import os
 
 from dotenv import load_dotenv
+from sqlalchemy.engine import make_url
 
 
 # ============================================================
@@ -8,6 +9,97 @@ from dotenv import load_dotenv
 # ============================================================
 
 load_dotenv()
+
+
+# ============================================================
+# DATABASE CONFIGURATION HELPERS
+# ============================================================
+
+def get_database_url():
+    """
+    Return the configured database URL.
+
+    Production:
+        Neon PostgreSQL
+
+    Local development:
+        SQLite
+
+    Supports common PostgreSQL URL formats used by
+    hosting providers.
+    """
+
+    database_url = os.getenv(
+        "DATABASE_URL",
+        "sqlite:///creator_blog.db",
+    ).strip()
+
+    # Normalize legacy PostgreSQL URL schemes.
+    if database_url.startswith("postgres://"):
+
+        database_url = database_url.replace(
+            "postgres://",
+            "postgresql+psycopg://",
+            1,
+        )
+
+    elif database_url.startswith("postgresql://"):
+
+        database_url = database_url.replace(
+            "postgresql://",
+            "postgresql+psycopg://",
+            1,
+        )
+
+    return database_url
+
+
+def get_database_engine_options(database_url):
+    """
+    Configure SQLAlchemy connection handling.
+
+    PostgreSQL:
+        - Validate pooled connections.
+        - Recycle older connections.
+        - Use a small connection pool.
+        - Require SSL for Neon.
+
+    SQLite:
+        - Preserve local development compatibility.
+    """
+
+    url = make_url(database_url)
+
+    if url.get_backend_name() == "postgresql":
+
+        return {
+            # Check connections before reusing them.
+            "pool_pre_ping": True,
+
+            # Recycle connections older than 5 minutes.
+            "pool_recycle": 300,
+
+            # Maximum number of persistent connections
+            # maintained per SQLAlchemy engine.
+            "pool_size": 3,
+
+            # Allow two additional temporary connections.
+            "max_overflow": 2,
+
+            # Wait up to 30 seconds for a connection.
+            "pool_timeout": 30,
+
+            # PostgreSQL driver connection settings.
+            "connect_args": {
+                "connect_timeout": 10,
+                "sslmode": "require",
+            },
+        }
+
+    # SQLite does not use PostgreSQL SSL settings.
+    return {
+        "pool_pre_ping": True,
+    }
 
 
 # ============================================================
@@ -29,12 +121,15 @@ class Config:
     # DATABASE
     # ========================================================
 
-    SQLALCHEMY_DATABASE_URI = os.getenv(
-        "DATABASE_URL",
-        "sqlite:///creator_blog.db",
-    )
+    SQLALCHEMY_DATABASE_URI = get_database_url()
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    SQLALCHEMY_ENGINE_OPTIONS = (
+        get_database_engine_options(
+            SQLALCHEMY_DATABASE_URI
+        )
+    )
 
     # ========================================================
     # UPLOAD LIMIT
@@ -143,13 +238,8 @@ class Config:
     # IMPORTANT:
     #
     # YOCO_SECRET_KEY must ONLY exist in the environment.
-    # Never commit the real/test secret key to GitHub.
     #
-    # Test key:
-    #     sk_test_...
-    #
-    # Live key later:
-    #     sk_live_...
+    # Never commit actual Yoco credentials to GitHub.
     #
     # ========================================================
 
@@ -166,8 +256,6 @@ class Config:
         "https://payments.yoco.com/api/checkouts",
     )
 
-    # This will be populated after we register the
-    # Yoco webhook.
     YOCO_WEBHOOK_SECRET = os.getenv(
         "YOCO_WEBHOOK_SECRET"
     )
