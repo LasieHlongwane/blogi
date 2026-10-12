@@ -82,7 +82,38 @@ studio_bp = Blueprint(
     url_prefix="/studio",
 )
 
+# ============================================================
+# STUDIO TEMPLATE CONTEXT PROCESSOR
+# ============================================================
+#
+# Automatically provides the authenticated creator account
+# to all templates rendered by Studio routes.
+#
+# Fixes:
+# jinja2.exceptions.UndefinedError:
+# 'creator_account' is undefined
+#
+# ============================================================
 
+@studio_bp.context_processor
+def inject_studio_creator_context():
+
+    account = getattr(
+        g,
+        "creator_account",
+        None,
+    )
+
+    if account is None:
+        return {}
+
+    return {
+        "creator_account": account,
+
+        "plan_summary": creator_plan_summary(
+            account
+        ),
+    }
 # ============================================================
 # HELPERS
 # ============================================================
