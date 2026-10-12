@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 
 <head>
@@ -11,47 +10,118 @@
         content="width=device-width, initial-scale=1"
     >
 
+    <meta
+        name="theme-color"
+        content="#111318"
+    >
+
     <title>
-        Creator Sign In
+        Creator Sign In | Kalxa
     </title>
 
     <link
         rel="stylesheet"
-        href="{{ url_for(
-            'static',
-            filename='css/admin.css'
-        ) }}"
+        href="{{ url_for('static', filename='css/admin.css') }}"
     >
+
+    <style>
+
+        .creator-login-intro {
+            margin-bottom: 26px;
+        }
+
+        .creator-login-intro h1 {
+            margin-bottom: 9px;
+        }
+
+        .creator-login-intro p {
+            line-height: 1.6;
+        }
+
+        .creator-login-benefits {
+            margin-top: 25px;
+            padding: 17px;
+            border: 1px solid #e0e3e6;
+            border-radius: 12px;
+            background: #f7f8f9;
+        }
+
+        .creator-login-benefits strong {
+            display: block;
+            margin-bottom: 7px;
+            font-size: 13px;
+        }
+
+        .creator-login-benefits p {
+            margin: 0;
+            color: #686e76;
+            font-size: 12px;
+            line-height: 1.65;
+        }
+
+        .creator-login-footer {
+            margin-top: 23px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .creator-login-footer a {
+            color: #111318;
+            font-weight: 700;
+        }
+
+        .creator-login-button {
+            width: 100%;
+            padding: 14px 18px;
+            border: 0;
+            border-radius: 10px;
+            background: #111318;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .creator-login-button:hover {
+            background: #292d34;
+        }
+
+    </style>
 
 </head>
 
-
 <body class="login-page">
-
 
 <div class="login-card">
 
+    <!-- ================================================
+         HEADER
+    ================================================= -->
 
-    <div class="login-heading">
+    <div class="login-heading creator-login-intro">
 
         <span>
-            CREATOR
+            KALXA CREATOR
         </span>
 
         <h1>
-            Studio
+            Welcome back.
         </h1>
 
         <p>
-            Sign in to manage your creator space.
+            Sign in to your Creator Studio.
+            Manage your content, grow your audience
+            and track your creator earnings.
         </p>
 
     </div>
 
+    <!-- ================================================
+         FLASH MESSAGES
+    ================================================= -->
 
-    {% with messages = get_flashed_messages(
-        with_categories=true
-    ) %}
+    {% with messages = get_flashed_messages(with_categories=true) %}
 
         {% if messages %}
 
@@ -59,9 +129,7 @@
 
                 {% for category, message in messages %}
 
-                    <div
-                        class="flash-message {{ category }}"
-                    >
+                    <div class="flash-message {{ category }}">
                         {{ message }}
                     </div>
 
@@ -73,11 +141,17 @@
 
     {% endwith %}
 
+    <!-- ================================================
+         LOGIN FORM
+    ================================================= -->
 
     <form
         method="POST"
+        action="{{ url_for('creator_auth.login') }}"
         class="login-form"
     >
+
+        {# Include your application's CSRF field here if enabled. #}
 
         <label>
 
@@ -87,11 +161,13 @@
                 type="text"
                 name="identity"
                 required
+                maxlength="255"
                 autocomplete="username"
+                placeholder="Username or email"
+                value="{{ request.form.get('identity', '') }}"
             >
 
         </label>
-
 
         <label>
 
@@ -102,27 +178,55 @@
                 name="password"
                 required
                 autocomplete="current-password"
+                placeholder="Enter your password"
             >
 
         </label>
 
-
-        <button type="submit">
-            Sign in
+        <button
+            type="submit"
+            class="creator-login-button"
+        >
+            Sign in to Studio
         </button>
 
     </form>
 
+    <!-- ================================================
+         REGISTRATION
+    ================================================= -->
 
-    <p>
+    <div class="creator-login-footer">
+
         Don't have a creator account?
-        <a href="{{ url_for(
-            'creator_auth.register'
-        ) }}">
-            Create one
-        </a>
-    </p>
 
+        <a href="{{ url_for('creator_auth.register') }}">
+            Start free
+        </a>
+
+    </div>
+
+    <!-- ================================================
+         PLATFORM MESSAGE
+    ================================================= -->
+
+    <div class="creator-login-benefits">
+
+        <strong>
+            Your creator space belongs to you.
+        </strong>
+
+        <p>
+            Start with Free, upgrade once when you're
+            ready, and manage your content without
+            monthly Kalxa subscription fees.
+        </p>
+
+    </div>
+
+    <!-- ================================================
+         BACK TO PUBLIC WEBSITE
+    ================================================= -->
 
     <a
         href="{{ url_for('public.home') }}"
@@ -131,9 +235,7 @@
         ← Back to website
     </a>
 
-
 </div>
-
 
 </body>
 
