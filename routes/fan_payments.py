@@ -1,8 +1,34 @@
+# ============================================================
+# KALXA CREATOR
+# FAN PAYMENTS
+#
+# Free:     23% Kalxa commission
+# Standard:  3% Kalxa commission
+# Premium:   3% Kalxa commission
+#
+# PAYMENT PROVIDER: PAYSTACK
+#
+# IMPORTANT:
+#
+# FanPayment.platform_fee_cents stores the commission
+# calculated when the payment is created.
+#
+# It must not be recalculated after a creator changes plans.
+#
+# Paystack must apply the corresponding settlement split.
+#
+# ============================================================
+
+import json
 import re
 import uuid
 
 from datetime import datetime, timezone
-from decimal import Decimal, InvalidOperation
+from decimal import (
+    Decimal,
+    InvalidOperation,
+    ROUND_HALF_UP,
+)
 
 from flask import (
     Blueprint,
@@ -12,7 +38,6 @@ from flask import (
     render_template,
     flash,
     current_app,
-    jsonify,
     abort,
 )
 
@@ -26,10 +51,9 @@ from models import (
     FanPayment,
 )
 
-from services.plan_service import (
-    FEATURE_FAN_SUPPORT,
-    FEATURE_FUNDRAISING,
-    creator_has_feature,
+from services.creator_monetization import (
+    can_use_feature,
+    calculate_commission_cents,
 )
 
 from services.paystack_service import (
@@ -40,6 +64,10 @@ from services.paystack_service import (
 )
 
 
+# ============================================================
+# BLUEPRINT
+# ============================================================
+
 fan_payments_bp = Blueprint(
     "fan_payments",
     __name__,
@@ -48,7 +76,27 @@ fan_payments_bp = Blueprint(
 
 
 # ============================================================
-# HELPERS
+# CONSTANTS
+# ============================================================
+
+PAYMENT_PROVIDER = "paystack"
+
+PAYMENT_CURRENCY = "ZAR"
+
+PAYMENT_TYPE_SUPPORT = "support"
+
+PAYMENT_TYPE_CAMPAIGN = "campaign"
+
+# This is a configurable application limit, not a statement
+# of Paystack's maximum supported transaction amount.
+
+MAX_FAN_PAYMENT_CENTS = 10_000_000
+
+MIN_FAN_PAYMENT_CENTS = 100
+
+
+# ============================================================
+# TIME HELPERS
 # ============================================================
 
 def utc_now():
@@ -58,27 +106,47 @@ def utc_now():
     )
 
 
-def creator_by_username_or_404(
-    username,
-):
+def as_utc(value):
+
+    if value is None:
+        return None
+
+    if value.tzinfo is None:
+
+        return value.replace(
+            tzinfo=timezone.utc
+        )
+
+    return value.astimezone(
+        timezone.utc
+    )
+
+
+# ============================================================
+# CREATOR HELPERS
+# ============================================================
+
+def creator_by_username_or_404(username):
+
+    username = (
+        str(username or "")
+        .strip()
+        .lower()
+    )
 
     return (
         CreatorAccount.query
         .filter(
             db.func.lower(
                 CreatorAccount.username
-            )
-            == username.lower(),
-            CreatorAccount.account_status
-            == "active",
+            ) == username,
+            CreatorAccount.account_status == "active",
         )
         .first_or_404()
     )
 
 
-def creator_profile_for(
-    creator,
-):
+def creator_profile_for(creator):
 
     return (
         CreatorProfile.query
@@ -89,18 +157,24 @@ def creator_profile_for(
     )
 
 
-def active_payout_account(
-    creator,
-):
+def active_payout_account(creator):
 
     return (
         CreatorPayoutAccount.query
         .filter_by(
             creator_account_id=creator.id,
-            provider="paystack",
+            provider=PAYMENT_PROVIDER,
             status="active",
         )
         .first()
+    )
+
+
+def payout_is_ready(payout_account):
+
+    return bool(
+        payout_account
+        and payout_account.provider_subaccount_code
     )
 
 
@@ -119,15 +193,40 @@ def creator_campaign_or_404(
     )
 
 
-def parse_amount_to_cents(
-    value,
-):
+# ============================================================
+# FEATURE ACCESS
+# ============================================================
+
+def creator_can_receive_coffee(creator):
+
+    return can_use_feature(
+        creator,
+        "buy_me_coffee",
+    )
+
+
+def creator_can_fundraise(creator):
+
+    return can_use_feature(
+        creator,
+        "fundraising",
+    )
+
+
+# ============================================================
+# AMOUNT VALIDATION
+# ============================================================
+
+def parse_amount_to_cents(value):
 
     value = (
         str(value or "")
         .strip()
         .replace(",", "")
     )
+
+    if not value:
+        return None
 
     try:
 
@@ -141,27 +240,46 @@ def parse_amount_to_cents(
 
         return None
 
+    if not amount.is_finite():
+        return None
+
     if amount <= 0:
+        return None
+
+    # Reject fractional cents rather than silently
+    # changing the amount entered by the supporter.
+
+    cents = amount * Decimal("100")
+
+    if cents != cents.to_integral_value():
+        return None
+
+    amount_cents = int(cents)
+
+    if not (
+        MIN_FAN_PAYMENT_CENTS
+        <= amount_cents
+        <= MAX_FAN_PAYMENT_CENTS
+    ):
 
         return None
 
-    amount = amount.quantize(
-        Decimal("0.01")
-    )
-
-    return int(
-        amount * 100
-    )
+    return amount_cents
 
 
-def valid_email(
-    value,
-):
+# ============================================================
+# EMAIL VALIDATION
+# ============================================================
+
+def valid_email(value):
 
     value = (
         str(value or "")
         .strip()
     )
+
+    if not value or len(value) > 255:
+        return False
 
     return bool(
         re.fullmatch(
@@ -171,6 +289,10 @@ def valid_email(
     )
 
 
+# ============================================================
+# PAYMENT REFERENCES
+# ============================================================
+
 def new_payment_reference():
 
     return (
@@ -179,52 +301,354 @@ def new_payment_reference():
     )
 
 
-def get_metadata(
-    data,
-):
+# ============================================================
+# METADATA
+# ============================================================
+
+def get_metadata(data):
 
     metadata = (
         data.get("metadata")
         or {}
     )
 
-    if isinstance(
-        metadata,
-        str,
-    ):
+    if isinstance(metadata, str):
 
         try:
-
-            import json
 
             metadata = json.loads(
                 metadata
             )
 
-        except Exception:
+        except (
+            TypeError,
+            ValueError,
+        ):
 
             metadata = {}
 
-    if not isinstance(
-        metadata,
-        dict,
-    ):
-
-        metadata = {}
+    if not isinstance(metadata, dict):
+        return {}
 
     return metadata
 
 
 # ============================================================
-# CREATOR SUPPORT PAGE
+# COMMISSION
+# ============================================================
+
+def calculate_platform_fee(
+    creator,
+    amount_cents,
+):
+
+    """
+    Calculate Kalxa's commission using the creator's
+    verified entitlement at checkout creation.
+
+    Free:     23%
+    Standard:  3%
+    Premium:   3%
+
+    The calculated fee is persisted on FanPayment.
+
+    It must not change if the creator upgrades later.
+    """
+
+    return calculate_commission_cents(
+        creator,
+        amount_cents,
+    )
+
+
+def creator_receivable_cents(payment):
+
+    """
+    Gross contribution less Kalxa's commission.
+
+    This excludes any separate Paystack processing fees.
+    """
+
+    return (
+        payment.amount_cents
+        - payment.platform_fee_cents
+    )
+
+
+# ============================================================
+# SUPPORTER FORM DATA
+# ============================================================
+
+def get_supporter_details():
+
+    email = (
+        request.form
+        .get("email", "")
+        .strip()
+        .lower()
+    )
+
+    name = (
+        request.form
+        .get("name", "")
+        .strip()
+    )[:120]
+
+    message = (
+        request.form
+        .get("message", "")
+        .strip()
+    )[:500]
+
+    is_anonymous = (
+        request.form.get(
+            "is_anonymous"
+        ) == "on"
+    )
+
+    return {
+        "email": email,
+        "name": name,
+        "message": message,
+        "is_anonymous": is_anonymous,
+    }
+
+
+# ============================================================
+# CREATE PENDING PAYMENT
+# ============================================================
+
+def create_pending_fan_payment(
+    *,
+    creator,
+    amount_cents,
+    supporter,
+    payment_type,
+    campaign=None,
+):
+
+    """
+    Create an immutable financial snapshot.
+
+    Important:
+
+    The platform fee is calculated BEFORE the payment
+    is sent to Paystack.
+
+    A creator upgrading tomorrow must not change the
+    commission on a payment created today.
+    """
+
+    if payment_type not in {
+        PAYMENT_TYPE_SUPPORT,
+        PAYMENT_TYPE_CAMPAIGN,
+    }:
+
+        raise ValueError(
+            "Unsupported fan payment type."
+        )
+
+    if payment_type == PAYMENT_TYPE_CAMPAIGN:
+
+        if campaign is None:
+
+            raise ValueError(
+                "Campaign payment requires a campaign."
+            )
+
+        if campaign.creator_account_id != creator.id:
+
+            raise ValueError(
+                "Campaign does not belong to creator."
+            )
+
+    platform_fee_cents = (
+        calculate_platform_fee(
+            creator,
+            amount_cents,
+        )
+    )
+
+    if not (
+        0 <= platform_fee_cents <= amount_cents
+    ):
+
+        raise ValueError(
+            "Invalid platform commission."
+        )
+
+    reference = new_payment_reference()
+
+    payment = FanPayment(
+        creator_account_id=creator.id,
+
+        campaign_id=(
+            campaign.id
+            if campaign
+            else None
+        ),
+
+        payment_type=payment_type,
+
+        supporter_name=(
+            supporter["name"]
+            or None
+        ),
+
+        supporter_email=(
+            supporter["email"]
+        ),
+
+        supporter_message=(
+            supporter["message"]
+            or None
+        ),
+
+        is_anonymous=(
+            supporter["is_anonymous"]
+        ),
+
+        amount_cents=amount_cents,
+
+        currency=PAYMENT_CURRENCY,
+
+        platform_fee_cents=(
+            platform_fee_cents
+        ),
+
+        provider=PAYMENT_PROVIDER,
+
+        provider_reference=reference,
+
+        status="pending",
+    )
+
+    db.session.add(payment)
+
+    db.session.commit()
+
+    return payment
+
+
+# ============================================================
+# INITIALIZE PAYSTACK CHECKOUT
+# ============================================================
+
+def start_paystack_checkout(
+    *,
+    payment,
+    creator,
+    payout_account,
+):
+
+    """
+    Initialize a Paystack transaction.
+
+    REQUIRED PAYSTACK SERVICE CONTRACT:
+
+    initialize_fan_payment must accept:
+
+        platform_fee_cents
+
+    and must arrange the provider-side settlement so that
+    Kalxa receives its commission.
+
+    Do not remove this parameter merely to make an older
+    paystack_service.py implementation work.
+
+    Paystack's exact split configuration and processing-fee
+    bearer must be implemented and verified in that service.
+    """
+
+    if not payout_is_ready(payout_account):
+
+        raise PaystackError(
+            "Creator payout account is not ready."
+        )
+
+    metadata = {
+        "product_type": (
+            "creator_support"
+            if payment.payment_type == PAYMENT_TYPE_SUPPORT
+            else "fundraising"
+        ),
+
+        "fan_payment_id": payment.id,
+
+        "creator_account_id": creator.id,
+
+        "creator_username": creator.username,
+
+        "payment_type": payment.payment_type,
+
+        "platform_fee_cents": (
+            payment.platform_fee_cents
+        ),
+
+        "creator_receivable_cents": (
+            creator_receivable_cents(payment)
+        ),
+    }
+
+    if payment.campaign_id:
+
+        metadata["campaign_id"] = (
+            payment.campaign_id
+        )
+
+    checkout = initialize_fan_payment(
+        email=payment.supporter_email,
+
+        amount_cents=payment.amount_cents,
+
+        reference=payment.provider_reference,
+
+        subaccount_code=(
+            payout_account.provider_subaccount_code
+        ),
+
+        platform_fee_cents=(
+            payment.platform_fee_cents
+        ),
+
+        callback_url=url_for(
+            "fan_payments.payment_return",
+            _external=True,
+        ),
+
+        metadata=metadata,
+    )
+
+    if not isinstance(checkout, dict):
+
+        raise PaystackError(
+            "Invalid Paystack checkout response."
+        )
+
+    authorization_url = (
+        checkout.get(
+            "authorization_url"
+        )
+    )
+
+    if not authorization_url:
+
+        raise PaystackError(
+            "Paystack did not return a payment URL."
+        )
+
+    return authorization_url
+
+
+# ============================================================
+# PUBLIC SUPPORT PAGE
 # ============================================================
 
 @fan_payments_bp.route(
-    "/<username>"
+    "/<username>",
+    methods=["GET"],
 )
-def creator_support(
-    username,
-):
+def creator_support(username):
 
     creator = (
         creator_by_username_or_404(
@@ -232,9 +656,8 @@ def creator_support(
         )
     )
 
-    if not creator_has_feature(
-        creator,
-        FEATURE_FAN_SUPPORT,
+    if not creator_can_receive_coffee(
+        creator
     ):
 
         abort(404)
@@ -253,26 +676,26 @@ def creator_support(
 
     return render_template(
         "public/support_creator.html",
+
         creator_account=creator,
+
         creator=profile,
-        payout_ready=bool(
+
+        payout_ready=payout_is_ready(
             payout_account
-            and payout_account.provider_subaccount_code
         ),
     )
 
 
 # ============================================================
-# CREATE BUY-ME-A-COFFEE PAYMENT
+# BUY ME A COFFEE PAYMENT
 # ============================================================
 
 @fan_payments_bp.route(
     "/<username>/pay",
     methods=["POST"],
 )
-def creator_support_pay(
-    username,
-):
+def creator_support_pay(username):
 
     creator = (
         creator_by_username_or_404(
@@ -280,12 +703,16 @@ def creator_support_pay(
         )
     )
 
-    if not creator_has_feature(
-        creator,
-        FEATURE_FAN_SUPPORT,
+    if not creator_can_receive_coffee(
+        creator
     ):
 
         abort(404)
+
+    return_url = url_for(
+        "fan_payments.creator_support",
+        username=creator.username,
+    )
 
     payout_account = (
         active_payout_account(
@@ -293,32 +720,20 @@ def creator_support_pay(
         )
     )
 
-    if (
-        not payout_account
-        or not payout_account
-        .provider_subaccount_code
+    if not payout_is_ready(
+        payout_account
     ):
 
         flash(
-            (
-                "This creator is not ready "
-                "to receive payments yet."
-            ),
+            "This creator is not ready to receive payments yet.",
             "warning",
         )
 
-        return redirect(
-            url_for(
-                "fan_payments.creator_support",
-                username=creator.username,
-            )
-        )
+        return redirect(return_url)
 
     amount_cents = (
         parse_amount_to_cents(
-            request.form.get(
-                "amount"
-            )
+            request.form.get("amount")
         )
     )
 
@@ -329,226 +744,125 @@ def creator_support_pay(
             "error",
         )
 
-        return redirect(
-            url_for(
-                "fan_payments.creator_support",
-                username=creator.username,
-            )
-        )
+        return redirect(return_url)
 
-    email = (
-        request.form
-        .get("email", "")
-        .strip()
-        .lower()
-    )
+    supporter = get_supporter_details()
 
     if not valid_email(
-        email
+        supporter["email"]
     ):
 
         flash(
-            (
-                "Enter a valid email "
-                "address for the payment."
-            ),
+            "Enter a valid email address.",
             "error",
         )
 
-        return redirect(
-            url_for(
-                "fan_payments.creator_support",
-                username=creator.username,
-            )
-        )
+        return redirect(return_url)
 
-    supporter_name = (
-        request.form
-        .get("name", "")
-        .strip()
-    )
-
-    supporter_message = (
-        request.form
-        .get("message", "")
-        .strip()
-    )
-
-    if len(supporter_name) > 120:
-
-        supporter_name = (
-            supporter_name[:120]
-        )
-
-    if len(supporter_message) > 500:
-
-        supporter_message = (
-            supporter_message[:500]
-        )
-
-    is_anonymous = (
-        request.form.get(
-            "is_anonymous"
-        )
-        == "on"
-    )
-
-    reference = (
-        new_payment_reference()
-    )
-
-    payment = FanPayment(
-        creator_account_id=creator.id,
-        campaign_id=None,
-        payment_type="support",
-        supporter_name=(
-            supporter_name
-            or None
-        ),
-        supporter_email=email,
-        supporter_message=(
-            supporter_message
-            or None
-        ),
-        is_anonymous=is_anonymous,
-        amount_cents=amount_cents,
-        currency="ZAR",
-        platform_fee_cents=0,
-        provider="paystack",
-        provider_reference=reference,
-        status="pending",
-    )
-
-    db.session.add(
-        payment
-    )
+    # --------------------------------------------------------
+    # CREATE LOCAL FINANCIAL RECORD
+    # --------------------------------------------------------
 
     try:
 
-        db.session.commit()
+        payment = create_pending_fan_payment(
+            creator=creator,
+            amount_cents=amount_cents,
+            supporter=supporter,
+            payment_type=PAYMENT_TYPE_SUPPORT,
+        )
 
     except Exception:
 
         db.session.rollback()
 
         current_app.logger.exception(
-            "Unable to create FanPayment."
+            "Unable to create coffee FanPayment."
         )
 
         flash(
-            (
-                "Payment could not be "
-                "started. Please try again."
-            ),
+            "Payment could not be started.",
             "error",
         )
 
-        return redirect(
-            url_for(
-                "fan_payments.creator_support",
-                username=creator.username,
-            )
-        )
+        return redirect(return_url)
+
+    # --------------------------------------------------------
+    # START PAYSTACK
+    # --------------------------------------------------------
 
     try:
 
-        checkout = (
-            initialize_fan_payment(
-                email=email,
-                amount_cents=(
-                    payment.amount_cents
-                ),
-                reference=reference,
-                subaccount_code=(
-                    payout_account
-                    .provider_subaccount_code
-                ),
-                callback_url=(
-                    url_for(
-                        "fan_payments.payment_return",
-                        _external=True,
-                    )
-                ),
-                metadata={
-                    "product_type": (
-                        "creator_support"
-                    ),
-                    "fan_payment_id": (
-                        payment.id
-                    ),
-                    "creator_account_id": (
-                        creator.id
-                    ),
-                    "creator_username": (
-                        creator.username
-                    ),
-                    "payment_type": (
-                        "support"
-                    ),
-                },
+        authorization_url = (
+            start_paystack_checkout(
+                payment=payment,
+                creator=creator,
+                payout_account=payout_account,
             )
         )
 
-    except PaystackError:
+    except (
+        PaystackError,
+        TypeError,
+        ValueError,
+    ):
 
         current_app.logger.exception(
-            (
-                "Paystack support checkout "
-                "initialization failed. "
-                "fan_payment_id=%s"
-            ),
+            "Paystack coffee checkout failed. payment_id=%s",
             payment.id,
         )
 
+        # The provider checkout was not successfully
+        # initialized. Keep the audit record but mark
+        # it failed unless a concurrent webhook already
+        # confirmed payment.
+
+        try:
+
+            locked_payment = (
+                db.session.query(FanPayment)
+                .filter_by(id=payment.id)
+                .with_for_update()
+                .first()
+            )
+
+            if (
+                locked_payment
+                and locked_payment.status == "pending"
+            ):
+
+                locked_payment.status = "failed"
+
+            db.session.commit()
+
+        except Exception:
+
+            db.session.rollback()
+
+            current_app.logger.exception(
+                "Unable to mark failed checkout."
+            )
+
         flash(
-            (
-                "We could not open the "
-                "payment page. Please try again."
-            ),
+            "We could not open the payment page.",
             "error",
         )
 
-        return redirect(
-            url_for(
-                "fan_payments.creator_support",
-                username=creator.username,
-            )
-        )
-
-    authorization_url = (
-        checkout.get(
-            "authorization_url"
-        )
-    )
-
-    if not authorization_url:
-
-        flash(
-            (
-                "The payment provider did "
-                "not return a checkout page."
-            ),
-            "error",
-        )
-
-        return redirect(
-            url_for(
-                "fan_payments.creator_support",
-                username=creator.username,
-            )
-        )
+        return redirect(return_url)
 
     return redirect(
-        authorization_url
+        authorization_url,
+        code=303,
     )
 
 
 # ============================================================
-# PUBLIC CAMPAIGN PAGE
+# CAMPAIGN PAGE
 # ============================================================
 
 @fan_payments_bp.route(
-    "/<username>/campaigns/<slug>"
+    "/<username>/campaigns/<slug>",
+    methods=["GET"],
 )
 def campaign_detail(
     username,
@@ -561,9 +875,8 @@ def campaign_detail(
         )
     )
 
-    if not creator_has_feature(
-        creator,
-        FEATURE_FUNDRAISING,
+    if not creator_can_fundraise(
+        creator
     ):
 
         abort(404)
@@ -592,14 +905,10 @@ def campaign_detail(
             )
         )
         .filter(
-            FanPayment.creator_account_id
-            == creator.id,
-            FanPayment.campaign_id
-            == campaign.id,
-            FanPayment.payment_type
-            == "campaign",
-            FanPayment.status
-            == "paid",
+            FanPayment.creator_account_id == creator.id,
+            FanPayment.campaign_id == campaign.id,
+            FanPayment.payment_type == PAYMENT_TYPE_CAMPAIGN,
+            FanPayment.status == "paid",
         )
         .scalar()
         or 0
@@ -610,7 +919,7 @@ def campaign_detail(
         .filter_by(
             creator_account_id=creator.id,
             campaign_id=campaign.id,
-            payment_type="campaign",
+            payment_type=PAYMENT_TYPE_CAMPAIGN,
             status="paid",
         )
         .count()
@@ -626,8 +935,7 @@ def campaign_detail(
                 (
                     raised_cents
                     / campaign.goal_amount_cents
-                )
-                * 100,
+                ) * 100,
                 1,
             ),
         )
@@ -640,30 +948,29 @@ def campaign_detail(
 
     return render_template(
         "public/fundraising_campaign.html",
+
         creator_account=creator,
-        creator=(
-            creator_profile_for(
-                creator
-            )
+
+        creator=creator_profile_for(
+            creator
         ),
+
         campaign=campaign,
+
         raised_cents=raised_cents,
-        supporter_count=(
-            supporter_count
-        ),
-        progress_percent=(
-            progress_percent
-        ),
-        payout_ready=bool(
+
+        supporter_count=supporter_count,
+
+        progress_percent=progress_percent,
+
+        payout_ready=payout_is_ready(
             payout_account
-            and payout_account
-            .provider_subaccount_code
         ),
     )
 
 
 # ============================================================
-# CAMPAIGN CONTRIBUTION
+# CAMPAIGN PAYMENT
 # ============================================================
 
 @fan_payments_bp.route(
@@ -681,9 +988,8 @@ def campaign_pay(
         )
     )
 
-    if not creator_has_feature(
-        creator,
-        FEATURE_FUNDRAISING,
+    if not creator_can_fundraise(
+        creator
     ):
 
         abort(404)
@@ -695,64 +1001,48 @@ def campaign_pay(
         )
     )
 
+    return_url = url_for(
+        "fan_payments.campaign_detail",
+        username=creator.username,
+        slug=campaign.slug,
+    )
+
     if campaign.status != "active":
 
         flash(
-            (
-                "This campaign is not "
-                "accepting contributions."
-            ),
+            "This campaign is not accepting contributions.",
             "warning",
         )
 
-        return redirect(
-            url_for(
-                "fan_payments.campaign_detail",
-                username=creator.username,
-                slug=campaign.slug,
-            )
-        )
+        return redirect(return_url)
 
     now = utc_now()
 
-    if (
+    starts_at = as_utc(
         campaign.starts_at
-        and campaign.starts_at > now
-    ):
+    )
+
+    ends_at = as_utc(
+        campaign.ends_at
+    )
+
+    if starts_at and starts_at > now:
 
         flash(
-            (
-                "This campaign has not "
-                "started yet."
-            ),
+            "This campaign has not started yet.",
             "warning",
         )
 
-        return redirect(
-            url_for(
-                "fan_payments.campaign_detail",
-                username=creator.username,
-                slug=campaign.slug,
-            )
-        )
+        return redirect(return_url)
 
-    if (
-        campaign.ends_at
-        and campaign.ends_at < now
-    ):
+    if ends_at and ends_at < now:
 
         flash(
             "This campaign has ended.",
             "warning",
         )
 
-        return redirect(
-            url_for(
-                "fan_payments.campaign_detail",
-                username=creator.username,
-                slug=campaign.slug,
-            )
-        )
+        return redirect(return_url)
 
     payout_account = (
         active_payout_account(
@@ -760,60 +1050,36 @@ def campaign_pay(
         )
     )
 
-    if (
-        not payout_account
-        or not payout_account
-        .provider_subaccount_code
+    if not payout_is_ready(
+        payout_account
     ):
 
         flash(
-            (
-                "This campaign cannot "
-                "receive payments yet."
-            ),
+            "This campaign cannot receive payments yet.",
             "warning",
         )
 
-        return redirect(
-            url_for(
-                "fan_payments.campaign_detail",
-                username=creator.username,
-                slug=campaign.slug,
-            )
-        )
+        return redirect(return_url)
 
     amount_cents = (
         parse_amount_to_cents(
-            request.form.get(
-                "amount"
-            )
+            request.form.get("amount")
         )
     )
 
     if amount_cents is None:
 
         flash(
-            "Enter a valid contribution.",
+            "Enter a valid contribution amount.",
             "error",
         )
 
-        return redirect(
-            url_for(
-                "fan_payments.campaign_detail",
-                username=creator.username,
-                slug=campaign.slug,
-            )
-        )
+        return redirect(return_url)
 
-    email = (
-        request.form
-        .get("email", "")
-        .strip()
-        .lower()
-    )
+    supporter = get_supporter_details()
 
     if not valid_email(
-        email
+        supporter["email"]
     ):
 
         flash(
@@ -821,178 +1087,96 @@ def campaign_pay(
             "error",
         )
 
-        return redirect(
-            url_for(
-                "fan_payments.campaign_detail",
-                username=creator.username,
-                slug=campaign.slug,
-            )
-        )
-
-    supporter_name = (
-        request.form
-        .get("name", "")
-        .strip()
-    )[:120]
-
-    supporter_message = (
-        request.form
-        .get("message", "")
-        .strip()
-    )[:500]
-
-    is_anonymous = (
-        request.form.get(
-            "is_anonymous"
-        )
-        == "on"
-    )
-
-    reference = (
-        new_payment_reference()
-    )
-
-    payment = FanPayment(
-        creator_account_id=creator.id,
-        campaign_id=campaign.id,
-        payment_type="campaign",
-        supporter_name=(
-            supporter_name
-            or None
-        ),
-        supporter_email=email,
-        supporter_message=(
-            supporter_message
-            or None
-        ),
-        is_anonymous=is_anonymous,
-        amount_cents=amount_cents,
-        currency="ZAR",
-        platform_fee_cents=0,
-        provider="paystack",
-        provider_reference=reference,
-        status="pending",
-    )
-
-    db.session.add(
-        payment
-    )
+        return redirect(return_url)
 
     try:
 
-        db.session.commit()
+        payment = create_pending_fan_payment(
+            creator=creator,
+            amount_cents=amount_cents,
+            supporter=supporter,
+            payment_type=PAYMENT_TYPE_CAMPAIGN,
+            campaign=campaign,
+        )
 
     except Exception:
 
         db.session.rollback()
 
         current_app.logger.exception(
-            (
-                "Campaign FanPayment "
-                "creation failed."
-            )
+            "Unable to create campaign FanPayment."
         )
 
         flash(
-            (
-                "Contribution could not "
-                "be started."
-            ),
+            "Contribution could not be started.",
             "error",
         )
 
-        return redirect(
-            url_for(
-                "fan_payments.campaign_detail",
-                username=creator.username,
-                slug=campaign.slug,
-            )
-        )
+        return redirect(return_url)
 
     try:
 
-        checkout = (
-            initialize_fan_payment(
-                email=email,
-                amount_cents=(
-                    amount_cents
-                ),
-                reference=reference,
-                subaccount_code=(
-                    payout_account
-                    .provider_subaccount_code
-                ),
-                callback_url=(
-                    url_for(
-                        "fan_payments.payment_return",
-                        _external=True,
-                    )
-                ),
-                metadata={
-                    "product_type": (
-                        "fundraising"
-                    ),
-                    "fan_payment_id": (
-                        payment.id
-                    ),
-                    "creator_account_id": (
-                        creator.id
-                    ),
-                    "creator_username": (
-                        creator.username
-                    ),
-                    "campaign_id": (
-                        campaign.id
-                    ),
-                    "payment_type": (
-                        "campaign"
-                    ),
-                },
+        authorization_url = (
+            start_paystack_checkout(
+                payment=payment,
+                creator=creator,
+                payout_account=payout_account,
             )
         )
 
-    except PaystackError:
+    except (
+        PaystackError,
+        TypeError,
+        ValueError,
+    ):
 
         current_app.logger.exception(
-            (
-                "Paystack campaign checkout "
-                "initialization failed."
-            )
+            "Paystack campaign checkout failed. payment_id=%s",
+            payment.id,
         )
 
+        try:
+
+            locked_payment = (
+                db.session.query(FanPayment)
+                .filter_by(id=payment.id)
+                .with_for_update()
+                .first()
+            )
+
+            if (
+                locked_payment
+                and locked_payment.status == "pending"
+            ):
+
+                locked_payment.status = "failed"
+
+            db.session.commit()
+
+        except Exception:
+
+            db.session.rollback()
+
         flash(
-            (
-                "We could not open the "
-                "payment page."
-            ),
+            "We could not open the payment page.",
             "error",
         )
 
-        return redirect(
-            url_for(
-                "fan_payments.campaign_detail",
-                username=creator.username,
-                slug=campaign.slug,
-            )
-        )
+        return redirect(return_url)
 
     return redirect(
-        checkout["authorization_url"]
+        authorization_url,
+        code=303,
     )
 
 
 # ============================================================
-# PAYSTACK CALLBACK
-# ============================================================
-#
-# Browser return is NOT proof of payment.
-#
-# We verify with Paystack, but the webhook remains the
-# authoritative asynchronous payment path.
+# PAYMENT RETURN
 # ============================================================
 
 @fan_payments_bp.route(
-    "/payment/return"
+    "/payment/return",
+    methods=["GET"],
 )
 def payment_return():
 
@@ -1007,16 +1191,13 @@ def payment_return():
         return render_template(
             "public/payment_result.html",
             payment_confirmed=False,
-            message=(
-                "We could not identify "
-                "this payment."
-            ),
+            message="We could not identify this payment.",
         )
 
     payment = (
         FanPayment.query
         .filter_by(
-            provider="paystack",
+            provider=PAYMENT_PROVIDER,
             provider_reference=reference,
         )
         .first()
@@ -1026,23 +1207,21 @@ def payment_return():
 
         abort(404)
 
-    # Do not mark it paid here.
-    #
-    # Browser redirect is not trusted.
+    # Never confirm payment from browser query parameters.
 
     return render_template(
         "public/payment_result.html",
+
         payment=payment,
+
         payment_confirmed=(
             payment.status == "paid"
         ),
+
         message=(
             "Payment confirmed. Thank you!"
             if payment.status == "paid"
-            else (
-                "Your payment is being "
-                "confirmed."
-            )
+            else "Your payment is being confirmed."
         ),
     )
 
@@ -1062,30 +1241,26 @@ def paystack_webhook():
         as_text=False,
     )
 
-    signature = (
-        request.headers.get(
-            "x-paystack-signature",
-            "",
-        )
+    signature = request.headers.get(
+        "x-paystack-signature",
+        "",
     )
+
+    # --------------------------------------------------------
+    # VERIFY SIGNATURE
+    # --------------------------------------------------------
 
     try:
 
-        verified = (
-            verify_paystack_webhook(
-                raw_body,
-                signature,
-            )
+        verified = verify_paystack_webhook(
+            raw_body,
+            signature,
         )
 
     except PaystackError:
 
         current_app.logger.exception(
-            (
-                "Paystack webhook "
-                "verification configuration "
-                "error."
-            )
+            "Paystack webhook verification error."
         )
 
         return "", 500
@@ -1093,29 +1268,20 @@ def paystack_webhook():
     if not verified:
 
         current_app.logger.warning(
-            (
-                "Rejected Paystack webhook "
-                "with invalid signature."
-            )
+            "Rejected invalid Paystack webhook."
         )
 
         return "", 401
 
-    event = (
-        request.get_json(
-            silent=True
-        )
-        or {}
+    event = request.get_json(
+        silent=True
     )
 
-    event_type = (
-        event.get("event")
-    )
+    if not isinstance(event, dict):
 
-    # We only mutate FanPayment from
-    # successful charge events.
+        return "", 400
 
-    if event_type != "charge.success":
+    if event.get("event") != "charge.success":
 
         return "", 200
 
@@ -1124,35 +1290,32 @@ def paystack_webhook():
         or {}
     )
 
-    reference = (
-        str(
-            event_data.get(
-                "reference"
-            )
-            or ""
-        )
-        .strip()
-    )
+    if not isinstance(event_data, dict):
+
+        return "", 400
+
+    reference = str(
+        event_data.get("reference")
+        or ""
+    ).strip()
 
     if not reference:
 
         return "", 200
 
-    try:
+    # --------------------------------------------------------
+    # LOCK PAYMENT
+    # --------------------------------------------------------
 
-        # ----------------------------------------------------
-        # DATABASE LOCK
-        # ----------------------------------------------------
+    try:
 
         payment = (
             db.session.query(
                 FanPayment
             )
             .filter(
-                FanPayment.provider
-                == "paystack",
-                FanPayment.provider_reference
-                == reference,
+                FanPayment.provider == PAYMENT_PROVIDER,
+                FanPayment.provider_reference == reference,
             )
             .with_for_update()
             .first()
@@ -1163,11 +1326,7 @@ def paystack_webhook():
             db.session.rollback()
 
             current_app.logger.warning(
-                (
-                    "Paystack webhook reference "
-                    "does not match FanPayment. "
-                    "reference=%s"
-                ),
+                "Unknown Paystack reference: %s",
                 reference,
             )
 
@@ -1183,62 +1342,65 @@ def paystack_webhook():
 
             return "", 200
 
+        if payment.status == "refunded":
+
+            db.session.rollback()
+
+            current_app.logger.warning(
+                "Ignoring charge.success for refunded payment %s",
+                payment.id,
+            )
+
+            return "", 200
+
         # ----------------------------------------------------
-        # VERIFY WITH PAYSTACK API
+        # VERIFY DIRECTLY WITH PAYSTACK
         # ----------------------------------------------------
 
-        verified_data = (
-            verify_transaction(
-                reference
-            )
+        verified_data = verify_transaction(
+            reference
         )
 
-        provider_status = (
-            str(
-                verified_data.get(
-                    "status"
-                )
-                or ""
-            )
-            .lower()
+        if not isinstance(verified_data, dict):
+
+            db.session.rollback()
+
+            return "", 500
+
+        provider_status = str(
+            verified_data.get("status")
+            or ""
+        ).strip().lower()
+
+        provider_reference = str(
+            verified_data.get("reference")
+            or ""
+        ).strip()
+
+        provider_currency = str(
+            verified_data.get("currency")
+            or ""
+        ).strip().upper()
+
+        provider_amount = (
+            verified_data.get("amount")
         )
 
-        provider_reference = (
-            str(
-                verified_data.get(
-                    "reference"
-                )
-                or ""
-            )
-        )
-
-        provider_currency = (
-            str(
-                verified_data.get(
-                    "currency"
-                )
-                or ""
-            )
-            .upper()
-        )
-
-        try:
-
-            provider_amount = int(
-                verified_data.get(
-                    "amount"
-                )
-            )
-
-        except (
-            TypeError,
-            ValueError,
+        if (
+            type(provider_amount) is not int
         ):
 
-            provider_amount = -1
+            db.session.rollback()
+
+            current_app.logger.error(
+                "Invalid Paystack amount for payment %s",
+                payment.id,
+            )
+
+            return "", 200
 
         # ----------------------------------------------------
-        # SERVER-SIDE FINANCIAL VALIDATION
+        # FINANCIAL VALIDATION
         # ----------------------------------------------------
 
         if provider_status != "success":
@@ -1247,162 +1409,150 @@ def paystack_webhook():
 
             return "", 200
 
-        if (
-            provider_reference
-            != payment.provider_reference
-        ):
+        if provider_reference != payment.provider_reference:
 
             db.session.rollback()
 
             current_app.logger.error(
-                (
-                    "Paystack payment reference "
-                    "mismatch. fan_payment_id=%s"
-                ),
+                "Paystack reference mismatch for payment %s",
                 payment.id,
             )
 
             return "", 200
 
-        if provider_currency != "ZAR":
+        if provider_currency != PAYMENT_CURRENCY:
 
             db.session.rollback()
 
             current_app.logger.error(
-                (
-                    "Paystack currency mismatch. "
-                    "fan_payment_id=%s"
-                ),
+                "Paystack currency mismatch for payment %s",
                 payment.id,
             )
 
             return "", 200
 
-        if (
-            provider_amount
-            != payment.amount_cents
-        ):
+        if provider_amount != payment.amount_cents:
 
             db.session.rollback()
 
             current_app.logger.error(
-                (
-                    "Paystack amount mismatch. "
-                    "fan_payment_id=%s"
-                ),
+                "Paystack amount mismatch for payment %s",
                 payment.id,
             )
 
             return "", 200
 
         # ----------------------------------------------------
-        # METADATA DEFENCE-IN-DEPTH
+        # VALIDATE STORED COMMISSION
         # ----------------------------------------------------
 
-        metadata = (
-            get_metadata(
-                verified_data
-            )
-        )
-
-        metadata_creator_id = (
-            metadata.get(
-                "creator_account_id"
-            )
-        )
-
-        metadata_payment_id = (
-            metadata.get(
-                "fan_payment_id"
-            )
-        )
-
-        metadata_payment_type = (
-            metadata.get(
-                "payment_type"
-            )
-        )
-
-        if (
-            str(metadata_creator_id)
-            != str(
-                payment.creator_account_id
-            )
+        if not (
+            0
+            <= payment.platform_fee_cents
+            <= payment.amount_cents
         ):
 
             db.session.rollback()
 
             current_app.logger.error(
-                (
-                    "Paystack creator metadata "
-                    "mismatch. fan_payment_id=%s"
-                ),
+                "Invalid commission on payment %s",
+                payment.id,
+            )
+
+            return "", 200
+
+        # ----------------------------------------------------
+        # METADATA VALIDATION
+        # ----------------------------------------------------
+
+        metadata = get_metadata(
+            verified_data
+        )
+
+        if (
+            str(metadata.get("creator_account_id"))
+            != str(payment.creator_account_id)
+        ):
+
+            db.session.rollback()
+
+            current_app.logger.error(
+                "Creator metadata mismatch: payment %s",
                 payment.id,
             )
 
             return "", 200
 
         if (
-            str(metadata_payment_id)
+            str(metadata.get("fan_payment_id"))
             != str(payment.id)
         ):
 
             db.session.rollback()
 
             current_app.logger.error(
-                (
-                    "Paystack payment metadata "
-                    "mismatch. fan_payment_id=%s"
-                ),
+                "Payment metadata mismatch: payment %s",
                 payment.id,
             )
 
             return "", 200
 
         if (
-            metadata_payment_type
+            metadata.get("payment_type")
             != payment.payment_type
         ):
 
             db.session.rollback()
 
             current_app.logger.error(
-                (
-                    "Paystack payment type "
-                    "mismatch. fan_payment_id=%s"
-                ),
+                "Payment type mismatch: payment %s",
                 payment.id,
             )
 
             return "", 200
 
         # ----------------------------------------------------
+        # COMMISSION METADATA
+        # ----------------------------------------------------
+
+        metadata_fee = metadata.get(
+            "platform_fee_cents"
+        )
+
+        # Legacy payments may not contain this metadata.
+        # New payments must include it.
+
+        if metadata_fee is not None:
+
+            if (
+                str(metadata_fee)
+                != str(payment.platform_fee_cents)
+            ):
+
+                db.session.rollback()
+
+                current_app.logger.error(
+                    "Commission metadata mismatch: payment %s",
+                    payment.id,
+                )
+
+                return "", 200
+
+        # ----------------------------------------------------
         # CAMPAIGN INTEGRITY
         # ----------------------------------------------------
 
-        if (
-            payment.payment_type
-            == "campaign"
-        ):
-
-            metadata_campaign_id = (
-                metadata.get(
-                    "campaign_id"
-                )
-            )
+        if payment.payment_type == PAYMENT_TYPE_CAMPAIGN:
 
             if (
-                str(metadata_campaign_id)
+                str(metadata.get("campaign_id"))
                 != str(payment.campaign_id)
             ):
 
                 db.session.rollback()
 
                 current_app.logger.error(
-                    (
-                        "Paystack campaign metadata "
-                        "mismatch. fan_payment_id=%s"
-                    ),
+                    "Campaign metadata mismatch: payment %s",
                     payment.id,
                 )
 
@@ -1416,13 +1566,45 @@ def paystack_webhook():
             verified_data.get("id")
         )
 
-        if provider_transaction_id is not None:
+        if provider_transaction_id is None:
 
-            provider_transaction_id = (
-                str(
-                    provider_transaction_id
-                )
+            db.session.rollback()
+
+            current_app.logger.error(
+                "Missing Paystack transaction ID: payment %s",
+                payment.id,
             )
+
+            return "", 200
+
+        provider_transaction_id = str(
+            provider_transaction_id
+        )
+
+        # ----------------------------------------------------
+        # PREVENT TRANSACTION REUSE
+        # ----------------------------------------------------
+
+        duplicate_transaction = (
+            FanPayment.query
+            .filter(
+                FanPayment.provider_transaction_id
+                == provider_transaction_id,
+
+                FanPayment.id != payment.id,
+            )
+            .first()
+        )
+
+        if duplicate_transaction:
+
+            db.session.rollback()
+
+            current_app.logger.error(
+                "Paystack transaction ID already used."
+            )
+
+            return "", 200
 
         # ----------------------------------------------------
         # MARK PAID
@@ -1440,14 +1622,16 @@ def paystack_webhook():
 
         current_app.logger.info(
             (
-                "Fan payment confirmed. "
-                "fan_payment_id=%s "
-                "creator_account_id=%s "
-                "payment_type=%s"
+                "Kalxa fan payment confirmed. "
+                "payment_id=%s creator_id=%s "
+                "type=%s amount_cents=%s "
+                "platform_fee_cents=%s"
             ),
             payment.id,
             payment.creator_account_id,
             payment.payment_type,
+            payment.amount_cents,
+            payment.platform_fee_cents,
         )
 
         return "", 200
@@ -1457,13 +1641,9 @@ def paystack_webhook():
         db.session.rollback()
 
         current_app.logger.exception(
-            (
-                "Paystack transaction "
-                "verification failed."
-            )
+            "Paystack verification failed."
         )
 
-        # Return non-2xx so Paystack can retry.
         return "", 500
 
     except Exception:
@@ -1471,10 +1651,7 @@ def paystack_webhook():
         db.session.rollback()
 
         current_app.logger.exception(
-            (
-                "Unexpected Paystack "
-                "webhook processing error."
-            )
+            "Unexpected Paystack webhook error."
         )
 
         return "", 500
