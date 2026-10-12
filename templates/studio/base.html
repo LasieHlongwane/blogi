@@ -1,204 +1,947 @@
+
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="theme-color" content="#111318">
-    <title>{% block title %}Creator Studio{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <meta
+        name="theme-color"
+        content="#111318"
+    >
+
+    <title>
+        {% block title %}Creator Studio | Kalxa{% endblock %}
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='css/admin.css') }}"
+    >
+
     <style>
-        .studio-plan-card { margin:18px 0; padding:16px; border-radius:12px; background:rgba(255,255,255,.07); }
-        .studio-plan-card > span { display:block; margin-bottom:4px; font-size:10px; letter-spacing:.12em; opacity:.65; }
-        .studio-plan-card strong { display:block; font-size:16px; }
-        .studio-plan-card small { display:block; margin-top:4px; opacity:.72; }
-        .studio-plan-card a { display:inline-block; margin-top:10px; font-size:12px; font-weight:700; }
-        .subscription-status { display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:5px 9px; border-radius:999px; font-size:9px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
-        .subscription-status.active { background:rgba(47,181,104,.14); color:#74dfa1; }
-        .subscription-status.past-due { background:rgba(255,180,60,.15); color:#ffc76b; }
-        .subscription-status.inactive { background:rgba(255,255,255,.09); color:rgba(255,255,255,.75); }
-        .subscription-status-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:currentColor; }
-        .subscription-date { display:block; margin-top:8px; font-size:10px; line-height:1.5; opacity:.68; }
-        .subscription-warning { display:flex; align-items:center; justify-content:space-between; gap:22px; margin-bottom:24px; padding:18px 20px; border:1px solid #e2b15d; border-radius:14px; background:#fff7e8; color:#33230b; }
-        .subscription-warning-content { min-width:0; }
-        .subscription-warning-label { display:block; margin-bottom:5px; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; color:#8b5c0c; }
-        .subscription-warning strong { display:block; margin-bottom:5px; font-size:16px; line-height:1.25; }
-        .subscription-warning p { margin:0; max-width:720px; font-size:13px; line-height:1.55; color:#6d501f; }
-        .subscription-warning-days { font-weight:800; color:#8b5c0c; }
-        .subscription-renew-form { flex:0 0 auto; margin:0; }
-        .subscription-renew-button { appearance:none; border:0; border-radius:10px; padding:11px 16px; background:#111318; color:#fff; font-family:inherit; font-size:12px; font-weight:800; cursor:pointer; white-space:nowrap; }
-        .subscription-renew-button:hover { opacity:.9; }
-        .subscription-renew-button:focus { outline:2px solid #111318; outline-offset:2px; }
-        .sidebar-nav-label { display:block; margin:20px 0 7px; padding:0 12px; font-size:9px; font-weight:800; letter-spacing:.12em; text-transform:uppercase; opacity:.45; }
-        .premium-nav-item, .monetisation-nav-item { position:relative; }
-        .premium-nav-badge { margin-left:6px; padding:2px 5px; border-radius:999px; font-size:8px; font-weight:700; letter-spacing:.05em; background:rgba(255,255,255,.12); }
-        .monetisation-nav-icon { display:inline-block; margin-right:5px; }
-        .standard-feature-badge { margin-left:6px; padding:2px 5px; border-radius:999px; font-size:8px; font-weight:700; letter-spacing:.05em; background:rgba(47,181,104,.16); color:#74dfa1; }
-        @media (max-width:760px) {
-            .subscription-warning { align-items:flex-start; flex-direction:column; gap:14px; }
-            .subscription-renew-form, .subscription-renew-button { width:100%; }
+
+        /* =====================================================
+           GLOBAL
+        ===================================================== */
+
+        .studio-plan-card,
+        .studio-plan-card * {
+            box-sizing: border-box;
         }
+
+        /* =====================================================
+           SIDEBAR PLAN CARD
+        ===================================================== */
+
+        .studio-plan-card {
+            margin: 18px 0;
+            padding: 17px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 13px;
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .studio-plan-label {
+            display: block;
+            margin-bottom: 7px;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            opacity: 0.65;
+        }
+
+        .studio-plan-name {
+            display: block;
+            font-size: 20px;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .studio-plan-price {
+            display: block;
+            margin-top: 5px;
+            font-size: 12px;
+            line-height: 1.5;
+            opacity: 0.78;
+        }
+
+        .studio-plan-commission {
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: 9px;
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .studio-plan-commission strong {
+            display: block;
+            font-size: 15px;
+            font-weight: 800;
+        }
+
+        .studio-plan-commission span {
+            display: block;
+            margin-top: 3px;
+            font-size: 10px;
+            line-height: 1.5;
+            opacity: 0.72;
+        }
+
+        /* =====================================================
+           PLAN STATUS
+        ===================================================== */
+
+        .studio-plan-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 12px;
+            padding: 6px 9px;
+            border-radius: 999px;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+
+        .studio-plan-status.active {
+            background: rgba(47, 181, 104, 0.15);
+            color: #74dfa1;
+        }
+
+        .studio-plan-status.free {
+            background: rgba(255, 255, 255, 0.11);
+            color: #e5e7eb;
+        }
+
+        .studio-plan-status.pending {
+            background: rgba(255, 180, 60, 0.15);
+            color: #ffc76b;
+        }
+
+        .studio-plan-status-dot {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+
+        /* =====================================================
+           UPGRADE BUTTONS
+        ===================================================== */
+
+        .studio-upgrade-section {
+            display: grid;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .studio-upgrade-form {
+            margin: 0;
+        }
+
+        .studio-upgrade-button {
+            display: block;
+            width: 100%;
+            padding: 11px 12px;
+            border: 0;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #111318;
+            font-family: inherit;
+            font-size: 11px;
+            font-weight: 800;
+            text-align: center;
+            cursor: pointer;
+            transition:
+                opacity 0.2s ease,
+                transform 0.2s ease;
+        }
+
+        .studio-upgrade-button:hover {
+            opacity: 0.9;
+        }
+
+        .studio-upgrade-button:active {
+            transform: translateY(1px);
+        }
+
+        .studio-upgrade-button.secondary {
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            background: transparent;
+            color: #ffffff;
+        }
+
+        .studio-upgrade-note {
+            margin: 2px 0 0;
+            font-size: 10px;
+            line-height: 1.55;
+            opacity: 0.65;
+        }
+
+        /* =====================================================
+           NAVIGATION
+        ===================================================== */
+
+        .sidebar-nav-label {
+            display: block;
+            margin: 20px 0 7px;
+            padding: 0 12px;
+            font-size: 9px;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            opacity: 0.45;
+        }
+
+        .premium-nav-item,
+        .monetisation-nav-item {
+            position: relative;
+        }
+
+        .premium-nav-badge {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 3px 6px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+            font-size: 8px;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            vertical-align: middle;
+        }
+
+        .standard-feature-badge {
+            display: inline-block;
+            margin-left: 6px;
+            padding: 3px 6px;
+            border-radius: 999px;
+            background: rgba(47, 181, 104, 0.16);
+            color: #74dfa1;
+            font-size: 8px;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            vertical-align: middle;
+        }
+
+        .monetisation-nav-icon {
+            display: inline-block;
+            margin-right: 5px;
+        }
+
+        /* =====================================================
+           MAIN UPGRADE BANNER
+        ===================================================== */
+
+        .studio-upgrade-banner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 22px;
+            margin-bottom: 24px;
+            padding: 20px;
+            border: 1px solid #dedfe3;
+            border-radius: 14px;
+            background: #f5f6f7;
+            color: #111318;
+        }
+
+        .studio-upgrade-banner-content {
+            min-width: 0;
+        }
+
+        .studio-upgrade-banner-label {
+            display: block;
+            margin-bottom: 6px;
+            color: #6c717a;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .studio-upgrade-banner strong {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 17px;
+            line-height: 1.35;
+        }
+
+        .studio-upgrade-banner p {
+            margin: 0;
+            max-width: 680px;
+            color: #606670;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .studio-upgrade-banner-action {
+            flex: 0 0 auto;
+            margin: 0;
+        }
+
+        .studio-upgrade-banner-button {
+            display: inline-block;
+            padding: 12px 17px;
+            border: 0;
+            border-radius: 10px;
+            background: #111318;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+
+        .studio-upgrade-banner-button:hover {
+            background: #292d34;
+        }
+
+        /* =====================================================
+           MOBILE
+        ===================================================== */
+
+        @media (max-width: 760px) {
+
+            .studio-upgrade-banner {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .studio-upgrade-banner-action,
+            .studio-upgrade-banner-button {
+                width: 100%;
+            }
+
+            .studio-upgrade-banner-button {
+                text-align: center;
+            }
+
+        }
+
     </style>
+
     {% block extra_head %}{% endblock %}
+
 </head>
+
 <body>
-{# --------------------------------------------------------------------
-   SAFE SHARED CONTEXT
-   Not every Studio view passes creator_account to render_template().
-   Use an explicitly supplied account first, then g.creator_account.
-   Never read .plan or .username from an undefined/null account.
-   -------------------------------------------------------------------- #}
-{% set studio_account = creator_account|default(none, true) %}
-{% if studio_account is none %}
-    {% set studio_account = g.get('creator_account', none) %}
-{% endif %}
-{% set account_plan = (studio_account.plan|default('standard', true)|lower) if studio_account else 'standard' %}
-{% set subscription_status = g.get('creator_subscription_status', 'inactive') or 'inactive' %}
-{% set subscription = g.get('creator_subscription', none) %}
-{% set grace_days = g.get('creator_grace_days_remaining', none) %}
-<div class="admin-shell">
-    <aside class="sidebar">
-        <div>
-            <a href="{{ url_for('studio.dashboard') }}" class="studio-brand">
-                <span>CREATOR</span>
-                <strong>Studio</strong>
-            </a>
 
-            <div class="studio-plan-card">
-                <span>YOUR PLAN</span>
-                <strong>{{ account_plan|upper }}</strong>
-                {% if account_plan == 'premium' %}
-                    <small>R149/month</small>
-                {% else %}
-                    <small>R79/month</small>
-                    <a href="{{ url_for('studio.monetisation') }}#premium-features">Upgrade to Premium →</a>
-                {% endif %}
+    <!-- =====================================================
+         SAFE SHARED CREATOR CONTEXT
+    ===================================================== -->
 
-                {% if subscription_status == 'active' %}
-                    <div class="subscription-status active">
-                        <span class="subscription-status-dot"></span> Active
-                    </div>
-                    {% if subscription and subscription.current_period_end %}
-                        <small class="subscription-date">
-                            Renews by {{ subscription.current_period_end.strftime('%d %b %Y') }}
+    {% set studio_account = creator_account|default(none, true) %}
+
+    {% if studio_account is none %}
+        {% set studio_account = g.get('creator_account', none) %}
+    {% endif %}
+
+    {% set account_plan = studio_account.plan|default('free', true)|lower if studio_account else 'free' %}
+
+    {% set account_status = studio_account.account_status|default('unknown', true) if studio_account else 'unknown' %}
+
+    {% set paid_plan_verified = (
+        studio_account is not none
+        and studio_account.payment_status == 'paid'
+        and studio_account.registration_paid_at is not none
+    ) %}
+
+    {#
+        Never unlock paid UI based only on the plan name.
+        A plan must be activated and verified.
+    #}
+
+    {% set active_paid_plan = (
+        account_status == 'active'
+        and paid_plan_verified
+        and account_plan in ['standard', 'premium']
+    ) %}
+
+    {% set active_free_plan = (
+        account_status == 'active'
+        and account_plan == 'free'
+    ) %}
+
+    {% set effective_plan = (
+        account_plan
+        if active_paid_plan
+        else 'free'
+    ) %}
+
+    {% set has_standard = (
+        active_paid_plan
+        and effective_plan in ['standard', 'premium']
+    ) %}
+
+    {% set has_premium = (
+        active_paid_plan
+        and effective_plan == 'premium'
+    ) %}
+
+    <!-- =====================================================
+         STUDIO LAYOUT
+    ===================================================== -->
+
+    <div class="admin-shell">
+
+        <!-- =================================================
+             SIDEBAR
+        ================================================== -->
+
+        <aside class="sidebar">
+
+            <div>
+
+                <!-- =========================================
+                     BRAND
+                ========================================== -->
+
+                <a
+                    href="{{ url_for('studio.dashboard') }}"
+                    class="studio-brand"
+                >
+
+                    <span>
+                        KALXA CREATOR
+                    </span>
+
+                    <strong>
+                        Studio
+                    </strong>
+
+                </a>
+
+                <!-- =========================================
+                     PLAN CARD
+                ========================================== -->
+
+                <div class="studio-plan-card">
+
+                    <span class="studio-plan-label">
+                        YOUR PLAN
+                    </span>
+
+                    <strong class="studio-plan-name">
+                        {{ effective_plan|upper }}
+                    </strong>
+
+                    {% if has_premium %}
+
+                        <small class="studio-plan-price">
+                            R150 once-off activation
                         </small>
-                    {% endif %}
-                {% elif subscription_status == 'past_due' %}
-                    <div class="subscription-status past-due">
-                        <span class="subscription-status-dot"></span> Payment due
-                    </div>
-                    {% if grace_days is not none %}
-                        <small class="subscription-date">
-                            {{ grace_days }} {{ 'day' if grace_days == 1 else 'days' }} remaining
+
+                    {% elif has_standard %}
+
+                        <small class="studio-plan-price">
+                            R100 once-off activation
                         </small>
+
+                    {% else %}
+
+                        <small class="studio-plan-price">
+                            R0 forever
+                        </small>
+
                     {% endif %}
-                {% else %}
-                    <div class="subscription-status inactive">
-                        <span class="subscription-status-dot"></span>
-                        {{ subscription_status|replace('_', ' ')|title }}
+
+                    <!-- =====================================
+                         COMMISSION
+                    ====================================== -->
+
+                    <div class="studio-plan-commission">
+
+                        {% if has_standard %}
+
+                            <strong>
+                                3% Kalxa commission
+                            </strong>
+
+                        {% else %}
+
+                            <strong>
+                                23% Kalxa commission
+                            </strong>
+
+                        {% endif %}
+
+                        <span>
+                            On applicable fan payments.
+                            Provider processing fees may apply.
+                        </span>
+
                     </div>
-                {% endif %}
+
+                    <!-- =====================================
+                         PLAN STATUS
+                    ====================================== -->
+
+                    {% if has_standard %}
+
+                        <div class="studio-plan-status active">
+
+                            <span class="studio-plan-status-dot"></span>
+
+                            Activated
+
+                        </div>
+
+                    {% elif active_free_plan %}
+
+                        <div class="studio-plan-status free">
+
+                            <span class="studio-plan-status-dot"></span>
+
+                            Free account active
+
+                        </div>
+
+                    {% else %}
+
+                        <div class="studio-plan-status pending">
+
+                            <span class="studio-plan-status-dot"></span>
+
+                            Activation pending
+
+                        </div>
+
+                    {% endif %}
+
+                    <!-- =====================================
+                         UPGRADE OPTIONS
+                    ====================================== -->
+
+                    {% if account_status == 'active' %}
+
+                        {% if effective_plan == 'free' %}
+
+                            <div class="studio-upgrade-section">
+
+                                <form
+                                    method="POST"
+                                    action="{{ url_for('payments.creator_checkout') }}"
+                                    class="studio-upgrade-form"
+                                >
+
+                                    <input
+                                        type="hidden"
+                                        name="plan"
+                                        value="standard"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="studio-upgrade-button"
+                                    >
+                                        Standard · R100 once-off
+                                    </button>
+
+                                </form>
+
+                                <form
+                                    method="POST"
+                                    action="{{ url_for('payments.creator_checkout') }}"
+                                    class="studio-upgrade-form"
+                                >
+
+                                    <input
+                                        type="hidden"
+                                        name="plan"
+                                        value="premium"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="studio-upgrade-button secondary"
+                                    >
+                                        Premium · R150 once-off
+                                    </button>
+
+                                </form>
+
+                                <p class="studio-upgrade-note">
+                                    Upgrade once. No monthly Kalxa
+                                    subscription fee.
+                                </p>
+
+                            </div>
+
+                        {% elif effective_plan == 'standard' %}
+
+                            <div class="studio-upgrade-section">
+
+                                <form
+                                    method="POST"
+                                    action="{{ url_for('payments.creator_checkout') }}"
+                                    class="studio-upgrade-form"
+                                >
+
+                                    <input
+                                        type="hidden"
+                                        name="plan"
+                                        value="premium"
+                                    >
+
+                                    <button
+                                        type="submit"
+                                        class="studio-upgrade-button"
+                                    >
+                                        Upgrade to Premium · R50
+                                    </button>
+
+                                </form>
+
+                                <p class="studio-upgrade-note">
+                                    One-time upgrade. Keep your
+                                    existing creator content.
+                                </p>
+
+                            </div>
+
+                        {% endif %}
+
+                    {% endif %}
+
+                </div>
+
+                <!-- =========================================
+                     NAVIGATION
+                ========================================== -->
+
+                <nav
+                    class="sidebar-nav"
+                    aria-label="Creator Studio navigation"
+                >
+
+                    <a href="{{ url_for('studio.dashboard') }}">
+                        Dashboard
+                    </a>
+
+                    <a href="{{ url_for('studio.content_list') }}">
+                        Content
+                    </a>
+
+                    <a href="{{ url_for('studio.content_new') }}">
+                        Create
+                    </a>
+
+                    <a href="{{ url_for('studio.categories') }}">
+                        Folders
+                    </a>
+
+                    <a href="{{ url_for('studio.comments') }}">
+                        Comments
+                    </a>
+
+                    <a href="{{ url_for('studio.website_settings') }}">
+                        Website Settings
+                    </a>
+
+                    <a href="{{ url_for('studio.subscribers') }}">
+                        Subscribers
+                    </a>
+
+                    <a href="{{ url_for('studio.analytics') }}">
+                        Analytics
+
+                        {% if not has_premium %}
+
+                            <span class="premium-nav-badge">
+                                BASIC
+                            </span>
+
+                        {% endif %}
+
+                    </a>
+
+                    <!-- =====================================
+                         EARNINGS
+                    ====================================== -->
+
+                    <span class="sidebar-nav-label">
+                        Earnings
+                    </span>
+
+                    <a
+                        href="{{ url_for('studio.monetisation') }}"
+                        class="monetisation-nav-item"
+                    >
+
+                        <span class="monetisation-nav-icon">
+                            $
+                        </span>
+
+                        Monetisation
+
+                    </a>
+
+                    <a
+                        href="{{ url_for('studio.monetisation_support') }}"
+                        class="monetisation-nav-item"
+                    >
+
+                        <span class="monetisation-nav-icon">
+                            ☕
+                        </span>
+
+                        Buy me a coffee
+
+                    </a>
+
+                    <!-- =====================================
+                         FUNDRAISING
+                    ====================================== -->
+
+                    {% if has_premium %}
+
+                        <a
+                            href="{{ url_for('studio.fundraising_campaigns') }}"
+                            class="premium-nav-item"
+                        >
+                            Fundraising
+                        </a>
+
+                    {% else %}
+
+                        <a
+                            href="{{ url_for('studio.monetisation') }}#fundraising"
+                            class="premium-nav-item"
+                        >
+
+                            Fundraising
+
+                            <span class="premium-nav-badge">
+                                PREMIUM
+                            </span>
+
+                        </a>
+
+                    {% endif %}
+
+                    <!-- =====================================
+                         EXCLUSIVE CONTENT
+                    ====================================== -->
+
+                    <a
+                        href="{{ url_for('studio.content_new') }}"
+                        class="premium-nav-item"
+                    >
+
+                        Exclusive content
+
+                        {% if not has_standard %}
+
+                            <span class="standard-feature-badge">
+                                STANDARD+
+                            </span>
+
+                        {% endif %}
+
+                    </a>
+
+                    <!-- =====================================
+                         ACCOUNT
+                    ====================================== -->
+
+                    <span class="sidebar-nav-label">
+                        Account
+                    </span>
+
+                    <a href="{{ url_for('studio.profile') }}">
+                        Profile
+                    </a>
+
+                </nav>
+
             </div>
 
-            <nav class="sidebar-nav" aria-label="Creator Studio navigation">
-                <a href="{{ url_for('studio.dashboard') }}">Dashboard</a>
-                <a href="{{ url_for('studio.content_list') }}">Content</a>
-                <a href="{{ url_for('studio.content_new') }}">Create</a>
-                <a href="{{ url_for('studio.categories') }}">Folders</a>
-                <a href="{{ url_for('studio.comments') }}">Comments</a>
-                <a href="{{ url_for('studio.website_settings') }}">Website Settings</a>
-                <a href="{{ url_for('studio.subscribers') }}">Subscribers</a>
-                <a href="{{ url_for('studio.analytics') }}">Analytics</a>
+            <!-- =============================================
+                 SIDEBAR FOOTER
+            ============================================== -->
 
-                <span class="sidebar-nav-label">Earnings</span>
-                <a href="{{ url_for('studio.monetisation') }}" class="monetisation-nav-item">
-                    <span class="monetisation-nav-icon">$</span> Monetisation
-                </a>
-                <a href="{{ url_for('studio.monetisation_support') }}" class="monetisation-nav-item">
-                    <span class="monetisation-nav-icon">☕</span> Buy me a coffee
-                </a>
+            <div class="sidebar-bottom">
 
-                {% if account_plan == 'premium' %}
-                    <a href="{{ url_for('studio.fundraising_campaigns') }}" class="premium-nav-item">
-                        Fundraising
+                {% if studio_account and studio_account.username %}
+
+                    <a
+                        href="{{ url_for(
+                            'public.creator_home',
+                            username=studio_account.username
+                        ) }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        View website ↗
                     </a>
+
                 {% else %}
-                    <a href="{{ url_for('studio.monetisation') }}#fundraising" class="premium-nav-item">
-                        Fundraising <span class="premium-nav-badge">PREMIUM</span>
+
+                    <a
+                        href="{{ url_for('public.home') }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        View website ↗
                     </a>
+
                 {% endif %}
-                <a href="{{ url_for('studio.content_new') }}" class="premium-nav-item">
-                    Exclusive content
-                    {% if account_plan != 'premium' %}
-                        <span class="premium-nav-badge">PREMIUM</span>
-                    {% endif %}
+
+                <form
+                    method="POST"
+                    action="{{ url_for('creator_auth.logout') }}"
+                >
+
+                    <button type="submit">
+                        Sign out
+                    </button>
+
+                </form>
+
+            </div>
+
+        </aside>
+
+        <!-- =================================================
+             MAIN AREA
+        ================================================== -->
+
+        <div class="admin-main">
+
+            <!-- =============================================
+                 TOPBAR
+            ============================================== -->
+
+            <header class="admin-topbar">
+
+                <div>
+
+                    <span class="mobile-brand">
+                        Kalxa Creator Studio
+                    </span>
+
+                </div>
+
+                <a
+                    href="{{ url_for('studio.content_new') }}"
+                    class="create-button"
+                >
+                    + New content
                 </a>
 
-                <span class="sidebar-nav-label">Account</span>
-                <a href="{{ url_for('studio.profile') }}">Profile</a>
-            </nav>
-        </div>
+            </header>
 
-        <div class="sidebar-bottom">
-            {% if studio_account and studio_account.username %}
-                <a href="{{ url_for('public.creator_home', username=studio_account.username) }}"
-                   target="_blank" rel="noopener noreferrer">View website ↗</a>
-            {% else %}
-                <a href="{{ url_for('public.home') }}"
-                   target="_blank" rel="noopener noreferrer">View website ↗</a>
-            {% endif %}
-            <form method="POST" action="{{ url_for('creator_auth.logout') }}">
-                <button type="submit">Sign out</button>
-            </form>
-        </div>
-    </aside>
+            <!-- =============================================
+                 MAIN CONTENT
+            ============================================== -->
 
-    <div class="admin-main">
-        <header class="admin-topbar">
-            <div><span class="mobile-brand">Creator Studio</span></div>
-            <a href="{{ url_for('studio.content_new') }}" class="create-button">+ New content</a>
-        </header>
-        <main class="admin-content">
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    <div class="flash-stack">
-                        {% for category, message in messages %}
-                            <div class="flash-message {{ category|e }}">{{ message }}</div>
-                        {% endfor %}
-                    </div>
+            <main class="admin-content">
+
+                <!-- =========================================
+                     FLASH MESSAGES
+                ========================================== -->
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+
+                    {% if messages %}
+
+                        <div class="flash-stack">
+
+                            {% for category, message in messages %}
+
+                                <div
+                                    class="flash-message {{ category|e }}"
+                                >
+                                    {{ message }}
+                                </div>
+
+                            {% endfor %}
+
+                        </div>
+
+                    {% endif %}
+
+                {% endwith %}
+
+                <!-- =========================================
+                     FREE PLAN UPGRADE BANNER
+                ========================================== -->
+
+                {% if active_free_plan %}
+
+                    <section
+                        class="studio-upgrade-banner"
+                        aria-label="Creator plan upgrade"
+                    >
+
+                        <div class="studio-upgrade-banner-content">
+
+                            <span class="studio-upgrade-banner-label">
+                                GROW WITH KALXA
+                            </span>
+
+                            <strong>
+                                Keep more of your fan contributions.
+                            </strong>
+
+                            <p>
+                                You're using Kalxa Creator Free.
+                                Upgrade to Standard for R100 once-off
+                                to reduce Kalxa's commission from
+                                23% to 3% and unlock exclusive content.
+                            </p>
+
+                        </div>
+
+                        <form
+                            method="POST"
+                            action="{{ url_for('payments.creator_checkout') }}"
+                            class="studio-upgrade-banner-action"
+                        >
+
+                            <input
+                                type="hidden"
+                                name="plan"
+                                value="standard"
+                            >
+
+                            <button
+                                type="submit"
+                                class="studio-upgrade-banner-button"
+                            >
+                                Upgrade · R100 →
+                            </button>
+
+                        </form>
+
+                    </section>
+
                 {% endif %}
-            {% endwith %}
 
-            {% if subscription_status == 'past_due' %}
-                <section class="subscription-warning" aria-label="Subscription payment due">
-                    <div class="subscription-warning-content">
-                        <span class="subscription-warning-label">Subscription payment due</span>
-                        <strong>Your Creator Studio is still available.</strong>
-                        <p>
-                            Your paid subscription period has ended.
-                            {% if grace_days is not none %}
-                                You have <span class="subscription-warning-days">
-                                    {{ grace_days }} {{ 'day' if grace_days == 1 else 'days' }} remaining
-                                </span> in your grace period.
-                            {% else %}
-                                You are currently in your grace period.
-                            {% endif %}
-                            Renew now to avoid losing access to Creator Studio.
-                            Your public creator page and published content will remain online.
-                        </p>
-                    </div>
-                    <form method="POST" action="{{ url_for('payments.creator_checkout') }}"
-                          class="subscription-renew-form">
-                        <button type="submit" class="subscription-renew-button">
-                            Renew {{ 'R149' if account_plan == 'premium' else 'R79' }} →
-                        </button>
-                    </form>
-                </section>
-            {% endif %}
+                <!-- =========================================
+                     CONTENT
+                ========================================== -->
 
-            {% block content %}{% endblock %}
-        </main>
+                {% block content %}{% endblock %}
+
+            </main>
+
+        </div>
+
     </div>
-</div>
-{% block extra_scripts %}{% endblock %}
+
+    {% block extra_scripts %}{% endblock %}
+
 </body>
+
 </html>
