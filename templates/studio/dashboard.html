@@ -1,28 +1,45 @@
+
 {% extends "studio/base.html" %}
 
 {% block title %}
-Dashboard | Creator Studio
+Dashboard | Kalxa Creator Studio
 {% endblock %}
 
 {% block content %}
 
 <style>
 
+    /* =====================================================
+       DASHBOARD
+    ===================================================== */
+
+    .creator-dashboard {
+        display: grid;
+        gap: 28px;
+    }
+
+    .creator-dashboard,
+    .creator-dashboard * {
+        box-sizing: border-box;
+    }
+
+    /* =====================================================
+       CURRENT PLAN
+    ===================================================== */
+
     .current-plan-panel {
-        margin-bottom: 30px;
         padding: 26px;
+        border: 1px solid #dfe1e5;
         border-radius: 18px;
         background: #ffffff;
-        border: 1px solid #dfe1e5;
     }
 
     .current-plan-panel.premium {
-        background:
-            linear-gradient(
-                145deg,
-                #111318,
-                #292d34
-            );
+        background: linear-gradient(
+            145deg,
+            #111318,
+            #292d34
+        );
         color: #ffffff;
         border-color: #111318;
     }
@@ -36,548 +53,1239 @@ Dashboard | Creator Studio
 
     .current-plan-label {
         display: block;
-        margin-bottom: 6px;
+        margin-bottom: 7px;
         font-size: 11px;
-        font-weight: 700;
+        font-weight: 800;
         letter-spacing: 0.12em;
         opacity: 0.65;
     }
 
     .current-plan-name {
         margin: 0;
-        font-size: 26px;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
     }
 
     .current-plan-price {
-        margin: 4px 0 0;
-        font-weight: 700;
+        margin: 7px 0;
+        font-size: 15px;
+        font-weight: 800;
     }
+
+    .current-plan-description {
+        margin: 9px 0 0;
+        max-width: 600px;
+        font-size: 13px;
+        line-height: 1.6;
+        opacity: 0.8;
+    }
+
+    .current-plan-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 8px 11px;
+        border-radius: 999px;
+        background: #edf7f0;
+        color: #27613c;
+        font-size: 10px;
+        font-weight: 800;
+        white-space: nowrap;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+    }
+
+    .current-plan-status.pending {
+        background: #fff4df;
+        color: #80540e;
+    }
+
+    .current-plan-panel.premium
+    .current-plan-status {
+        background: rgba(255, 255, 255, 0.13);
+        color: #ffffff;
+    }
+
+    /* =====================================================
+       PLAN FEATURES
+    ===================================================== */
 
     .current-plan-features {
         display: grid;
-        grid-template-columns: repeat(
-            2,
-            minmax(0, 1fr)
-        );
-        gap: 10px;
-        margin-top: 22px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 11px;
+        margin-top: 24px;
     }
 
     .current-plan-feature {
-        padding: 11px 13px;
-        border-radius: 10px;
-        background: rgba(
-            127,
-            127,
-            127,
-            0.08
-        );
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        padding: 13px 14px;
+        border-radius: 11px;
+        background: rgba(127, 127, 127, 0.08);
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .current-plan-feature-icon {
+        flex-shrink: 0;
+        font-weight: 800;
+    }
+
+    .current-plan-feature.locked {
+        opacity: 0.52;
     }
 
     .current-plan-panel.premium
     .current-plan-feature {
-        background: rgba(
-            255,
-            255,
-            255,
-            0.08
-        );
+        background: rgba(255, 255, 255, 0.08);
     }
 
-    .current-plan-feature.locked {
-        opacity: 0.55;
+    /* =====================================================
+       COMMISSION PANEL
+    ===================================================== */
+
+    .creator-commission-panel {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin-top: 22px;
+        padding: 17px 19px;
+        border: 1px solid #e2e4e7;
+        border-radius: 12px;
+        background: #f7f8f9;
     }
+
+    .creator-commission-panel > div {
+        min-width: 0;
+    }
+
+    .creator-commission-panel span {
+        display: block;
+        margin-bottom: 5px;
+        color: #6d727a;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+    }
+
+    .creator-commission-panel strong {
+        display: block;
+        font-size: 25px;
+        font-weight: 800;
+    }
+
+    .creator-commission-panel p {
+        margin: 6px 0 0;
+        color: #646a73;
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    .creator-commission-panel a {
+        flex: 0 0 auto;
+        padding: 11px 15px;
+        border-radius: 9px;
+        background: #111318;
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 800;
+        text-decoration: none;
+    }
+
+    .current-plan-panel.premium
+    .creator-commission-panel {
+        border-color: rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.08);
+    }
+
+    .current-plan-panel.premium
+    .creator-commission-panel span,
+    .current-plan-panel.premium
+    .creator-commission-panel p {
+        color: rgba(255, 255, 255, 0.72);
+    }
+
+    .current-plan-panel.premium
+    .creator-commission-panel a {
+        background: #ffffff;
+        color: #111318;
+    }
+
+    /* =====================================================
+       UPGRADE PANEL
+    ===================================================== */
 
     .upgrade-panel {
-        margin-top: 20px;
-        padding: 18px;
-        border-radius: 12px;
+        margin-top: 22px;
+        padding: 20px;
+        border-radius: 13px;
         background: #111318;
         color: #ffffff;
     }
 
     .upgrade-panel h3 {
-        margin: 0 0 5px;
+        margin: 0 0 7px;
+        font-size: 19px;
     }
 
     .upgrade-panel p {
-        margin: 0 0 14px;
+        margin: 0 0 16px;
+        max-width: 650px;
+        font-size: 13px;
+        line-height: 1.6;
         opacity: 0.8;
     }
 
-    .upgrade-panel a {
-        display: inline-block;
-        padding: 9px 14px;
-        border-radius: 8px;
+    .upgrade-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .upgrade-actions form {
+        margin: 0;
+    }
+
+    .upgrade-actions button {
+        padding: 12px 16px;
+        border: 0;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #111318;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .upgrade-actions button.secondary {
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: transparent;
+        color: #ffffff;
+    }
+
+    .upgrade-actions button:hover {
+        opacity: 0.9;
+    }
+
+    .upgrade-panel-note {
+        margin-top: 13px;
+        font-size: 11px;
+        opacity: 0.7;
+    }
+
+    /* =====================================================
+       MONETISATION QUICK LINKS
+    ===================================================== */
+
+    .creator-earnings-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+    }
+
+    .creator-earnings-card {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-width: 0;
+        padding: 19px;
+        border: 1px solid #dfe1e5;
+        border-radius: 14px;
         background: #ffffff;
         color: #111318;
         text-decoration: none;
-        font-weight: 700;
+        transition:
+            transform 0.2s ease,
+            border-color 0.2s ease;
     }
 
-    @media (
-        max-width: 700px
-    ) {
+    .creator-earnings-card:hover {
+        transform: translateY(-2px);
+        border-color: #a9afb8;
+    }
+
+    .creator-earnings-card-icon {
+        font-size: 24px;
+    }
+
+    .creator-earnings-card strong {
+        font-size: 15px;
+    }
+
+    .creator-earnings-card p {
+        margin: 0;
+        color: #697079;
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    .creator-earnings-card small {
+        margin-top: auto;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+    }
+
+    .creator-earnings-card.locked {
+        background: #f7f8f9;
+    }
+
+    /* =====================================================
+       RESPONSIVE
+    ===================================================== */
+
+    @media (max-width: 900px) {
+
+        .creator-earnings-grid {
+            grid-template-columns: 1fr;
+        }
+
+    }
+
+    @media (max-width: 700px) {
+
+        .current-plan-panel {
+            padding: 20px;
+        }
 
         .current-plan-top {
-            display: block;
+            flex-direction: column;
+            gap: 14px;
         }
 
         .current-plan-features {
             grid-template-columns: 1fr;
         }
 
+        .creator-commission-panel {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .creator-commission-panel a {
+            width: 100%;
+            text-align: center;
+        }
+
+        .upgrade-actions,
+        .upgrade-actions form,
+        .upgrade-actions button {
+            width: 100%;
+        }
+
     }
 
-</style><div class="page-heading"><div>
+</style>
 
-    <span class="eyebrow">
-        OVERVIEW
-    </span>
+<!-- =========================================================
+     SAFE ACCOUNT CONTEXT
+========================================================== -->
 
-    <h1>
-        Welcome back{% if creator %},
-        {{ creator.display_name }}{% endif %}.
-    </h1>
+{% set dashboard_account = creator_account|default(none, true) %}
 
-    <p>
-        Here's what's happening with your content.
-    </p>
-
-</div>
-
-</div><!-- =========================================================
-     YOUR PLAN
-========================================================== --><section
-    id="premium-features"
-    class="
-        current-plan-panel
-        {% if creator_account.plan == 'premium' %}
-            premium
-        {% endif %}
-    "
-><div class="current-plan-top">
-
-    <div>
-
-        <span class="current-plan-label">
-            YOUR PLAN
-        </span>
-
-        <h2 class="current-plan-name">
-            {{ creator_account.plan|default(
-                "standard",
-                true
-            )|upper }}
-        </h2>
-
-        {% if creator_account.plan == "premium" %}
-
-            <p class="current-plan-price">
-                R149/month
-            </p>
-
-            <p>
-                Earn from your audience.
-            </p>
-
-        {% else %}
-
-            <p class="current-plan-price">
-                R79/month
-            </p>
-
-            <p>
-                Build your audience.
-            </p>
-
-        {% endif %}
-
-    </div>
-
-</div>
-
-
-<div class="current-plan-features">
-
-    <div class="current-plan-feature">
-        ✓ Publishing
-    </div>
-
-    <div class="current-plan-feature">
-        ✓ Newsletter
-    </div>
-
-    <div class="current-plan-feature">
-        ✓ Analytics
-    </div>
-
-
-    {% if creator_account.plan == "premium" %}
-
-        <div class="current-plan-feature">
-            ✓ Exclusive content
-        </div>
-
-        <div class="current-plan-feature">
-            ✓ Fan support
-        </div>
-
-    {% else %}
-
-        <div class="current-plan-feature locked">
-            🔒 Exclusive content · Premium
-        </div>
-
-        <div class="current-plan-feature locked">
-            🔒 Fan support · Premium
-        </div>
-
-    {% endif %}
-
-</div>
-
-
-{% if creator_account.plan != "premium" %}
-
-    <div class="upgrade-panel">
-
-        <h3>
-            Ready to earn from your audience?
-        </h3>
-
-        <p>
-            Upgrade to Premium to unlock
-            exclusive member content and
-            fan support.
-        </p>
-
-        <a href="#">
-            Upgrade to Premium · R149/month
-        </a>
-
-    </div>
-
+{% if dashboard_account is none %}
+    {% set dashboard_account = g.get('creator_account', none) %}
 {% endif %}
 
-</section><!-- =========================================================
-     STATS
-========================================================== --><div class="stats-grid"><div class="stat-card">
+{% set dashboard_plan = dashboard_account.plan|default('free', true)|lower if dashboard_account else 'free' %}
 
-    <span>
-        Total content
-    </span>
+{% set dashboard_status = dashboard_account.account_status|default('unknown', true) if dashboard_account else 'unknown' %}
 
-    <strong>
-        {{ total_posts }}
-    </strong>
+{% set dashboard_paid_verified = (
+    dashboard_account is not none
+    and dashboard_account.payment_status == 'paid'
+    and dashboard_account.registration_paid_at is not none
+) %}
 
-</div>
+{% set dashboard_paid_active = (
+    dashboard_status == 'active'
+    and dashboard_paid_verified
+    and dashboard_plan in ['standard', 'premium']
+) %}
 
+{% set dashboard_effective_plan = (
+    dashboard_plan if dashboard_paid_active else 'free'
+) %}
 
-<div class="stat-card">
+{% set dashboard_has_standard = dashboard_paid_active %}
 
-    <span>
-        Published
-    </span>
+{% set dashboard_has_premium = (
+    dashboard_paid_active
+    and dashboard_effective_plan == 'premium'
+) %}
 
-    <strong>
-        {{ published_posts }}
-    </strong>
+{% set dashboard_can_support = dashboard_status == 'active' %}
 
-</div>
+<div class="creator-dashboard">
 
+    <!-- =====================================================
+         HEADING
+    ====================================================== -->
 
-<div class="stat-card">
+    <div class="page-heading">
 
-    <span>
-        Drafts
-    </span>
+        <div>
 
-    <strong>
-        {{ draft_posts }}
-    </strong>
+            <span class="eyebrow">
+                OVERVIEW
+            </span>
 
-</div>
+            <h1>
+                Welcome back{% if creator %},
+                {{ creator.display_name }}{% endif %}.
+            </h1>
 
+            <p>
+                Manage your content, grow your audience
+                and explore your creator tools.
+            </p>
 
-<div class="stat-card">
-
-    <span>
-        Exclusive
-    </span>
-
-    <strong>
-        {{ exclusive_posts }}
-    </strong>
-
-    {% if creator_account.plan != "premium" %}
-
-        <small>
-            Premium feature
-        </small>
-
-    {% endif %}
-
-</div>
-
-
-<div class="stat-card">
-
-    <span>
-        Email subscribers
-    </span>
-
-    <strong>
-        {{ email_subscribers }}
-    </strong>
-
-</div>
-
-
-<div class="stat-card">
-
-    <span>
-        Folders
-    </span>
-
-    <strong>
-        {{ categories_count }}
-    </strong>
-
-</div>
-
-</div><!-- =========================================================
-     QUICK ACTIONS
-========================================================== --><section class="admin-section"><div class="section-title">
-
-    <div>
-
-        <span class="eyebrow">
-            CREATE
-        </span>
-
-        <h2>
-            What are you sharing today?
-        </h2>
+        </div>
 
     </div>
 
-</div>
+    <!-- =====================================================
+         CURRENT PLAN
+    ====================================================== -->
 
-
-<div class="quick-actions">
-
-
-    <a
-        href="{{ url_for(
-            'studio.content_new'
-        ) }}?type=story"
-        class="quick-action"
+    <section
+        id="premium-features"
+        class="current-plan-panel {% if dashboard_has_premium %}premium{% endif %}"
     >
 
-        <span class="quick-icon">
-            ✎
-        </span>
+        <div class="current-plan-top">
 
-        <strong>
-            Story
-        </strong>
+            <div>
 
-        <small>
-            Write something worth reading.
-        </small>
+                <span class="current-plan-label">
+                    YOUR CREATOR PLAN
+                </span>
 
-    </a>
+                <h2 class="current-plan-name">
+                    {{ dashboard_effective_plan|upper }}
+                </h2>
 
+                {% if dashboard_has_premium %}
 
-    <a
-        href="{{ url_for(
-            'studio.content_new'
-        ) }}?type=reel"
-        class="quick-action"
-    >
+                    <p class="current-plan-price">
+                        R150 once-off
+                    </p>
 
-        <span class="quick-icon">
-            ▶
-        </span>
+                    <p class="current-plan-description">
+                        Your Premium plan is activated.
+                        Access the full creator experience,
+                        including fundraising and advanced tools.
+                    </p>
 
-        <strong>
-            Reel
-        </strong>
+                {% elif dashboard_has_standard %}
 
-        <small>
-            Share a short moment.
-        </small>
+                    <p class="current-plan-price">
+                        R100 once-off
+                    </p>
 
-    </a>
+                    <p class="current-plan-description">
+                        Your Standard plan is activated.
+                        Publish exclusive content and keep
+                        more of your fan contributions.
+                    </p>
 
+                {% else %}
 
-    <a
-        href="{{ url_for(
-            'studio.content_new'
-        ) }}?type=vlog"
-        class="quick-action"
-    >
+                    <p class="current-plan-price">
+                        R0 forever
+                    </p>
 
-        <span class="quick-icon">
-            ◉
-        </span>
+                    <p class="current-plan-description">
+                        Start publishing, grow your community
+                        and receive fan support.
+                        Upgrade whenever you're ready.
+                    </p>
 
-        <strong>
-            Vlog
-        </strong>
+                {% endif %}
 
-        <small>
-            Publish a longer video.
-        </small>
+            </div>
 
-    </a>
+            {% if dashboard_status == 'active' %}
 
+                <span class="current-plan-status">
+                    ✓ Active
+                </span>
 
-    {% if creator_account.plan == "premium" %}
+            {% else %}
 
-        <a
-            href="{{ url_for(
-                'studio.content_new'
-            ) }}?access=subscriber"
-            class="quick-action dark"
-        >
+                <span class="current-plan-status pending">
+                    Activation pending
+                </span>
 
-            <span class="quick-icon">
-                🔒
-            </span>
+            {% endif %}
 
-            <strong>
-                Exclusive
-            </strong>
+        </div>
 
-            <small>
-                Create something for members.
-            </small>
+        <!-- =================================================
+             PLAN FEATURES
+        ================================================== -->
 
-        </a>
+        <div class="current-plan-features">
 
-    {% else %}
+            <div class="current-plan-feature">
+                <span class="current-plan-feature-icon">✓</span>
+                Publishing
+            </div>
 
-        <a
-            href="#premium-features"
-            class="quick-action dark"
-        >
+            <div class="current-plan-feature">
+                <span class="current-plan-feature-icon">✓</span>
+                Email newsletter
+            </div>
 
-            <span class="quick-icon">
-                🔒
-            </span>
+            <div class="current-plan-feature">
+                <span class="current-plan-feature-icon">✓</span>
+                Analytics
+            </div>
 
-            <strong>
-                Exclusive
-            </strong>
+            <div class="current-plan-feature">
+                <span class="current-plan-feature-icon">✓</span>
+                Creator website
+            </div>
 
-            <small>
-                Premium · Unlock member content.
-            </small>
+            {% if dashboard_can_support %}
 
-        </a>
+                <div class="current-plan-feature">
+                    <span class="current-plan-feature-icon">✓</span>
+                    Buy Me a Coffee
+                </div>
 
-    {% endif %}
+            {% else %}
 
+                <div class="current-plan-feature locked">
+                    <span class="current-plan-feature-icon">🔒</span>
+                    Fan support pending activation
+                </div>
 
-</div>
+            {% endif %}
 
-</section><!-- =========================================================
-     RECENT CONTENT
-========================================================== --><section class="admin-section"><div class="section-title">
+            {% if dashboard_has_standard %}
 
-    <div>
+                <div class="current-plan-feature">
+                    <span class="current-plan-feature-icon">✓</span>
+                    Exclusive content
+                </div>
 
-        <span class="eyebrow">
-            RECENT
-        </span>
+            {% else %}
 
-        <h2>
-            Your content
-        </h2>
+                <div class="current-plan-feature locked">
+                    <span class="current-plan-feature-icon">🔒</span>
+                    Exclusive content · Standard+
+                </div>
 
-    </div>
+            {% endif %}
 
+            {% if dashboard_has_premium %}
 
-    <a href="{{ url_for('studio.content_list') }}">
-        View everything →
-    </a>
+                <div class="current-plan-feature">
+                    <span class="current-plan-feature-icon">✓</span>
+                    Fundraising campaigns
+                </div>
 
-</div>
+                <div class="current-plan-feature">
+                    <span class="current-plan-feature-icon">✓</span>
+                    Custom domains
+                </div>
 
+            {% else %}
 
-{% if recent_posts %}
+                <div class="current-plan-feature locked">
+                    <span class="current-plan-feature-icon">🔒</span>
+                    Fundraising · Premium
+                </div>
 
-    <div class="content-table">
+                <div class="current-plan-feature locked">
+                    <span class="current-plan-feature-icon">🔒</span>
+                    Custom domains · Premium
+                </div>
 
-        {% for post in recent_posts %}
+            {% endif %}
 
-            <a
-                href="{{ url_for(
-                    'studio.content_edit',
-                    post_id=post.id
-                ) }}"
-                class="content-row"
-            >
+        </div>
 
-                <div>
+        <!-- =================================================
+             COMMISSION
+        ================================================== -->
 
-                    <span class="content-type">
-                        {{ post.content_type }}
-                    </span>
+        <div class="creator-commission-panel">
+
+            <div>
+
+                <span>
+                    KALXA COMMISSION
+                </span>
+
+                {% if dashboard_has_standard %}
 
                     <strong>
-                        {{ post.title }}
+                        3%
                     </strong>
 
+                {% else %}
+
+                    <strong>
+                        23%
+                    </strong>
+
+                {% endif %}
+
+                <p>
+                    Applied to eligible fan contributions.
+                    Payment processing fees are separate.
+                </p>
+
+            </div>
+
+            <a href="{{ url_for('studio.monetisation_support') }}">
+                Manage fan support →
+            </a>
+
+        </div>
+
+        <!-- =================================================
+             UPGRADE OPTIONS
+        ================================================== -->
+
+        {% if dashboard_status == 'active' %}
+
+            {% if dashboard_effective_plan == 'free' %}
+
+                <div class="upgrade-panel">
+
+                    <h3>
+                        Grow your creator business.
+                    </h3>
+
+                    <p>
+                        Upgrade to Standard to reduce your Kalxa
+                        commission from 23% to 3% and unlock
+                        exclusive content.
+
+                        Or choose Premium for fundraising,
+                        advanced analytics and custom domains.
+                    </p>
+
+                    <div class="upgrade-actions">
+
+                        <form
+                            method="POST"
+                            action="{{ url_for('payments.creator_checkout') }}"
+                        >
+
+                            <input
+                                type="hidden"
+                                name="plan"
+                                value="standard"
+                            >
+
+                            <button type="submit">
+                                Standard · R100 once-off
+                            </button>
+
+                        </form>
+
+                        <form
+                            method="POST"
+                            action="{{ url_for('payments.creator_checkout') }}"
+                        >
+
+                            <input
+                                type="hidden"
+                                name="plan"
+                                value="premium"
+                            >
+
+                            <button
+                                type="submit"
+                                class="secondary"
+                            >
+                                Premium · R150 once-off
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                    <div class="upgrade-panel-note">
+                        Secure one-time activation with Yoco.
+                        No monthly Kalxa subscription fees.
+                    </div>
+
                 </div>
 
+            {% elif dashboard_effective_plan == 'standard' %}
 
-                <div class="row-meta">
+                <div class="upgrade-panel">
 
-                    {% if post.access_level == "subscriber" %}
+                    <h3>
+                        Ready for Premium?
+                    </h3>
 
-                        <span class="badge exclusive">
-                            🔒 Exclusive
-                        </span>
+                    <p>
+                        Upgrade your Standard account for
+                        R50 once-off to unlock fundraising,
+                        advanced analytics and custom domains.
+                    </p>
 
+                    <div class="upgrade-actions">
+
+                        <form
+                            method="POST"
+                            action="{{ url_for('payments.creator_checkout') }}"
+                        >
+
+                            <input
+                                type="hidden"
+                                name="plan"
+                                value="premium"
+                            >
+
+                            <button type="submit">
+                                Upgrade to Premium · R50
+                            </button>
+
+                        </form>
+
+                    </div>
+
+                    <div class="upgrade-panel-note">
+                        One-time upgrade.
+                        Your existing content and audience stay intact.
+                    </div>
+
+                </div>
+
+            {% endif %}
+
+        {% endif %}
+
+    </section>
+
+    <!-- =====================================================
+         CONTENT STATS
+    ====================================================== -->
+
+    <div class="stats-grid">
+
+        <div class="stat-card">
+
+            <span>
+                Total content
+            </span>
+
+            <strong>
+                {{ total_posts|default(0, true) }}
+            </strong>
+
+        </div>
+
+        <div class="stat-card">
+
+            <span>
+                Published
+            </span>
+
+            <strong>
+                {{ published_posts|default(0, true) }}
+            </strong>
+
+        </div>
+
+        <div class="stat-card">
+
+            <span>
+                Drafts
+            </span>
+
+            <strong>
+                {{ draft_posts|default(0, true) }}
+            </strong>
+
+        </div>
+
+        <div class="stat-card">
+
+            <span>
+                Exclusive
+            </span>
+
+            <strong>
+                {{ exclusive_posts|default(0, true) }}
+            </strong>
+
+            {% if not dashboard_has_standard %}
+
+                <small>
+                    Standard+ feature
+                </small>
+
+            {% endif %}
+
+        </div>
+
+        <div class="stat-card">
+
+            <span>
+                Email subscribers
+            </span>
+
+            <strong>
+                {{ email_subscribers|default(0, true) }}
+            </strong>
+
+        </div>
+
+        <div class="stat-card">
+
+            <span>
+                Folders
+            </span>
+
+            <strong>
+                {{ categories_count|default(0, true) }}
+            </strong>
+
+        </div>
+
+    </div>
+
+    <!-- =====================================================
+         EARNINGS TOOLS
+    ====================================================== -->
+
+    <section class="admin-section">
+
+        <div class="section-title">
+
+            <div>
+
+                <span class="eyebrow">
+                    MONETISATION
+                </span>
+
+                <h2>
+                    Your earning tools
+                </h2>
+
+            </div>
+
+            <a href="{{ url_for('studio.monetisation') }}">
+                Manage earnings →
+            </a>
+
+        </div>
+
+        <div class="creator-earnings-grid">
+
+            <!-- =========================================
+                 FAN SUPPORT
+            ========================================== -->
+
+            <a
+                href="{{ url_for('studio.monetisation_support') }}"
+                class="creator-earnings-card"
+            >
+
+                <span class="creator-earnings-card-icon">
+                    ☕
+                </span>
+
+                <strong>
+                    Buy Me a Coffee
+                </strong>
+
+                <p>
+                    Let supporters contribute directly
+                    to your creator journey.
+                </p>
+
+                <small>
+                    {% if dashboard_has_standard %}
+                        3% Kalxa commission
+                    {% else %}
+                        23% Kalxa commission
                     {% endif %}
-
-
-                    <span
-                        class="badge {{ post.status }}"
-                    >
-                        {{ post.status }}
-                    </span>
-
-                    <span>
-                        →
-                    </span>
-
-                </div>
+                </small>
 
             </a>
 
-        {% endfor %}
+            <!-- =========================================
+                 EXCLUSIVE CONTENT
+            ========================================== -->
 
-    </div>
+            {% if dashboard_has_standard %}
 
-{% else %}
+                <a
+                    href="{{ url_for('studio.content_new') }}?access=subscriber"
+                    class="creator-earnings-card"
+                >
 
-    <div class="empty-state">
+                    <span class="creator-earnings-card-icon">
+                        🔒
+                    </span>
 
-        <h3>
-            Nothing here yet.
-        </h3>
+                    <strong>
+                        Exclusive content
+                    </strong>
 
-        <p>
-            Create your first story, reel or vlog.
-        </p>
+                    <p>
+                        Publish content reserved for
+                        your paying members.
+                    </p>
 
-    </div>
+                    <small>
+                        Available on your plan
+                    </small>
 
-{% endif %}
+                </a>
 
-</section>{% endblock %}
+            {% else %}
+
+                <a
+                    href="#premium-features"
+                    class="creator-earnings-card locked"
+                >
+
+                    <span class="creator-earnings-card-icon">
+                        🔒
+                    </span>
+
+                    <strong>
+                        Exclusive content
+                    </strong>
+
+                    <p>
+                        Unlock member-only publishing
+                        with Standard or Premium.
+                    </p>
+
+                    <small>
+                        Standard+ feature
+                    </small>
+
+                </a>
+
+            {% endif %}
+
+            <!-- =========================================
+                 FUNDRAISING
+            ========================================== -->
+
+            {% if dashboard_has_premium %}
+
+                <a
+                    href="{{ url_for('studio.fundraising_campaigns') }}"
+                    class="creator-earnings-card"
+                >
+
+                    <span class="creator-earnings-card-icon">
+                        ♡
+                    </span>
+
+                    <strong>
+                        Fundraising
+                    </strong>
+
+                    <p>
+                        Create campaigns and invite
+                        supporters to contribute.
+                    </p>
+
+                    <small>
+                        Premium feature active
+                    </small>
+
+                </a>
+
+            {% else %}
+
+                <a
+                    href="#premium-features"
+                    class="creator-earnings-card locked"
+                >
+
+                    <span class="creator-earnings-card-icon">
+                        ♡
+                    </span>
+
+                    <strong>
+                        Fundraising
+                    </strong>
+
+                    <p>
+                        Unlock fundraising campaigns
+                        with Premium.
+                    </p>
+
+                    <small>
+                        Premium feature
+                    </small>
+
+                </a>
+
+            {% endif %}
+
+        </div>
+
+    </section>
+
+    <!-- =====================================================
+         QUICK ACTIONS
+    ====================================================== -->
+
+    <section class="admin-section">
+
+        <div class="section-title">
+
+            <div>
+
+                <span class="eyebrow">
+                    CREATE
+                </span>
+
+                <h2>
+                    What are you sharing today?
+                </h2>
+
+            </div>
+
+        </div>
+
+        <div class="quick-actions">
+
+            <!-- =========================================
+                 STORY
+            ========================================== -->
+
+            <a
+                href="{{ url_for('studio.content_new') }}?type=story"
+                class="quick-action"
+            >
+
+                <span class="quick-icon">
+                    ✎
+                </span>
+
+                <strong>
+                    Story
+                </strong>
+
+                <small>
+                    Write something worth reading.
+                </small>
+
+            </a>
+
+            <!-- =========================================
+                 REEL
+            ========================================== -->
+
+            <a
+                href="{{ url_for('studio.content_new') }}?type=reel"
+                class="quick-action"
+            >
+
+                <span class="quick-icon">
+                    ▶
+                </span>
+
+                <strong>
+                    Reel
+                </strong>
+
+                <small>
+                    Share a short moment.
+                </small>
+
+            </a>
+
+            <!-- =========================================
+                 VLOG
+            ========================================== -->
+
+            <a
+                href="{{ url_for('studio.content_new') }}?type=vlog"
+                class="quick-action"
+            >
+
+                <span class="quick-icon">
+                    ◉
+                </span>
+
+                <strong>
+                    Vlog
+                </strong>
+
+                <small>
+                    Publish a longer video.
+                </small>
+
+            </a>
+
+            <!-- =========================================
+                 EXCLUSIVE
+            ========================================== -->
+
+            {% if dashboard_has_standard %}
+
+                <a
+                    href="{{ url_for('studio.content_new') }}?access=subscriber"
+                    class="quick-action dark"
+                >
+
+                    <span class="quick-icon">
+                        🔒
+                    </span>
+
+                    <strong>
+                        Exclusive
+                    </strong>
+
+                    <small>
+                        Create content for members.
+                    </small>
+
+                </a>
+
+            {% else %}
+
+                <a
+                    href="#premium-features"
+                    class="quick-action dark"
+                >
+
+                    <span class="quick-icon">
+                        🔒
+                    </span>
+
+                    <strong>
+                        Exclusive
+                    </strong>
+
+                    <small>
+                        Standard+ · Unlock member content.
+                    </small>
+
+                </a>
+
+            {% endif %}
+
+        </div>
+
+    </section>
+
+    <!-- =====================================================
+         RECENT CONTENT
+    ====================================================== -->
+
+    <section class="admin-section">
+
+        <div class="section-title">
+
+            <div>
+
+                <span class="eyebrow">
+                    RECENT
+                </span>
+
+                <h2>
+                    Your content
+                </h2>
+
+            </div>
+
+            <a href="{{ url_for('studio.content_list') }}">
+                View everything →
+            </a>
+
+        </div>
+
+        {% if recent_posts %}
+
+            <div class="content-table">
+
+                {% for post in recent_posts %}
+
+                    <a
+                        href="{{ url_for(
+                            'studio.content_edit',
+                            post_id=post.id
+                        ) }}"
+                        class="content-row"
+                    >
+
+                        <div>
+
+                            <span class="content-type">
+                                {{ post.content_type }}
+                            </span>
+
+                            <strong>
+                                {{ post.title }}
+                            </strong>
+
+                        </div>
+
+                        <div class="row-meta">
+
+                            {% if post.access_level in ['subscriber', 'exclusive'] %}
+
+                                <span class="badge exclusive">
+                                    🔒 Exclusive
+                                </span>
+
+                            {% endif %}
+
+                            <span class="badge {{ post.status }}">
+                                {{ post.status|title }}
+                            </span>
+
+                            <span>
+                                →
+                            </span>
+
+                        </div>
+
+                    </a>
+
+                {% endfor %}
+
+            </div>
+
+        {% else %}
+
+            <div class="empty-state">
+
+                <h3>
+                    Nothing here yet.
+                </h3>
+
+                <p>
+                    Create your first story, reel or vlog.
+                    Your published content will appear here.
+                </p>
+
+                <a href="{{ url_for('studio.content_new') }}">
+                    Create your first post →
+                </a>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+
+</div>
+
+{% endblock %}
