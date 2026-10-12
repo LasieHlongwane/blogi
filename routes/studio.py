@@ -46,11 +46,7 @@ from models import (
     EmailDelivery,
 )
 
-from services.subscription_service import (
-    creator_subscription_is_current,
-    enforce_subscription_lifecycle,
-    creator_grace_days_remaining,
-)
+
 
 from services.cloudinary_service import (
     upload_image,
@@ -1645,46 +1641,22 @@ def monetisation():
 # ============================================================
 # PAYOUT SETUP
 # ============================================================
+# ============================================================
+# PAYOUT SETUP
+# BACKWARDS-COMPATIBLE ENDPOINT
+# ============================================================
 
 @studio_bp.route(
-    "/monetisation/payout"
+    "/monetisation/payout/setup"
 )
 @studio_required
 def payout_setup():
 
-    account = (
-        current_creator_account()
-    )
-
-    if not require_creator_feature(
-        account,
-        FEATURE_PAYOUT_CONNECTION,
-    ):
-
-        return redirect(
-            url_for(
-                "studio.monetisation"
-            )
+    return redirect(
+        url_for(
+            "studio.monetisation_payout"
         )
-
-    return render_template(
-        "studio/payout_setup.html",
-        creator=creator_profile(
-            account
-        ),
-        creator_account=account,
-        payout_account=(
-            creator_payout_account(
-                account
-            )
-        ),
-        plan_summary=(
-            creator_plan_summary(
-                account
-            )
-        ),
     )
-
 
 # Backwards-compatible endpoint.
 # ============================================================
