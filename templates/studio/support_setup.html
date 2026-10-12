@@ -1,31 +1,711 @@
+
 {% extends "studio/base.html" %}
-{% block title %}Fan Support | Creator Studio{% endblock %}
+
+{% block title %}
+Buy Me a Coffee | Kalxa Creator Studio
+{% endblock %}
+
 {% block content %}
+
 <style>
-.support-shell{max-width:900px;margin:0 auto}.support-card{background:#fff;border:1px solid #e2e5e9;border-radius:18px;padding:26px;margin-bottom:18px}.support-card h1,.support-card h2{margin-top:0}.lead{color:#68707a;line-height:1.6}.amounts{display:flex;gap:10px;flex-wrap:wrap;margin:18px 0}.amount{padding:10px 14px;border:1px solid #dfe2e6;border-radius:999px;font-weight:800}.rule-list{margin:0;padding-left:20px;color:#5e6670;line-height:1.8}.status{padding:14px;border-radius:12px;background:#f5f6f7;margin-top:18px}.status.ready{background:#eaf8ef;color:#176c3a}.button{display:inline-block;margin-top:18px;padding:11px 15px;border-radius:10px;background:#111318;color:#fff;text-decoration:none;font-size:12px;font-weight:800}.back{display:inline-block;margin-bottom:16px;color:#555d66;text-decoration:none;font-size:13px}
+
+    /* =====================================================
+       SUPPORT PAGE
+    ===================================================== */
+
+    .support-shell {
+        max-width: 950px;
+        margin: 0 auto;
+    }
+
+    .support-shell * {
+        box-sizing: border-box;
+    }
+
+    .support-back {
+        display: inline-block;
+        margin-bottom: 18px;
+        color: #555d66;
+        text-decoration: none;
+        font-size: 13px;
+        font-weight: 700;
+    }
+
+    .support-back:hover {
+        color: #111318;
+    }
+
+    .support-card {
+        margin-bottom: 20px;
+        padding: 27px;
+        border: 1px solid #e2e5e9;
+        border-radius: 18px;
+        background: #ffffff;
+    }
+
+    .support-card h1 {
+        margin: 0 0 10px;
+        font-size: 30px;
+    }
+
+    .support-card h2 {
+        margin: 0 0 12px;
+        font-size: 21px;
+    }
+
+    .support-lead {
+        margin: 0;
+        color: #68707a;
+        font-size: 14px;
+        line-height: 1.7;
+    }
+
+    /* =====================================================
+       PLAN AND COMMISSION
+    ===================================================== */
+
+    .support-plan-panel {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        margin-top: 22px;
+        padding: 18px;
+        border-radius: 12px;
+        background: #f5f6f7;
+    }
+
+    .support-plan-panel span {
+        display: block;
+        margin-bottom: 5px;
+        color: #737983;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .support-plan-panel strong {
+        display: block;
+        font-size: 20px;
+    }
+
+    .support-commission-value {
+        font-size: 32px;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+    }
+
+    .support-commission-note {
+        margin: 12px 0 0;
+        color: #737983;
+        font-size: 12px;
+        line-height: 1.65;
+    }
+
+    /* =====================================================
+       SUGGESTED AMOUNTS
+    ===================================================== */
+
+    .support-amounts {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin: 19px 0;
+    }
+
+    .support-amount {
+        display: inline-block;
+        padding: 11px 15px;
+        border: 1px solid #dfe2e6;
+        border-radius: 999px;
+        background: #ffffff;
+        font-size: 13px;
+        font-weight: 800;
+    }
+
+    /* =====================================================
+       PAYOUT STATUS
+    ===================================================== */
+
+    .support-status {
+        margin-top: 20px;
+        padding: 17px;
+        border: 1px solid #e1e4e7;
+        border-radius: 12px;
+        background: #f5f6f7;
+        color: #454b54;
+        font-size: 13px;
+        line-height: 1.65;
+    }
+
+    .support-status.ready {
+        border-color: #cce8d4;
+        background: #eaf8ef;
+        color: #176c3a;
+    }
+
+    .support-status.warning {
+        border-color: #f0dfb8;
+        background: #fff7e8;
+        color: #755119;
+    }
+
+    .support-status strong {
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    /* =====================================================
+       ACTIONS
+    ===================================================== */
+
+    .support-button {
+        display: inline-block;
+        margin-top: 18px;
+        padding: 12px 16px;
+        border: 0;
+        border-radius: 10px;
+        background: #111318;
+        color: #ffffff;
+        text-decoration: none;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .support-button:hover {
+        background: #292d34;
+    }
+
+    .support-button.secondary {
+        border: 1px solid #dfe2e6;
+        background: #f5f6f7;
+        color: #111318;
+    }
+
+    /* =====================================================
+       RULES
+    ===================================================== */
+
+    .support-rule-list {
+        margin: 0;
+        padding-left: 21px;
+        color: #5e6670;
+        font-size: 13px;
+        line-height: 1.9;
+    }
+
+    /* =====================================================
+       EXAMPLE BREAKDOWN
+    ===================================================== */
+
+    .support-example {
+        margin-top: 20px;
+        border: 1px solid #e2e5e9;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    .support-example-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 13px 16px;
+        border-bottom: 1px solid #eceef1;
+        font-size: 13px;
+    }
+
+    .support-example-row:last-child {
+        border-bottom: 0;
+    }
+
+    .support-example-row span {
+        color: #69707a;
+    }
+
+    .support-example-row strong {
+        white-space: nowrap;
+    }
+
+    .support-example-row.total {
+        background: #f5f6f7;
+        font-weight: 800;
+    }
+
+    .support-example-note {
+        margin: 12px 0 0;
+        color: #737983;
+        font-size: 11px;
+        line-height: 1.65;
+    }
+
+    /* =====================================================
+       UPGRADE
+    ===================================================== */
+
+    .support-upgrade-panel {
+        margin-top: 22px;
+        padding: 20px;
+        border-radius: 13px;
+        background: #111318;
+        color: #ffffff;
+    }
+
+    .support-upgrade-panel h3 {
+        margin: 0 0 7px;
+        font-size: 18px;
+    }
+
+    .support-upgrade-panel p {
+        margin: 0 0 15px;
+        font-size: 13px;
+        line-height: 1.65;
+        opacity: 0.8;
+    }
+
+    .support-upgrade-panel form {
+        margin: 0;
+    }
+
+    .support-upgrade-panel button {
+        padding: 12px 16px;
+        border: 0;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #111318;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    /* =====================================================
+       RESPONSIVE
+    ===================================================== */
+
+    @media (max-width: 650px) {
+
+        .support-card {
+            padding: 20px;
+        }
+
+        .support-plan-panel {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .support-upgrade-panel button {
+            width: 100%;
+        }
+
+    }
+
 </style>
-<div class="support-shell">
-<a class="back" href="{{ url_for('studio.monetisation') }}">← Monetisation</a>
-<section class="support-card">
-<h1>Buy me a coffee ☕</h1>
-<p class="lead">Give supporters a simple way to contribute voluntarily. Support does not unlock exclusive content and Kalxa takes 0% platform commission on these contributions. Payment processing fees may apply.</p>
-<div class="amounts"><span class="amount">R20</span><span class="amount">R50</span><span class="amount">R100</span><span class="amount">Custom amount</span></div>
-{% if payout_account and payout_account.status == 'active' %}
-<div class="status ready"><strong>Payout ready.</strong> Your payout account is active. The next backend step is enabling the public Paystack support checkout.</div>
-{% else %}
-<div class="status"><strong>Payout setup required.</strong> Connect an active payout account before accepting support.</div>
-<a class="button" href="{{ url_for('studio.payout_setup') }}">Set up payout →</a>
+
+<!-- =========================================================
+     SAFE ACCOUNT CONTEXT
+========================================================== -->
+
+{% set support_account = creator_account|default(none, true) %}
+
+{% if support_account is none %}
+    {% set support_account = g.get('creator_account', none) %}
 {% endif %}
-</section>
-<section class="support-card">
-<h2>How support works</h2>
-<ul class="rule-list">
-<li>Available to Standard and Premium creators.</li>
-<li>Supporters can choose a suggested or custom amount.</li>
-<li>Support can include a name, email, message, or be shown anonymously.</li>
-<li>A browser success page will never mark a payment as paid.</li>
-<li>Only a verified payment-provider confirmation will update a FanPayment to paid.</li>
-</ul>
-</section>
+
+{% set support_plan = support_account.plan|default('free', true)|lower if support_account else 'free' %}
+
+{% set support_status = support_account.account_status|default('unknown', true) if support_account else 'unknown' %}
+
+{% set support_paid_verified = (
+    support_account is not none
+    and support_account.payment_status == 'paid'
+    and support_account.registration_paid_at is not none
+) %}
+
+{% set support_paid_active = (
+    support_status == 'active'
+    and support_paid_verified
+    and support_plan in ['standard', 'premium']
+) %}
+
+{% set support_effective_plan = support_plan if support_paid_active else 'free' %}
+
+{% set support_commission = 3 if support_paid_active else 23 %}
+
+{% set support_payout_ready = (
+    payout_account is defined
+    and payout_account is not none
+    and payout_account.status == 'active'
+) %}
+
+{% set example_amount_cents = 10000 %}
+
+{% set example_fee_cents = 300 if support_paid_active else 2300 %}
+
+{% set example_creator_cents = example_amount_cents - example_fee_cents %}
+
+<div class="support-shell">
+
+    <a
+        class="support-back"
+        href="{{ url_for('studio.monetisation') }}"
+    >
+        ← Back to Monetisation
+    </a>
+
+    <!-- =====================================================
+         INTRODUCTION
+    ====================================================== -->
+
+    <section class="support-card">
+
+        <span class="eyebrow">
+            FAN SUPPORT
+        </span>
+
+        <h1>
+            Buy Me a Coffee ☕
+        </h1>
+
+        <p class="support-lead">
+
+            Give your audience a simple way to
+            support your creative work.
+
+            Contributions are voluntary and
+            do not automatically unlock exclusive
+            content or paid memberships.
+
+            Available to Free, Standard and Premium
+            creators.
+
+        </p>
+
+        <!-- =================================================
+             PLAN COMMISSION
+        ================================================== -->
+
+        <div class="support-plan-panel">
+
+            <div>
+
+                <span>
+                    YOUR CURRENT PLAN
+                </span>
+
+                <strong>
+                    {{ support_effective_plan|upper }}
+                </strong>
+
+            </div>
+
+            <div>
+
+                <span>
+                    KALXA COMMISSION
+                </span>
+
+                <div class="support-commission-value">
+                    {{ support_commission }}%
+                </div>
+
+            </div>
+
+        </div>
+
+        <p class="support-commission-note">
+
+            {% if support_paid_active %}
+
+                Your activated {{ support_effective_plan|title }}
+                plan has a 3% Kalxa platform commission
+                on eligible fan contributions.
+
+            {% else %}
+
+                Free creators pay a 23% Kalxa
+                platform commission on eligible
+                fan contributions.
+
+            {% endif %}
+
+            Paystack processing fees may also apply.
+            The final bank settlement can therefore
+            be lower than the amount remaining
+            after Kalxa's commission.
+
+        </p>
+
+        <!-- =================================================
+             SUGGESTED AMOUNTS
+        ================================================== -->
+
+        <div class="support-amounts">
+
+            <span class="support-amount">
+                R20
+            </span>
+
+            <span class="support-amount">
+                R50
+            </span>
+
+            <span class="support-amount">
+                R100
+            </span>
+
+            <span class="support-amount">
+                Custom amount
+            </span>
+
+        </div>
+
+        <!-- =================================================
+             PAYOUT STATUS
+        ================================================== -->
+
+        {% if support_status != 'active' %}
+
+            <div class="support-status warning">
+
+                <strong>
+                    Account activation required
+                </strong>
+
+                Your creator account must be active
+                before it can receive fan contributions.
+
+            </div>
+
+        {% elif support_payout_ready %}
+
+            <div class="support-status ready">
+
+                <strong>
+                    Payout account connected
+                </strong>
+
+                Your Paystack payout account is
+                marked active.
+
+                Eligible supporters can complete
+                payments once the public support
+                checkout is enabled and working.
+
+            </div>
+
+            {% if support_account and support_account.username %}
+
+                <a
+                    href="{{ url_for(
+                        'fan_payments.support_page',
+                        username=support_account.username
+                    ) }}"
+                    class="support-button"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    View public support page ↗
+                </a>
+
+            {% endif %}
+
+        {% else %}
+
+            <div class="support-status warning">
+
+                <strong>
+                    Payout setup required
+                </strong>
+
+                Connect and activate your Paystack
+                payout account before accepting
+                fan contributions.
+
+            </div>
+
+            <a
+                class="support-button"
+                href="{{ url_for('studio.payout_setup') }}"
+            >
+                Set up payout account →
+            </a>
+
+        {% endif %}
+
+        <!-- =================================================
+             UPGRADE
+        ================================================== -->
+
+        {% if support_status == 'active' and support_effective_plan == 'free' %}
+
+            <div class="support-upgrade-panel">
+
+                <h3>
+                    Keep more of your fan support.
+                </h3>
+
+                <p>
+                    Upgrade to Standard for R100 once-off
+                    and reduce Kalxa's commission from
+                    23% to 3%.
+
+                    You will also unlock exclusive
+                    content features.
+                </p>
+
+                <form
+                    method="POST"
+                    action="{{ url_for('payments.creator_checkout') }}"
+                >
+
+                    <input
+                        type="hidden"
+                        name="plan"
+                        value="standard"
+                    >
+
+                    <button type="submit">
+                        Upgrade to Standard · R100
+                    </button>
+
+                </form>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+
+    <!-- =====================================================
+         HOW SUPPORT WORKS
+    ====================================================== -->
+
+    <section class="support-card">
+
+        <h2>
+            How fan support works
+        </h2>
+
+        <ul class="support-rule-list">
+
+            <li>
+                Available to active Free, Standard
+                and Premium creators.
+            </li>
+
+            <li>
+                Creators must connect a valid
+                Paystack payout subaccount.
+            </li>
+
+            <li>
+                Supporters can choose a suggested
+                or custom contribution amount.
+            </li>
+
+            <li>
+                Supporters may provide a name,
+                email and message, or choose
+                to be displayed anonymously.
+            </li>
+
+            <li>
+                Kalxa applies the commission
+                recorded when the payment
+                is initialized.
+            </li>
+
+            <li>
+                A browser redirect alone
+                never confirms a payment.
+            </li>
+
+            <li>
+                Only independently verified
+                payment-provider information
+                can mark a contribution as paid.
+            </li>
+
+            <li>
+                Contributions do not automatically
+                grant access to subscriber-only content.
+            </li>
+
+        </ul>
+
+    </section>
+
+    <!-- =====================================================
+         COMMISSION EXAMPLE
+    ====================================================== -->
+
+    <section class="support-card">
+
+        <h2>
+            Example: A fan contributes R100
+        </h2>
+
+        <p class="support-lead">
+            This example illustrates Kalxa's
+            commission for your current plan.
+        </p>
+
+        <div class="support-example">
+
+            <div class="support-example-row">
+
+                <span>
+                    Fan contribution
+                </span>
+
+                <strong>
+                    R100.00
+                </strong>
+
+            </div>
+
+            <div class="support-example-row">
+
+                <span>
+                    Kalxa commission ({{ support_commission }}%)
+                </span>
+
+                <strong>
+                    - R{{ '%.2f'|format(example_fee_cents / 100) }}
+                </strong>
+
+            </div>
+
+            <div class="support-example-row total">
+
+                <span>
+                    Creator share before processing fees
+                </span>
+
+                <strong>
+                    R{{ '%.2f'|format(example_creator_cents / 100) }}
+                </strong>
+
+            </div>
+
+        </div>
+
+        <p class="support-example-note">
+
+            This is an illustrative calculation,
+            not a guaranteed bank settlement.
+
+            Paystack processing fees, refunds
+            and any applicable adjustments
+            can affect the final amount received.
+
+        </p>
+
+    </section>
+
 </div>
+
 {% endblock %}
