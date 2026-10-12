@@ -117,20 +117,102 @@ def current_creator_account():
 # ============================================================
 # STUDIO ACCESS
 # ============================================================
+# ============================================================
+# STUDIO ACCESS
+# ============================================================
+#
+# KALXA CREATOR ACCESS RULES
+#
+# FREE:
+#   - No activation payment required
+#   - No subscription required
+#   - Account must be active
+#
+# STANDARD:
+#   - R100 once-off activation
+#   - Payment must be verified
+#   - Account must be active
+#
+# PREMIUM:
+#   - R150 once-off activation
+#   - Payment must be verified
+#   - Account must be active
+#
+# IMPORTANT:
+#   Do not use the legacy monthly subscription lifecycle
+#   to determine Studio access for once-off plans.
+#
+# ============================================================
+
+
+def creator_studio_access_allowed(creator):
+    """
+    Determine whether a creator may access Creator Studio.
+
+    Free creators:
+        Require an active account.
+
+    Standard/Premium creators:
+        Require an active account and verified activation.
+
+    Suspended, pending and unrecognized accounts:
+        Denied.
+    """
+
+    if creator is None:
+        return False
+
+    # --------------------------------------------------------
+    # ACCOUNT STATUS
+    # --------------------------------------------------------
+
+    if creator.account_status != "active":
+        return False
+
+    plan = str(
+        creator.plan or ""
+    ).strip().lower()
+
+    # --------------------------------------------------------
+    # FREE PLAN
+    # --------------------------------------------------------
+
+    if plan == "free":
+        return True
+
+    # --------------------------------------------------------
+    # PAID PLANS
+    # --------------------------------------------------------
+
+    if plan in {
+        "standard",
+        "premium",
+    }:
+
+        return (
+            creator.payment_status == "paid"
+            and creator.registration_paid_at is not None
+        )
+
+    # --------------------------------------------------------
+    # UNKNOWN PLAN
+    # --------------------------------------------------------
+
+    return False
+
 
 def studio_required(view):
 
     @wraps(view)
-    def wrapped_view(
-        *args,
-        **kwargs,
-    ):
+    def wrapped_view(*args, **kwargs):
 
-        creator = (
-            current_creator_account()
-        )
+        # ====================================================
+        # AUTHENTICATION
+        # ====================================================
 
-        if not creator:
+        creator = current_creator_account()
+
+        if creator is None:
 
             session.pop(
                 "creator_account_id",
@@ -148,102 +230,48 @@ def studio_required(view):
                 )
             )
 
-        if (
-            creator.account_status
-            != "active"
-        ):
+        # ====================================================
+        # ACCOUNT ACCESS
+        # ====================================================
 
-            return redirect(
-                url_for(
-                    "creator_auth.pending"
-                )
-            )
-
-        try:
-
-            subscription = (
-                enforce_subscription_lifecycle(
-                    creator
-                )
-            )
-
-            db.session.commit()
-
-        except Exception:
-
-            db.session.rollback()
-
-            current_app.logger.exception(
-                (
-                    "Unable to enforce creator "
-                    "subscription lifecycle. "
-                    "creator_account_id=%s"
-                ),
-                creator.id,
-            )
-
-            flash(
-                (
-                    "We could not verify your "
-                    "subscription right now. "
-                    "Please try again."
-                ),
-                "error",
-            )
-
-            return redirect(
-                url_for(
-                    "creator_auth.pending"
-                )
-            )
-
-        g.creator_subscription = (
-            subscription
-        )
-
-        g.creator_subscription_status = (
-            subscription.status
-            if subscription
-            else (
-                creator.subscription_status
-                or "inactive"
-            )
-        )
-
-        g.creator_grace_days_remaining = (
-            creator_grace_days_remaining(
-                creator
-            )
-        )
-
-        if not creator_subscription_is_current(
+        if not creator_studio_access_allowed(
             creator
         ):
 
-            subscription_status = (
-                g.creator_subscription_status
+            current_app.logger.warning(
+                (
+                    "Creator Studio access denied. "
+                    "creator_account_id=%s "
+                    "plan=%s "
+                    "account_status=%s "
+                    "payment_status=%s"
+                ),
+                creator.id,
+                creator.plan,
+                creator.account_status,
+                creator.payment_status,
             )
 
-            if subscription_status == "expired":
+            if creator.account_status != "active":
 
                 flash(
                     (
-                        "Your subscription has expired. "
-                        "Your public creator page and "
-                        "content are still online. "
-                        "Renew your subscription to "
-                        "continue using Creator Studio."
+                        "Your creator account is not "
+                        "active yet."
                     ),
                     "warning",
                 )
 
-            elif subscription_status == "cancelled":
+            elif creator.plan in {
+                "standard",
+                "premium",
+            }:
 
                 flash(
                     (
-                        "Your subscription is no longer "
-                        "active. Renew your subscription "
-                        "to continue using Creator Studio."
+                        "Your plan activation must "
+                        "be verified before you can "
+                        "access Creator Studio."
                     ),
                     "warning",
                 )
@@ -252,10 +280,11 @@ def studio_required(view):
 
                 flash(
                     (
-                        "An active subscription is "
-                        "required to use Creator Studio."
+                        "Your creator account is "
+                        "not eligible for Studio "
+                        "access."
                     ),
-                    "warning",
+                    "error",
                 )
 
             return redirect(
@@ -264,21 +293,42 @@ def studio_required(view):
                 )
             )
 
-        if (
-            g.creator_subscription_status
-            == "past_due"
-        ):
+        # ====================================================
+        # STUDIO REQUEST CONTEXT
+        # ====================================================
+        #
+        # These variables are retained for compatibility
+        # with existing Studio templates.
+        #
+        # The old monthly subscription system no longer
+        # determines access to Creator Studio.
+        # ====================================================
 
-            current_app.logger.info(
-                (
-                    "Creator using Studio during "
-                    "subscription grace period. "
-                    "creator_account_id=%s "
-                    "days_remaining=%s"
-                ),
-                creator.id,
-                g.creator_grace_days_remaining,
-            )
+        g.creator_account = creator
+
+        g.creator_subscription = None
+
+        g.creator_subscription_status = "active"
+
+        g.creator_grace_days_remaining = 0
+
+        # ====================================================
+        # LOG SUCCESSFUL ACCESS
+        # ====================================================
+
+        current_app.logger.debug(
+            (
+                "Creator Studio access granted. "
+                "creator_account_id=%s "
+                "plan=%s"
+            ),
+            creator.id,
+            creator.plan,
+        )
+
+        # ====================================================
+        # CONTINUE TO REQUESTED STUDIO PAGE
+        # ====================================================
 
         return view(
             *args,
@@ -286,7 +336,6 @@ def studio_required(view):
         )
 
     return wrapped_view
-
 
 # ============================================================
 # FEATURE ACCESS
