@@ -1,0 +1,1210 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <meta
+        name="theme-color"
+        content="#111318"
+    >
+
+    <meta
+        name="description"
+        content="Kalxa Creator helps creators build their own websites, publish stories, reels and vlogs, grow audiences and earn from supporters."
+    >
+
+    <title>
+        Kalxa Creator | Create. Share. Earn.
+    </title>
+
+    <style>
+
+        /* =====================================================
+           DESIGN TOKENS
+        ===================================================== */
+
+        :root {
+
+            --black: #111318;
+
+            --charcoal: #24272e;
+
+            --cream: #fff4df;
+
+            --cream-dark: #f5e6cb;
+
+            --white: #ffffff;
+
+            --page: #f8f9fa;
+
+            --text: #17191d;
+
+            --muted: #68707a;
+
+            --border: #e4e6e9;
+
+            --green: #237a4b;
+
+            --radius: 18px;
+
+            --container: 1180px;
+
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            margin: 0;
+            background: var(--page);
+            color: var(--text);
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                Arial,
+                sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        a {
+            color: inherit;
+        }
+
+        button,
+        input {
+            font: inherit;
+        }
+
+        .container {
+            width: min(
+                calc(100% - 40px),
+                var(--container)
+            );
+            margin-inline: auto;
+        }
+
+        .section {
+            padding: 88px 0;
+        }
+
+        .eyebrow {
+            display: inline-block;
+            margin-bottom: 14px;
+            font-size: 11px;
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+        }
+
+        .section-heading {
+            max-width: 690px;
+            margin-bottom: 38px;
+        }
+
+        .section-heading.center {
+            margin-inline: auto;
+            text-align: center;
+        }
+
+        .section-heading h2 {
+            margin: 0 0 14px;
+            font-size: clamp(29px, 4vw, 43px);
+            letter-spacing: -0.045em;
+            line-height: 1.15;
+        }
+
+        .section-heading p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.75;
+        }
+
+        /* =====================================================
+           BUTTONS
+        ===================================================== */
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            min-height: 46px;
+            padding: 13px 19px;
+            border: 1px solid transparent;
+            border-radius: 11px;
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 1.2;
+            text-align: center;
+            text-decoration: none;
+            transition:
+                transform 0.2s ease,
+                background 0.2s ease,
+                border-color 0.2s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .btn-dark {
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .btn-dark:hover {
+            background: #30343c;
+        }
+
+        .btn-light {
+            background: var(--white);
+            color: var(--black);
+        }
+
+        .btn-outline {
+            border-color: #d7dade;
+            background: transparent;
+            color: var(--black);
+        }
+
+        .btn-outline:hover {
+            background: #f1f2f4;
+        }
+
+        .btn-cream {
+            background: var(--cream);
+            color: var(--black);
+        }
+
+        /* =====================================================
+           NAVIGATION
+        ===================================================== */
+
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid var(--border);
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(14px);
+        }
+
+        .nav-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            min-height: 76px;
+        }
+
+        .brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 11px;
+            text-decoration: none;
+        }
+
+        .brand-symbol {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 39px;
+            height: 39px;
+            border-radius: 12px;
+            background: var(--black);
+            color: var(--white);
+            font-size: 19px;
+            font-weight: 900;
+        }
+
+        .brand-name {
+            display: flex;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .brand-name strong {
+            font-size: 18px;
+            letter-spacing: -0.04em;
+        }
+
+        .brand-name small {
+            color: var(--muted);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 26px;
+        }
+
+        .nav-links a {
+            color: #525962;
+            font-size: 13px;
+            font-weight: 700;
+            text-decoration: none;
+        }
+
+        .nav-links a:hover {
+            color: var(--black);
+        }
+
+        .nav-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* =====================================================
+           HERO
+        ===================================================== */
+
+        .hero {
+            position: relative;
+            overflow: hidden;
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .hero::before {
+            position: absolute;
+            top: -190px;
+            right: -180px;
+            width: 580px;
+            height: 580px;
+            border-radius: 50%;
+            background: rgba(255, 244, 223, 0.08);
+            content: "";
+            pointer-events: none;
+        }
+
+        .hero::after {
+            position: absolute;
+            bottom: -260px;
+            left: -140px;
+            width: 520px;
+            height: 520px;
+            border: 1px solid rgba(255, 255, 255, 0.09);
+            border-radius: 50%;
+            content: "";
+            pointer-events: none;
+        }
+
+        .hero-inner {
+            position: relative;
+            z-index: 1;
+            display: grid;
+            grid-template-columns: 1.1fr 0.9fr;
+            align-items: center;
+            gap: 65px;
+            min-height: 610px;
+            padding: 90px 0;
+        }
+
+        .hero-eyebrow {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.17);
+            border-radius: 999px;
+            color: var(--cream);
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.13em;
+            text-transform: uppercase;
+        }
+
+        .hero h1 {
+            margin: 0;
+            max-width: 700px;
+            font-size: clamp(43px, 5.5vw, 76px);
+            font-weight: 850;
+            letter-spacing: -0.065em;
+            line-height: 1.06;
+        }
+
+        .hero h1 span {
+            color: var(--cream);
+        }
+
+        .hero-description {
+            max-width: 550px;
+            margin: 25px 0 30px;
+            color: #c6c9cf;
+            font-size: 16px;
+            line-height: 1.85;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .hero-note {
+            margin-top: 22px;
+            color: #aeb3bb;
+            font-size: 12px;
+        }
+
+        /* =====================================================
+           HERO PREVIEW
+        ===================================================== */
+
+        .hero-preview {
+            padding: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 22px;
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: 0 30px 90px rgba(0, 0, 0, 0.25);
+        }
+
+        .preview-browser {
+            overflow: hidden;
+            border-radius: 14px;
+            background: #ffffff;
+            color: var(--black);
+        }
+
+        .preview-browser-top {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            padding: 12px 15px;
+            border-bottom: 1px solid #e8eaed;
+            background: #f8f9fa;
+        }
+
+        .preview-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #d3d7dc;
+        }
+
+        .preview-address {
+            margin-left: 9px;
+            color: #8a9098;
+            font-size: 10px;
+        }
+
+        .preview-profile {
+            padding: 32px 25px 26px;
+            text-align: center;
+        }
+
+        .preview-avatar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 78px;
+            height: 78px;
+            margin: 0 auto 15px;
+            border-radius: 50%;
+            background: var(--cream);
+            font-size: 31px;
+            font-weight: 900;
+        }
+
+        .preview-profile small {
+            color: #858b94;
+            font-size: 10px;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+        }
+
+        .preview-profile h3 {
+            margin: 9px 0;
+            font-size: 27px;
+            letter-spacing: -0.04em;
+        }
+
+        .preview-profile p {
+            margin: 0 auto;
+            max-width: 290px;
+            color: #747b84;
+            font-size: 12px;
+            line-height: 1.65;
+        }
+
+        .preview-posts {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 11px;
+            padding: 0 18px 18px;
+        }
+
+        .preview-post {
+            overflow: hidden;
+            border: 1px solid #edf0f2;
+            border-radius: 11px;
+        }
+
+        .preview-post-image {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100px;
+            background: #e7ebf0;
+            font-size: 28px;
+        }
+
+        .preview-post-image.cream {
+            background: var(--cream);
+        }
+
+        .preview-post-body {
+            padding: 12px;
+        }
+
+        .preview-post-body small {
+            display: block;
+            margin-bottom: 5px;
+            color: #8b9199;
+            font-size: 9px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .preview-post-body strong {
+            font-size: 11px;
+            line-height: 1.5;
+        }
+
+        .preview-support {
+            margin: 0 18px 18px;
+            padding: 13px;
+            border-radius: 10px;
+            background: #111318;
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        /* =====================================================
+           TRUST STRIP
+        ===================================================== */
+
+        .trust-strip {
+            padding: 22px 0;
+            border-bottom: 1px solid var(--border);
+            background: var(--white);
+        }
+
+        .trust-items {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 15px 40px;
+        }
+
+        .trust-item {
+            color: #5f6670;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        /* =====================================================
+           FEATURES
+        ===================================================== */
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        .feature-card {
+            padding: 27px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--white);
+        }
+
+        .feature-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 47px;
+            height: 47px;
+            margin-bottom: 20px;
+            border-radius: 13px;
+            background: var(--cream);
+            font-size: 23px;
+        }
+
+        .feature-card h3 {
+            margin: 0 0 10px;
+            font-size: 18px;
+            letter-spacing: -0.025em;
+        }
+
+        .feature-card p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.75;
+        }
+
+        /* =====================================================
+           HOW IT WORKS
+        ===================================================== */
+
+        .how-section {
+            background: var(--cream);
+        }
+
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 20px;
+        }
+
+        .step-card {
+            padding: 22px;
+            border: 1px solid rgba(17, 19, 24, 0.1);
+            border-radius: 15px;
+            background: rgba(255, 255, 255, 0.58);
+        }
+
+        .step-number {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 42px;
+            height: 42px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            background: var(--black);
+            color: var(--white);
+            font-size: 13px;
+            font-weight: 900;
+        }
+
+        .step-card h3 {
+            margin: 0 0 9px;
+            font-size: 17px;
+        }
+
+        .step-card p {
+            margin: 0;
+            color: #626870;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        /* =====================================================
+           MONETISATION
+        ===================================================== */
+
+        .earn-section {
+            background: #ffffff;
+        }
+
+        .earn-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 20px;
+        }
+
+        .earn-card {
+            padding: 27px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: #fafbfc;
+        }
+
+        .earn-card-icon {
+            display: block;
+            margin-bottom: 20px;
+            font-size: 30px;
+        }
+
+        .earn-card h3 {
+            margin: 0 0 10px;
+            font-size: 19px;
+        }
+
+        .earn-card p {
+            margin: 0;
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.75;
+        }
+
+        .earn-tag {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 7px 10px;
+            border-radius: 999px;
+            background: #e9f4ed;
+            color: var(--green);
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .earn-tag.premium {
+            background: #111318;
+            color: #ffffff;
+        }
+
+        /* =====================================================
+           PRICING
+        ===================================================== */
+
+        .pricing-section {
+            background: var(--page);
+        }
+
+        .pricing-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            align-items: stretch;
+            gap: 19px;
+        }
+
+        .pricing-card {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            padding: 30px;
+            border: 1px solid #e1e4e8;
+            border-radius: 19px;
+            background: var(--white);
+        }
+
+        .pricing-card.featured {
+            border: 2px solid var(--black);
+            box-shadow: 0 20px 45px rgba(17, 19, 24, 0.08);
+        }
+
+        .pricing-card.premium {
+            background: var(--black);
+            color: var(--white);
+            border-color: var(--black);
+        }
+
+        .pricing-badge {
+            position: absolute;
+            top: -13px;
+            left: 25px;
+            padding: 7px 12px;
+            border-radius: 999px;
+            background: var(--black);
+            color: var(--white);
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .pricing-plan {
+            display: block;
+            margin-bottom: 12px;
+            font-size: 12px;
+            font-weight: 900;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+
+        .pricing-price {
+            margin-bottom: 8px;
+            font-size: 44px;
+            font-weight: 900;
+            letter-spacing: -0.06em;
+        }
+
+        .pricing-billing {
+            display: block;
+            margin-bottom: 18px;
+            color: #7c828b;
+            font-size: 12px;
+        }
+
+        .pricing-card.premium
+        .pricing-billing {
+            color: #bfc3ca;
+        }
+
+        .pricing-description {
+            min-height: 58px;
+            margin: 0 0 22px;
+            color: #69707a;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        .pricing-card.premium
+        .pricing-description {
+            color: #c4c8cf;
+        }
+
+        .pricing-divider {
+            height: 1px;
+            margin-bottom: 21px;
+            background: var(--border);
+        }
+
+        .pricing-card.premium
+        .pricing-divider {
+            background: rgba(255, 255, 255, 0.17);
+        }
+
+        .pricing-features {
+            display: grid;
+            gap: 13px;
+            margin-bottom: 29px;
+        }
+
+        .pricing-feature {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            font-size: 12px;
+            line-height: 1.55;
+        }
+
+        .pricing-feature span:first-child {
+            flex-shrink: 0;
+            font-weight: 900;
+        }
+
+        .pricing-card .btn {
+            width: 100%;
+            margin-top: auto;
+        }
+
+        .pricing-note {
+            max-width: 730px;
+            margin: 25px auto 0;
+            color: #737983;
+            font-size: 12px;
+            line-height: 1.8;
+            text-align: center;
+        }
+
+        /* =====================================================
+           FINAL CTA
+        ===================================================== */
+
+        .final-cta {
+            padding: 90px 0;
+            background: var(--cream);
+            text-align: center;
+        }
+
+        .final-cta h2 {
+            margin: 0 0 18px;
+            font-size: clamp(32px, 4vw, 49px);
+            letter-spacing: -0.05em;
+        }
+
+        .final-cta p {
+            max-width: 590px;
+            margin: 0 auto 27px;
+            color: #626870;
+            font-size: 15px;
+            line-height: 1.75;
+        }
+
+        /* =====================================================
+           FOOTER
+        ===================================================== */
+
+        .site-footer {
+            padding: 35px 0;
+            background: var(--black);
+            color: var(--white);
+        }
+
+        .footer-inner {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 22px;
+        }
+
+        .footer-brand {
+            font-size: 19px;
+            font-weight: 900;
+            letter-spacing: -0.04em;
+        }
+
+        .footer-brand span {
+            color: var(--cream);
+        }
+
+        .footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .footer-links a {
+            color: #b9bec6;
+            font-size: 12px;
+            text-decoration: none;
+        }
+
+        .footer-copy {
+            margin-top: 23px;
+            color: #9198a2;
+            font-size: 11px;
+        }
+
+        /* =====================================================
+           RESPONSIVE
+        ===================================================== */
+
+        @media (max-width: 1050px) {
+
+            .hero-inner {
+                gap: 35px;
+            }
+
+            .hero h1 {
+                font-size: 52px;
+            }
+
+        }
+
+        @media (max-width: 900px) {
+
+            .nav-links {
+                display: none;
+            }
+
+            .hero-inner {
+                grid-template-columns: 1fr;
+                padding: 75px 0;
+            }
+
+            .hero-preview {
+                max-width: 490px;
+                margin: 0 auto;
+                width: 100%;
+            }
+
+            .features-grid,
+            .earn-grid,
+            .pricing-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .steps-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .pricing-description {
+                min-height: 0;
+            }
+
+        }
+
+        @media (max-width: 600px) {
+
+            .container {
+                width: min(
+                    calc(100% - 28px),
+                    var(--container)
+                );
+            }
+
+            .section {
+                padding: 65px 0;
+            }
+
+            .nav-inner {
+                min-height: 68px;
+            }
+
+            .brand-name strong {
+                font-size: 16px;
+            }
+
+            .brand-name small {
+                font-size: 9px;
+            }
+
+            .nav-actions .btn {
+                padding: 10px 12px;
+                min-height: 40px;
+                font-size: 11px;
+            }
+
+            .hero-inner {
+                padding: 64px 0;
+            }
+
+            .hero h1 {
+                font-size: clamp(39px, 10vw, 52px);
+            }
+
+            .hero-description {
+                font-size: 14px;
+            }
+
+            .hero-actions {
+                flex-direction: column;
+            }
+
+            .hero-actions .btn {
+                width: 100%;
+            }
+
+            .steps-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .feature-card,
+            .earn-card,
+            .pricing-card {
+                padding: 23px;
+            }
+
+            .footer-inner {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+        }
+
+    </style>
+
+</head>
+
+<body>
+
+    <!-- =====================================================
+         NAVIGATION
+    ====================================================== -->
+
+    <header class="site-header">
+
+        <div class="container nav-inner">
+
+            <a
+                href="{{ url_for('public.home') }}"
+                class="brand"
+                aria-label="Kalxa Creator homepage"
+            >
+
+                <span class="brand-symbol">
+                    K
+                </span>
+
+                <span class="brand-name">
+
+                    <strong>
+                        Kalxa Creator
+                    </strong>
+
+                    <small>
+                        Create · Share · Earn
+                    </small>
+
+                </span>
+
+            </a>
+
+            <nav
+                class="nav-links"
+                aria-label="Main navigation"
+            >
+
+                <a href="#features">
+                    Features
+                </a>
+
+                <a href="#how-it-works">
+                    How it works
+                </a>
+
+                <a href="#monetisation">
+                    Monetisation
+                </a>
+
+                <a href="#pricing">
+                    Pricing
+                </a>
+
+            </nav>
+
+            <div class="nav-actions">
+
+                <a
+                    href="{{ url_for('creator_auth.login') }}"
+                    class="btn btn-outline"
+                >
+                    Log in
+                </a>
+
+                <a
+                    href="{{ url_for('creator_auth.register') }}"
+                    class="btn btn-dark"
+                >
+                    Get started
+                </a>
+
+            </div>
+
+        </div>
+
+    </header>
+
+    <main>
+
+        <!-- =================================================
+             HERO
+        ================================================== -->
+
+        <section class="hero">
+
+            <div class="container hero-inner">
+
+                <div>
+
+                    <span class="hero-eyebrow">
+                        YOUR WORLD. YOUR PLATFORM.
+                    </span>
+
+                    <h1>
+                        Create your world.
+                        <span>
+                            Share your story.
+                        </span>
+                        Earn your way.
+                    </h1>
+
+                    <p class="hero-description">
+
+                        Build your own creator website,
+                        publish stories, reels and vlogs,
+                        grow your audience and receive
+                        support from the people who
+                        believe in what you create.
+
+                    </p>
+
+                    <div class="hero-actions">
+
+                        <a
+                            href="{{ url_for('creator_auth.register') }}"
+                            class="btn btn-cream"
+                        >
+                            Create your free website →
+                        </a>
+
+                        <a
+                            href="#features"
+                            class="btn btn-outline"
+                            style="
+                                border-color:rgba(255,255,255,.25);
+                                color:#fff;
+                            "
+                        >
+                            Explore features
+                        </a>
+
+                    </div>
+
+                    <p class="hero-note">
+                        Start free. Upgrade once.
+                        No monthly Kalxa creator fees.
+                    </p>
+
+                </div>
+
+                <!-- =========================================
+                     CREATOR WEBSITE PREVIEW
+                ========================================== -->
+
+                <div class="hero-preview">
+
+                    <div class="preview-browser">
+
+                        <div class="preview-browser-top">
+
+                            <span class="preview-dot"></span>
+                            <span class="preview-dot"></span>
+                            <span class="preview-dot"></span>
+
+                            <span class="preview-address">
+                                Kalxa Creator / @yourname
+                            </span>
+
+                        </div>
+
+                        <div class="preview-profile">
+
+                            <div class="preview-avatar">
+                                Y
+                            </div>
+
+                            <small>
+                                CREATOR
+                            </small>
+
+                            <h3>
+                                Your Name
+                            </h3>
+
+                            <p>
+                                Stories, experiences and ideas
+                                worth sharing with the world.
+                            </p>
+
+                        </div>
+
+                        <div class="preview-posts">
+
+                            <div class="preview-post">
+
+                                <div class="preview-post-image cream">
+                                    ✎
+                                </div>
+
+                                <div class="preview-post-body">
+
+                                    <small>
+                                        Story
+                                    </small>
+
+                                    <strong>
+                                        My creative journey
+                                    </strong>
+
+                                </div>
+
+                            </div>
+
+                            <div class="preview-post">
+
+                                <div class="preview-post-image">
+                                    ▶
+                                </div>
+
+                                <div class="preview-post-body">
+
+                                    <
