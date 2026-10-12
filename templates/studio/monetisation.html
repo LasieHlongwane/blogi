@@ -1,72 +1,1001 @@
+
 {% extends "studio/base.html" %}
 
-{% block title %}Monetisation | Creator Studio{% endblock %}
+{% block title %}
+Monetisation | Kalxa Creator Studio
+{% endblock %}
 
 {% block content %}
+
 <style>
-.monetisation-shell{max-width:1100px;margin:0 auto}.page-heading{display:flex;justify-content:space-between;gap:24px;align-items:flex-start;margin-bottom:26px}.page-heading h1{margin:0 0 8px;font-size:30px}.page-heading p{margin:0;color:#69707a;line-height:1.6}.plan-pill{padding:8px 12px;border-radius:999px;background:#111318;color:#fff;font-size:11px;font-weight:800;white-space:nowrap}.money-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-bottom:24px}.money-card,.feature-card,.payment-panel{background:#fff;border:1px solid #e2e5e9;border-radius:16px;padding:20px}.money-card span{display:block;font-size:11px;color:#737983;text-transform:uppercase;letter-spacing:.08em;font-weight:800}.money-card strong{display:block;margin-top:8px;font-size:26px}.feature-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin-bottom:26px}.feature-card h2{margin:0 0 8px;font-size:18px}.feature-card p{margin:0 0 18px;color:#69707a;line-height:1.55;font-size:13px}.feature-status{display:inline-block;margin-bottom:16px;padding:5px 9px;border-radius:999px;background:#f0f2f4;font-size:10px;font-weight:800;text-transform:uppercase}.feature-status.ready{background:#eaf8ef;color:#19733e}.feature-status.premium{background:#111318;color:#fff}.action-link{display:inline-block;padding:10px 13px;border-radius:10px;background:#111318;color:#fff;text-decoration:none;font-size:12px;font-weight:800}.action-link.secondary{background:#f1f3f5;color:#111318}.payment-panel h2{margin-top:0}.payment-table{width:100%;border-collapse:collapse}.payment-table th,.payment-table td{text-align:left;padding:12px 8px;border-bottom:1px solid #eceef1;font-size:13px}.payment-table th{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#747b84}.empty-state{padding:24px 0;color:#747b84;font-size:13px}@media(max-width:850px){.money-grid,.feature-grid{grid-template-columns:1fr}.page-heading{flex-direction:column}.payment-panel{overflow-x:auto}}
+
+    /* =====================================================
+       MONETISATION LAYOUT
+    ===================================================== */
+
+    .monetisation-shell {
+        max-width: 1100px;
+        margin: 0 auto;
+    }
+
+    .monetisation-shell * {
+        box-sizing: border-box;
+    }
+
+    .monetisation-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 24px;
+        margin-bottom: 26px;
+    }
+
+    .monetisation-heading h1 {
+        margin: 0 0 8px;
+        font-size: 30px;
+    }
+
+    .monetisation-heading p {
+        margin: 0;
+        max-width: 690px;
+        color: #69707a;
+        line-height: 1.65;
+        font-size: 14px;
+    }
+
+    .monetisation-plan-pill {
+        display: inline-block;
+        padding: 9px 13px;
+        border-radius: 999px;
+        background: #111318;
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    /* =====================================================
+       SUMMARY
+    ===================================================== */
+
+    .money-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 16px;
+        margin-bottom: 24px;
+    }
+
+    .money-card {
+        min-width: 0;
+        padding: 21px;
+        border: 1px solid #e2e5e9;
+        border-radius: 16px;
+        background: #ffffff;
+    }
+
+    .money-card > span {
+        display: block;
+        color: #737983;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .money-card strong {
+        display: block;
+        margin-top: 10px;
+        font-size: 27px;
+        font-weight: 800;
+        letter-spacing: -0.03em;
+    }
+
+    .money-card small {
+        display: block;
+        margin-top: 7px;
+        color: #7a8089;
+        font-size: 11px;
+        line-height: 1.5;
+    }
+
+    /* =====================================================
+       COMMISSION EXPLANATION
+    ===================================================== */
+
+    .commission-panel {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 22px;
+        margin-bottom: 25px;
+        padding: 23px;
+        border: 1px solid #dfe2e6;
+        border-radius: 16px;
+        background: #f5f6f7;
+    }
+
+    .commission-panel-label {
+        display: block;
+        margin-bottom: 6px;
+        color: #747982;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+    }
+
+    .commission-panel h2 {
+        margin: 0 0 7px;
+        font-size: 20px;
+    }
+
+    .commission-panel p {
+        margin: 0;
+        max-width: 670px;
+        color: #626973;
+        font-size: 13px;
+        line-height: 1.65;
+    }
+
+    .commission-value {
+        flex: 0 0 auto;
+        font-size: 40px;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+    }
+
+    /* =====================================================
+       FEATURES
+    ===================================================== */
+
+    .monetisation-section-heading {
+        margin-bottom: 16px;
+    }
+
+    .monetisation-section-heading h2 {
+        margin: 0 0 6px;
+        font-size: 22px;
+    }
+
+    .monetisation-section-heading p {
+        margin: 0;
+        color: #69707a;
+        font-size: 13px;
+        line-height: 1.6;
+    }
+
+    .feature-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 18px;
+        margin-bottom: 26px;
+    }
+
+    .feature-card {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+        padding: 22px;
+        border: 1px solid #e2e5e9;
+        border-radius: 16px;
+        background: #ffffff;
+    }
+
+    .feature-card h3 {
+        margin: 0 0 9px;
+        font-size: 18px;
+    }
+
+    .feature-card p {
+        margin: 0 0 18px;
+        color: #69707a;
+        font-size: 13px;
+        line-height: 1.65;
+    }
+
+    .feature-card .action-link {
+        margin-top: auto;
+        align-self: flex-start;
+    }
+
+    .feature-status {
+        display: inline-block;
+        align-self: flex-start;
+        margin-bottom: 16px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #f0f2f4;
+        color: #535b65;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .feature-status.ready {
+        background: #eaf8ef;
+        color: #19733e;
+    }
+
+    .feature-status.premium {
+        background: #111318;
+        color: #ffffff;
+    }
+
+    .feature-status.pending {
+        background: #fff4df;
+        color: #80540e;
+    }
+
+    .action-link {
+        display: inline-block;
+        padding: 11px 14px;
+        border-radius: 10px;
+        background: #111318;
+        color: #ffffff;
+        text-decoration: none;
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .action-link.secondary {
+        background: #f1f3f5;
+        color: #111318;
+    }
+
+    .action-link:hover {
+        opacity: 0.9;
+    }
+
+    /* =====================================================
+       UPGRADE
+    ===================================================== */
+
+    .monetisation-upgrade {
+        margin: 0 0 26px;
+        padding: 23px;
+        border-radius: 16px;
+        background: #111318;
+        color: #ffffff;
+    }
+
+    .monetisation-upgrade h2 {
+        margin: 0 0 8px;
+        font-size: 21px;
+    }
+
+    .monetisation-upgrade p {
+        margin: 0 0 17px;
+        max-width: 730px;
+        font-size: 13px;
+        line-height: 1.65;
+        opacity: 0.78;
+    }
+
+    .monetisation-upgrade-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .monetisation-upgrade-actions form {
+        margin: 0;
+    }
+
+    .monetisation-upgrade-button {
+        padding: 12px 16px;
+        border: 0;
+        border-radius: 10px;
+        background: #ffffff;
+        color: #111318;
+        font-family: inherit;
+        font-size: 12px;
+        font-weight: 800;
+        cursor: pointer;
+    }
+
+    .monetisation-upgrade-button.secondary {
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        background: transparent;
+        color: #ffffff;
+    }
+
+    /* =====================================================
+       PAYMENT HISTORY
+    ===================================================== */
+
+    .payment-panel {
+        padding: 23px;
+        border: 1px solid #e2e5e9;
+        border-radius: 16px;
+        background: #ffffff;
+    }
+
+    .payment-panel h2 {
+        margin: 0 0 8px;
+        font-size: 21px;
+    }
+
+    .payment-panel-description {
+        margin: 0 0 18px;
+        color: #737983;
+        font-size: 12px;
+        line-height: 1.6;
+    }
+
+    .payment-table-wrapper {
+        width: 100%;
+        overflow-x: auto;
+    }
+
+    .payment-table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 590px;
+    }
+
+    .payment-table th,
+    .payment-table td {
+        padding: 13px 9px;
+        border-bottom: 1px solid #eceef1;
+        text-align: left;
+        font-size: 13px;
+    }
+
+    .payment-table th {
+        color: #747b84;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+
+    .payment-status {
+        display: inline-block;
+        padding: 5px 8px;
+        border-radius: 999px;
+        background: #f0f2f4;
+        color: #555d67;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: capitalize;
+    }
+
+    .payment-status.paid {
+        background: #eaf8ef;
+        color: #19733e;
+    }
+
+    .payment-status.pending {
+        background: #fff4df;
+        color: #80540e;
+    }
+
+    .payment-status.failed {
+        background: #fff0ee;
+        color: #a43228;
+    }
+
+    .payment-empty-state {
+        padding: 25px 0;
+        color: #747b84;
+        font-size: 13px;
+        line-height: 1.65;
+    }
+
+    /* =====================================================
+       RESPONSIVE
+    ===================================================== */
+
+    @media (max-width: 850px) {
+
+        .money-grid,
+        .feature-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .monetisation-heading {
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .commission-panel {
+            align-items: flex-start;
+            flex-direction: column;
+        }
+
+        .commission-value {
+            font-size: 35px;
+        }
+
+    }
+
+    @media (max-width: 600px) {
+
+        .monetisation-upgrade-actions,
+        .monetisation-upgrade-actions form,
+        .monetisation-upgrade-button {
+            width: 100%;
+        }
+
+        .payment-panel {
+            padding: 18px;
+        }
+
+    }
+
 </style>
 
+<!-- =========================================================
+     SAFE CREATOR CONTEXT
+========================================================== -->
+
+{% set money_account = creator_account|default(none, true) %}
+
+{% if money_account is none %}
+    {% set money_account = g.get('creator_account', none) %}
+{% endif %}
+
+{% set money_plan = money_account.plan|default('free', true)|lower if money_account else 'free' %}
+
+{% set money_status = money_account.account_status|default('unknown', true) if money_account else 'unknown' %}
+
+{% set money_paid_verified = (
+    money_account is not none
+    and money_account.payment_status == 'paid'
+    and money_account.registration_paid_at is not none
+) %}
+
+{% set money_paid_active = (
+    money_status == 'active'
+    and money_paid_verified
+    and money_plan in ['standard', 'premium']
+) %}
+
+{% set money_effective_plan = money_plan if money_paid_active else 'free' %}
+
+{% set money_has_premium = (
+    money_paid_active and money_effective_plan == 'premium'
+) %}
+
+{% set money_commission = 3 if money_paid_active else 23 %}
+
+{% set money_payout_ready = (
+    payout_account is defined
+    and payout_account is not none
+    and payout_account.status == 'active'
+) %}
+
 <div class="monetisation-shell">
-    <div class="page-heading">
+
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
+
+    <div class="monetisation-heading">
+
         <div>
-            <h1>Monetisation</h1>
-            <p>Manage how supporters can contribute to your work. Kalxa takes 0% platform commission on fan support; payment processing fees may apply.</p>
+
+            <span class="eyebrow">
+                CREATOR EARNINGS
+            </span>
+
+            <h1>
+                Monetisation
+            </h1>
+
+            <p>
+                Manage your payout account, fan contributions
+                and fundraising tools. Kalxa's platform
+                commission depends on your activated plan.
+            </p>
+
         </div>
-        <span class="plan-pill">{{ creator_account.plan|default('standard', true)|upper }}</span>
+
+        <span class="monetisation-plan-pill">
+            {{ money_effective_plan|upper }}
+        </span>
+
     </div>
 
+    <!-- =====================================================
+         EARNINGS SUMMARY
+    ====================================================== -->
+
     <div class="money-grid">
-        <div class="money-card"><span>Confirmed support</span><strong>R{{ '%.2f'|format((support_total_cents|default(0, true)) / 100) }}</strong></div>
-        <div class="money-card"><span>Paid contributions</span><strong>{{ paid_payment_count|default(0, true) }}</strong></div>
-        <div class="money-card"><span>Campaigns</span><strong>{{ campaign_count|default(0, true) }}</strong></div>
+
+        <div class="money-card">
+
+            <span>
+                Confirmed fan support
+            </span>
+
+            <strong>
+                R{{ '%.2f'|format(
+                    (support_total_cents|default(0, true)) / 100
+                ) }}
+            </strong>
+
+            <small>
+                Gross confirmed contribution amount
+            </small>
+
+        </div>
+
+        <div class="money-card">
+
+            <span>
+                Paid contributions
+            </span>
+
+            <strong>
+                {{ paid_payment_count|default(0, true) }}
+            </strong>
+
+            <small>
+                Successfully verified payments
+            </small>
+
+        </div>
+
+        <div class="money-card">
+
+            <span>
+                Fundraising campaigns
+            </span>
+
+            <strong>
+                {{ campaign_count|default(0, true) }}
+            </strong>
+
+            <small>
+                Campaigns associated with your account
+            </small>
+
+        </div>
+
+    </div>
+
+    <!-- =====================================================
+         COMMISSION
+    ====================================================== -->
+
+    <section class="commission-panel">
+
+        <div>
+
+            <span class="commission-panel-label">
+                YOUR CURRENT KALXA RATE
+            </span>
+
+            <h2>
+                Keep more of your fan contributions.
+            </h2>
+
+            <p>
+
+                {% if money_paid_active %}
+
+                    Your activated {{ money_effective_plan|title }}
+                    plan has a 3% Kalxa platform commission
+                    on eligible fan payments.
+
+                {% else %}
+
+                    Your Free plan has a 23% Kalxa
+                    platform commission on eligible
+                    fan contributions.
+
+                {% endif %}
+
+                Paystack processing fees are separate
+                and may reduce the final payout.
+
+                Previously completed transactions retain
+                the commission recorded when they were created.
+
+            </p>
+
+        </div>
+
+        <div class="commission-value">
+            {{ money_commission }}%
+        </div>
+
+    </section>
+
+    <!-- =====================================================
+         MONETISATION FEATURES
+    ====================================================== -->
+
+    <div class="monetisation-section-heading">
+
+        <h2>
+            Your earning tools
+        </h2>
+
+        <p>
+            Connect a payout account to receive support.
+            Premium creators can also run fundraising campaigns.
+        </p>
+
     </div>
 
     <div class="feature-grid">
-        <section class="feature-card">
-            <span class="feature-status {% if payout_account and payout_account.status == 'active' %}ready{% endif %}">{% if payout_account and payout_account.status == 'active' %}Connected{% elif payout_account %}{{ payout_account.status|replace('_',' ')|title }}{% else %}Not connected{% endif %}</span>
-            <h2>Payout account</h2>
-            <p>Connect the account where your fan support and eligible campaign contributions will be settled.</p>
-            <a class="action-link" href="{{ url_for('studio.payout_setup') }}">{% if payout_account %}Manage payout{% else %}Set up payout{% endif %} →</a>
-        </section>
+
+        <!-- =================================================
+             PAYOUT ACCOUNT
+        ================================================== -->
 
         <section class="feature-card">
-            <span class="feature-status ready">Standard + Premium</span>
-            <h2>Buy me a coffee</h2>
-            <p>Accept voluntary support from fans without locking content behind a payment.</p>
-            <a class="action-link" href="{{ url_for('studio.support_setup') }}">Support settings →</a>
-        </section>
 
-        <section class="feature-card">
-            {% if creator_account.plan == 'premium' %}<span class="feature-status ready">Available</span>{% else %}<span class="feature-status premium">Premium</span>{% endif %}
-            <h2>Fundraising</h2>
-            <p>Create goal-based campaigns for specific projects, equipment, events or other creator initiatives.</p>
-            {% if creator_account.plan == 'premium' %}
-                <a class="action-link" href="{{ url_for('studio.fundraising_campaigns') }}">Manage campaigns →</a>
+            {% if money_payout_ready %}
+
+                <span class="feature-status ready">
+                    Connected
+                </span>
+
+            {% elif payout_account is defined and payout_account %}
+
+                <span class="feature-status pending">
+                    {{ payout_account.status|replace('_', ' ')|title }}
+                </span>
+
             {% else %}
-                <a class="action-link secondary" href="#premium-features">Premium required</a>
+
+                <span class="feature-status">
+                    Not connected
+                </span>
+
             {% endif %}
+
+            <h3>
+                Payout account
+            </h3>
+
+            <p>
+                Connect your South African bank account
+                through Paystack to receive eligible
+                fan contributions.
+
+                Available to Free, Standard and Premium creators.
+            </p>
+
+            <a
+                class="action-link"
+                href="{{ url_for('studio.payout_setup') }}"
+            >
+                {% if payout_account is defined and payout_account %}
+                    Manage payout →
+                {% else %}
+                    Set up payout →
+                {% endif %}
+            </a>
+
         </section>
+
+        <!-- =================================================
+             BUY ME A COFFEE
+        ================================================== -->
+
+        <section class="feature-card">
+
+            <span class="feature-status ready">
+                All plans
+            </span>
+
+            <h3>
+                Buy Me a Coffee ☕
+            </h3>
+
+            <p>
+                Accept voluntary contributions from fans
+                without locking your content behind
+                a membership payment.
+
+                Your current Kalxa commission is
+                {{ money_commission }}%.
+            </p>
+
+            <a
+                class="action-link"
+                href="{{ url_for('studio.support_setup') }}"
+            >
+                Support settings →
+            </a>
+
+        </section>
+
+        <!-- =================================================
+             FUNDRAISING
+        ================================================== -->
+
+        <section class="feature-card" id="fundraising">
+
+            {% if money_has_premium %}
+
+                <span class="feature-status ready">
+                    Available
+                </span>
+
+            {% else %}
+
+                <span class="feature-status premium">
+                    Premium
+                </span>
+
+            {% endif %}
+
+            <h3>
+                Fundraising
+            </h3>
+
+            <p>
+                Create goal-based campaigns for projects,
+                equipment, events and other creator initiatives.
+
+                Available to activated Premium creators.
+            </p>
+
+            {% if money_has_premium %}
+
+                <a
+                    class="action-link"
+                    href="{{ url_for('studio.fundraising_campaigns') }}"
+                >
+                    Manage campaigns →
+                </a>
+
+            {% else %}
+
+                <a
+                    class="action-link secondary"
+                    href="#premium-features"
+                >
+                    Unlock with Premium →
+                </a>
+
+            {% endif %}
+
+        </section>
+
     </div>
 
+    <!-- =====================================================
+         UPGRADE OPTIONS
+    ====================================================== -->
+
+    {% if money_status == 'active' and not money_has_premium %}
+
+        <section
+            class="monetisation-upgrade"
+            id="premium-features"
+        >
+
+            {% if money_effective_plan == 'free' %}
+
+                <h2>
+                    Reduce your Kalxa commission.
+                </h2>
+
+                <p>
+                    Upgrade to Standard for R100 once-off
+                    to reduce Kalxa's commission from
+                    23% to 3% and unlock exclusive content.
+
+                    Or activate Premium for R150 once-off
+                    to add fundraising and advanced creator tools.
+                </p>
+
+                <div class="monetisation-upgrade-actions">
+
+                    <form
+                        method="POST"
+                        action="{{ url_for('payments.creator_checkout') }}"
+                    >
+
+                        <input
+                            type="hidden"
+                            name="plan"
+                            value="standard"
+                        >
+
+                        <button
+                            type="submit"
+                            class="monetisation-upgrade-button"
+                        >
+                            Standard · R100 once-off
+                        </button>
+
+                    </form>
+
+                    <form
+                        method="POST"
+                        action="{{ url_for('payments.creator_checkout') }}"
+                    >
+
+                        <input
+                            type="hidden"
+                            name="plan"
+                            value="premium"
+                        >
+
+                        <button
+                            type="submit"
+                            class="monetisation-upgrade-button secondary"
+                        >
+                            Premium · R150 once-off
+                        </button>
+
+                    </form>
+
+                </div>
+
+            {% elif money_effective_plan == 'standard' %}
+
+                <h2>
+                    Unlock Premium for R50.
+                </h2>
+
+                <p>
+                    Your Standard account is already activated.
+
+                    Upgrade to Premium for R50 once-off
+                    to unlock fundraising, advanced analytics
+                    and custom domains.
+                </p>
+
+                <div class="monetisation-upgrade-actions">
+
+                    <form
+                        method="POST"
+                        action="{{ url_for('payments.creator_checkout') }}"
+                    >
+
+                        <input
+                            type="hidden"
+                            name="plan"
+                            value="premium"
+                        >
+
+                        <button
+                            type="submit"
+                            class="monetisation-upgrade-button"
+                        >
+                            Upgrade to Premium · R50
+                        </button>
+
+                    </form>
+
+                </div>
+
+            {% endif %}
+
+        </section>
+
+    {% endif %}
+
+    <!-- =====================================================
+         RECENT PAYMENTS
+    ====================================================== -->
+
     <section class="payment-panel">
-        <h2>Recent fan payments</h2>
+
+        <h2>
+            Recent fan payments
+        </h2>
+
+        <p class="payment-panel-description">
+            View recent supporter contributions and
+            their payment verification status.
+        </p>
+
         {% if recent_fan_payments %}
-        <table class="payment-table">
-            <thead><tr><th>Supporter</th><th>Type</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
-            <tbody>
-            {% for payment in recent_fan_payments %}
-                <tr>
-                    <td>{% if payment.is_anonymous %}Anonymous{% else %}{{ payment.supporter_name or payment.supporter_email or 'Supporter' }}{% endif %}</td>
-                    <td>{{ payment.payment_type|replace('_',' ')|title }}</td>
-                    <td>R{{ '%.2f'|format(payment.amount_cents / 100) }}</td>
-                    <td>{{ payment.status|title }}</td>
-                    <td>{{ payment.created_at.strftime('%d %b %Y') if payment.created_at else '—' }}</td>
-                </tr>
-            {% endfor %}
-            </tbody>
-        </table>
-        {% else %}<div class="empty-state">No fan payments yet. Once Paystack checkout is connected, confirmed support will appear here.</div>{% endif %}
+
+            <div class="payment-table-wrapper">
+
+                <table class="payment-table">
+
+                    <thead>
+
+                        <tr>
+                            <th>Supporter</th>
+                            <th>Type</th>
+                            <th>Amount</th>
+                            <th>Kalxa fee</th>
+                            <th>Status</th>
+                            <th>Date</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for payment in recent_fan_payments %}
+
+                            <tr>
+
+                                <td>
+
+                                    {% if payment.is_anonymous %}
+
+                                        Anonymous
+
+                                    {% else %}
+
+                                        {{ payment.supporter_name
+                                           or payment.supporter_email
+                                           or 'Supporter' }}
+
+                                    {% endif %}
+
+                                </td>
+
+                                <td>
+                                    {{ payment.payment_type|replace('_', ' ')|title }}
+                                </td>
+
+                                <td>
+                                    R{{ '%.2f'|format(
+                                        payment.amount_cents / 100
+                                    ) }}
+                                </td>
+
+                                <td>
+
+                                    {% if payment.platform_fee_cents is not none %}
+
+                                        R{{ '%.2f'|format(
+                                            payment.platform_fee_cents / 100
+                                        ) }}
+
+                                    {% else %}
+
+                                        —
+
+                                    {% endif %}
+
+                                </td>
+
+                                <td>
+
+                                    <span class="payment-status {{ payment.status|lower }}">
+                                        {{ payment.status|replace('_', ' ')|title }}
+                                    </span>
+
+                                </td>
+
+                                <td>
+                                    {{ payment.created_at.strftime('%d %b %Y') if payment.created_at else '—' }}
+                                </td>
+
+                            </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        {% else %}
+
+            <div class="payment-empty-state">
+
+                No fan payments yet.
+
+                Once your Paystack payout account
+                is connected and supporters make
+                verified contributions, their payments
+                will appear here.
+
+            </div>
+
+        {% endif %}
+
     </section>
+
 </div>
+
 {% endblock %}
