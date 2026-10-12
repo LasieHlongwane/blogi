@@ -1,22 +1,116 @@
-   
-"""Kalxa Creator SaaS subscription plans and feature entitlements."""
+"""
+============================================================
+KALXA CREATOR
+PLAN SERVICE
+============================================================
+
+One-time activation plans and feature entitlements.
+
+PLANS:
+
+FREE
+    Activation: R0
+    Fan support commission: 23%
+
+STANDARD
+    Activation: R100 once-off
+    Fan support commission: 3%
+
+PREMIUM
+    Activation: R150 once-off
+    Fan support commission: 3%
+
+UPGRADE:
+
+Standard -> Premium:
+    R50 once-off, provided the previous Standard
+    activation was successfully verified.
+
+SECURITY:
+
+- Free creators require an active account.
+- Paid creators require an active account and verified
+  activation.
+- Unknown plans receive no entitlements.
+- Selecting a paid plan does not grant paid features.
+- Payment verification must happen server-side.
+============================================================
+"""
+
 
 # ============================================================
-# PLANS AND PRICES
+# PLAN CONSTANTS
 # ============================================================
 
+PLAN_FREE = "free"
 PLAN_STANDARD = "standard"
 PLAN_PREMIUM = "premium"
 
-VALID_PLANS = {
+
+VALID_PLANS = frozenset({
+    PLAN_FREE,
     PLAN_STANDARD,
     PLAN_PREMIUM,
+})
+
+
+PAID_PLANS = frozenset({
+    PLAN_STANDARD,
+    PLAN_PREMIUM,
+})
+
+
+# ============================================================
+# PLAN ACTIVATION PRICES
+# ============================================================
+#
+# Prices are in South African rand.
+#
+# These are ONCE-OFF activation prices.
+# They are NOT monthly subscription fees.
+# ============================================================
+
+PLAN_PRICES = {
+    PLAN_FREE: 0,
+    PLAN_STANDARD: 100,
+    PLAN_PREMIUM: 150,
 }
 
-# Monthly subscription prices in South African rand.
-PLAN_PRICES = {
-    PLAN_STANDARD: 79,
-    PLAN_PREMIUM: 149,
+
+PLAN_ACTIVATION_PRICES = PLAN_PRICES
+
+
+# ============================================================
+# UPGRADE PRICES
+# ============================================================
+
+STANDARD_TO_PREMIUM_UPGRADE_PRICE = 50
+
+STANDARD_TO_PREMIUM_UPGRADE_CENTS = 5000
+
+
+# ============================================================
+# COMMISSION RATES
+# ============================================================
+#
+# Expressed as integer percentages.
+#
+# Example:
+#
+# Free creator receives R100:
+#     Kalxa commission: R23
+#
+# Standard/Premium receives R100:
+#     Kalxa commission: R3
+#
+# Actual payment calculations must be performed by the
+# payment service using integer cents.
+# ============================================================
+
+PLAN_COMMISSION_PERCENTAGES = {
+    PLAN_FREE: 23,
+    PLAN_STANDARD: 3,
+    PLAN_PREMIUM: 3,
 }
 
 
@@ -25,26 +119,87 @@ PLAN_PRICES = {
 # ============================================================
 
 FEATURE_PUBLISHING = "publishing"
+
 FEATURE_NEWSLETTER = "newsletter"
 
 FEATURE_BASIC_ANALYTICS = "basic_analytics"
+
 FEATURE_ADVANCED_ANALYTICS = "advanced_analytics"
 
 FEATURE_EXCLUSIVE_CONTENT = "exclusive_content"
+
 FEATURE_PAID_MEMBERSHIPS = "paid_memberships"
 
 FEATURE_PAYOUT_CONNECTION = "payout_connection"
+
 FEATURE_FAN_SUPPORT = "fan_support"
+
+FEATURE_DONATIONS = "donations"
+
 FEATURE_FUNDRAISING = "fundraising"
 
 FEATURE_SCHEDULED_PUBLISHING = "scheduled_publishing"
+
 FEATURE_SUBSCRIBER_EXPORT = "subscriber_export"
 
-# White-label features
+
+# ============================================================
+# WHITE-LABEL FEATURES
+# ============================================================
+
 FEATURE_BRANDING = "branding"
+
 FEATURE_SUBDOMAIN = "subdomain"
+
 FEATURE_CUSTOM_DOMAIN = "custom_domain"
+
 FEATURE_ADVANCED_BRANDING = "advanced_branding"
+
+
+# ============================================================
+# FREE FEATURES
+# ============================================================
+
+FREE_FEATURES = {
+    FEATURE_PUBLISHING,
+    FEATURE_NEWSLETTER,
+    FEATURE_BASIC_ANALYTICS,
+    FEATURE_PAYOUT_CONNECTION,
+    FEATURE_FAN_SUPPORT,
+}
+
+
+# ============================================================
+# STANDARD FEATURES
+# ============================================================
+
+STANDARD_FEATURES = (
+    FREE_FEATURES
+    | {
+        FEATURE_DONATIONS,
+        FEATURE_EXCLUSIVE_CONTENT,
+        FEATURE_PAID_MEMBERSHIPS,
+        FEATURE_BRANDING,
+        FEATURE_SUBDOMAIN,
+    }
+)
+
+
+# ============================================================
+# PREMIUM FEATURES
+# ============================================================
+
+PREMIUM_FEATURES = (
+    STANDARD_FEATURES
+    | {
+        FEATURE_ADVANCED_ANALYTICS,
+        FEATURE_FUNDRAISING,
+        FEATURE_SCHEDULED_PUBLISHING,
+        FEATURE_SUBSCRIBER_EXPORT,
+        FEATURE_CUSTOM_DOMAIN,
+        FEATURE_ADVANCED_BRANDING,
+    }
+)
 
 
 # ============================================================
@@ -52,33 +207,9 @@ FEATURE_ADVANCED_BRANDING = "advanced_branding"
 # ============================================================
 
 PLAN_FEATURES = {
-    PLAN_STANDARD: {
-        FEATURE_PUBLISHING,
-        FEATURE_NEWSLETTER,
-        FEATURE_BASIC_ANALYTICS,
-        FEATURE_PAYOUT_CONNECTION,
-        FEATURE_FAN_SUPPORT,
-        FEATURE_BRANDING,
-        FEATURE_SUBDOMAIN,
-    },
-
-    PLAN_PREMIUM: {
-        FEATURE_PUBLISHING,
-        FEATURE_NEWSLETTER,
-        FEATURE_BASIC_ANALYTICS,
-        FEATURE_ADVANCED_ANALYTICS,
-        FEATURE_EXCLUSIVE_CONTENT,
-        FEATURE_PAID_MEMBERSHIPS,
-        FEATURE_PAYOUT_CONNECTION,
-        FEATURE_FAN_SUPPORT,
-        FEATURE_FUNDRAISING,
-        FEATURE_SCHEDULED_PUBLISHING,
-        FEATURE_SUBSCRIBER_EXPORT,
-        FEATURE_BRANDING,
-        FEATURE_SUBDOMAIN,
-        FEATURE_CUSTOM_DOMAIN,
-        FEATURE_ADVANCED_BRANDING,
-    },
+    PLAN_FREE: FREE_FEATURES,
+    PLAN_STANDARD: STANDARD_FEATURES,
+    PLAN_PREMIUM: PREMIUM_FEATURES,
 }
 
 
@@ -91,6 +222,13 @@ PREMIUM_ONLY_FEATURES = (
     - PLAN_FEATURES[PLAN_STANDARD]
 )
 
+
+STANDARD_AND_ABOVE_FEATURES = (
+    PLAN_FEATURES[PLAN_STANDARD]
+    - PLAN_FEATURES[PLAN_FREE]
+)
+
+
 ALL_PAID_PLAN_FEATURES = (
     PLAN_FEATURES[PLAN_STANDARD]
     | PLAN_FEATURES[PLAN_PREMIUM]
@@ -102,21 +240,53 @@ ALL_PAID_PLAN_FEATURES = (
 # ============================================================
 
 FEATURE_LABELS = {
-    FEATURE_PUBLISHING: "Content publishing",
-    FEATURE_NEWSLETTER: "Email newsletters",
-    FEATURE_BASIC_ANALYTICS: "Basic analytics",
-    FEATURE_ADVANCED_ANALYTICS: "Advanced analytics",
-    FEATURE_EXCLUSIVE_CONTENT: "Exclusive content",
-    FEATURE_PAID_MEMBERSHIPS: "Paid memberships",
-    FEATURE_PAYOUT_CONNECTION: "Payout account connection",
-    FEATURE_FAN_SUPPORT: "Buy me a coffee",
-    FEATURE_FUNDRAISING: "Fundraising campaigns",
-    FEATURE_SCHEDULED_PUBLISHING: "Scheduled publishing",
-    FEATURE_SUBSCRIBER_EXPORT: "Subscriber export",
-    FEATURE_BRANDING: "Creator branding",
-    FEATURE_SUBDOMAIN: "Kalxa creator subdomain",
-    FEATURE_CUSTOM_DOMAIN: "Custom domain",
-    FEATURE_ADVANCED_BRANDING: "Advanced white-label branding",
+    FEATURE_PUBLISHING:
+        "Content publishing",
+
+    FEATURE_NEWSLETTER:
+        "Email newsletters",
+
+    FEATURE_BASIC_ANALYTICS:
+        "Basic analytics",
+
+    FEATURE_ADVANCED_ANALYTICS:
+        "Advanced analytics",
+
+    FEATURE_EXCLUSIVE_CONTENT:
+        "Exclusive content",
+
+    FEATURE_PAID_MEMBERSHIPS:
+        "Paid memberships",
+
+    FEATURE_PAYOUT_CONNECTION:
+        "Payout account connection",
+
+    FEATURE_FAN_SUPPORT:
+        "Buy Me a Coffee",
+
+    FEATURE_DONATIONS:
+        "Donations",
+
+    FEATURE_FUNDRAISING:
+        "Fundraising campaigns",
+
+    FEATURE_SCHEDULED_PUBLISHING:
+        "Scheduled publishing",
+
+    FEATURE_SUBSCRIBER_EXPORT:
+        "Subscriber export",
+
+    FEATURE_BRANDING:
+        "Creator branding",
+
+    FEATURE_SUBDOMAIN:
+        "Kalxa creator subdomain",
+
+    FEATURE_CUSTOM_DOMAIN:
+        "Custom domain",
+
+    FEATURE_ADVANCED_BRANDING:
+        "Advanced white-label branding",
 }
 
 
@@ -129,28 +299,55 @@ FEATURE_DESCRIPTIONS = {
         "Publish stories, reels and vlogs.",
 
     FEATURE_NEWSLETTER:
-        "Collect subscribers and send new-content notifications.",
+        (
+            "Collect subscribers and send "
+            "new-content notifications."
+        ),
 
     FEATURE_BASIC_ANALYTICS:
-        "View basic creator and content analytics.",
+        (
+            "View basic creator and "
+            "content analytics."
+        ),
 
     FEATURE_ADVANCED_ANALYTICS:
-        "Access deeper audience and content performance analytics.",
+        (
+            "Access deeper audience and "
+            "content performance analytics."
+        ),
 
     FEATURE_EXCLUSIVE_CONTENT:
-        "Publish content available only to eligible supporters or members.",
+        (
+            "Publish content available only "
+            "to eligible supporters or members."
+        ),
 
     FEATURE_PAID_MEMBERSHIPS:
         "Offer recurring paid fan memberships.",
 
     FEATURE_PAYOUT_CONNECTION:
-        "Connect a payout account to receive creator earnings.",
+        (
+            "Connect a payout account "
+            "to receive creator earnings."
+        ),
 
     FEATURE_FAN_SUPPORT:
-        "Receive voluntary support from fans through Buy me a coffee.",
+        (
+            "Receive voluntary Buy Me a Coffee "
+            "contributions from fans."
+        ),
+
+    FEATURE_DONATIONS:
+        (
+            "Receive donations through the "
+            "separate donations feature."
+        ),
 
     FEATURE_FUNDRAISING:
-        "Create goal-based fundraising campaigns for projects and creator initiatives.",
+        (
+            "Create goal-based fundraising "
+            "campaigns."
+        ),
 
     FEATURE_SCHEDULED_PUBLISHING:
         "Schedule content to publish later.",
@@ -159,75 +356,253 @@ FEATURE_DESCRIPTIONS = {
         "Export your subscriber list.",
 
     FEATURE_BRANDING:
-        "Customize your creator site's logo, colors and visual identity.",
+        (
+            "Customize your creator site's "
+            "logo, colors and visual identity."
+        ),
 
     FEATURE_SUBDOMAIN:
-        "Publish at yourname.creators.kalxa.co.za.",
+        (
+            "Publish using a Kalxa "
+            "creator subdomain."
+        ),
 
     FEATURE_CUSTOM_DOMAIN:
-        "Connect a verified domain you own, such as www.thandom.co.za.",
+        (
+            "Connect a verified domain "
+            "that you own."
+        ),
 
     FEATURE_ADVANCED_BRANDING:
-        "Access additional white-label visual customization.",
+        (
+            "Access advanced white-label "
+            "visual customization."
+        ),
 }
 
 
 # ============================================================
-# PLAN HELPERS
+# NORMALIZE PLAN
 # ============================================================
 
-def normalize_plan(value, default=PLAN_STANDARD):
-    """Return a supported plan key."""
-    value = str(value or "").strip().lower()
+def normalize_plan(
+    value,
+    default=PLAN_FREE,
+):
+    """
+    Normalize a plan identifier.
+
+    Unknown plans default to Free for display purposes.
+
+    IMPORTANT:
+    Authorization must still use the creator's actual
+    plan and must never upgrade unknown plans.
+    """
+
+    value = str(
+        value or ""
+    ).strip().lower()
 
     if value in VALID_PLANS:
         return value
 
-    return (
-        default
-        if default in VALID_PLANS
-        else PLAN_STANDARD
-    )
+    default = str(
+        default or ""
+    ).strip().lower()
 
+    if default in VALID_PLANS:
+        return default
+
+    return PLAN_FREE
+
+
+# ============================================================
+# GET PLAN PRICE
+# ============================================================
 
 def get_plan_price(plan):
-    """Return monthly subscription price in ZAR."""
-    return PLAN_PRICES[normalize_plan(plan)]
+    """
+    Return the once-off activation price in ZAR.
+    """
 
+    plan = normalize_plan(
+        plan
+    )
+
+    return PLAN_PRICES[plan]
+
+
+# ============================================================
+# GET PLAN PRICE IN CENTS
+# ============================================================
 
 def get_plan_price_cents(plan):
-    """Return monthly subscription price in cents."""
-    return get_plan_price(plan) * 100
+    """
+    Return the once-off activation price in cents.
+    """
 
+    return (
+        get_plan_price(plan)
+        * 100
+    )
+
+
+# ============================================================
+# GET CREATOR PLAN
+# ============================================================
 
 def get_creator_plan(creator):
-    """Read the creator's assigned subscription plan."""
-    if not creator:
-        return PLAN_STANDARD
+    """
+    Return the creator's assigned plan.
 
-    return normalize_plan(
-        getattr(creator, "plan", None)
+    Unknown values are preserved as an empty/unknown plan
+    for authorization rather than silently granting
+    Standard entitlements.
+    """
+
+    if creator is None:
+        return ""
+
+    plan = str(
+        getattr(
+            creator,
+            "plan",
+            "",
+        )
+        or ""
+    ).strip().lower()
+
+    if plan not in VALID_PLANS:
+        return ""
+
+    return plan
+
+
+# ============================================================
+# CREATOR ACCOUNT ACTIVE
+# ============================================================
+
+def creator_account_is_active(creator):
+
+    if creator is None:
+        return False
+
+    return (
+        str(
+            getattr(
+                creator,
+                "account_status",
+                "",
+            )
+            or ""
+        ).strip().lower()
+        == "active"
     )
+
+
+# ============================================================
+# PAID ACTIVATION VERIFIED
+# ============================================================
+
+def creator_paid_activation_verified(creator):
+    """
+    Verify locally recorded activation state.
+
+    The payment service must only set these fields after
+    verifying payment with Yoco server-side.
+
+    This function does not contact Yoco.
+    """
+
+    if creator is None:
+        return False
+
+    payment_status = str(
+        getattr(
+            creator,
+            "payment_status",
+            "",
+        )
+        or ""
+    ).strip().lower()
+
+    registration_paid_at = getattr(
+        creator,
+        "registration_paid_at",
+        None,
+    )
+
+    return bool(
+        payment_status == "paid"
+        and registration_paid_at is not None
+    )
+
+
+# ============================================================
+# CREATOR STUDIO ACCESS
+# ============================================================
+
+def creator_can_enter_studio(creator):
+    """
+    Determine whether a creator can access Studio.
+
+    Free:
+        Active account.
+
+    Standard/Premium:
+        Active account and verified activation.
+    """
+
+    if not creator_account_is_active(
+        creator
+    ):
+        return False
+
+    plan = get_creator_plan(
+        creator
+    )
+
+    if plan == PLAN_FREE:
+        return True
+
+    if plan in PAID_PLANS:
+
+        return creator_paid_activation_verified(
+            creator
+        )
+
+    return False
 
 
 # ============================================================
 # FEATURE ACCESS
 # ============================================================
 
-def creator_has_feature(creator, feature):
+def creator_has_feature(
+    creator,
+    feature,
+):
     """
-    Check plan entitlement only.
+    Check both plan entitlement and account eligibility.
 
-    IMPORTANT:
-    This does not verify whether the creator's account
-    or platform subscription is currently active.
+    Free:
+        Active account.
 
-    Protected routes must perform those checks separately.
+    Standard/Premium:
+        Active account and verified activation.
+
+    Unknown plans:
+        No access.
     """
-    if not creator:
+
+    if not creator_can_enter_studio(
+        creator
+    ):
         return False
 
-    plan = get_creator_plan(creator)
+    plan = get_creator_plan(
+        creator
+    )
 
     return feature in PLAN_FEATURES.get(
         plan,
@@ -235,67 +610,168 @@ def creator_has_feature(creator, feature):
     )
 
 
-def creator_can_use_custom_domain(creator):
-    """Premium plan entitlement for custom domains."""
+# ============================================================
+# DOMAIN FEATURES
+# ============================================================
+
+def creator_can_use_custom_domain(
+    creator
+):
+
     return creator_has_feature(
         creator,
         FEATURE_CUSTOM_DOMAIN,
     )
 
 
-def creator_can_use_subdomain(creator):
-    """Plan entitlement for Kalxa creator subdomains."""
+def creator_can_use_subdomain(
+    creator
+):
+
     return creator_has_feature(
         creator,
         FEATURE_SUBDOMAIN,
     )
 
 
-def creator_can_customize_branding(creator):
-    """Check basic creator branding entitlement."""
+def creator_can_customize_branding(
+    creator
+):
+
     return creator_has_feature(
         creator,
         FEATURE_BRANDING,
     )
 
 
-def creator_can_use_advanced_branding(creator):
-    """Check Premium white-label branding entitlement."""
+def creator_can_use_advanced_branding(
+    creator
+):
+
     return creator_has_feature(
         creator,
         FEATURE_ADVANCED_BRANDING,
     )
 
 
-def feature_is_premium_only(feature):
-    return feature in PREMIUM_ONLY_FEATURES
+# ============================================================
+# PREMIUM FEATURE CHECK
+# ============================================================
+
+def feature_is_premium_only(
+    feature
+):
+
+    return (
+        feature
+        in PREMIUM_ONLY_FEATURES
+    )
 
 
-def get_feature_label(feature):
+# ============================================================
+# FEATURE LABEL
+# ============================================================
+
+def get_feature_label(
+    feature
+):
+
     return FEATURE_LABELS.get(
         feature,
         "This feature",
     )
 
 
-def get_feature_description(feature):
+# ============================================================
+# FEATURE DESCRIPTION
+# ============================================================
+
+def get_feature_description(
+    feature
+):
+
     return FEATURE_DESCRIPTIONS.get(
         feature,
         "",
     )
 
 
-def creator_missing_feature_message(feature):
-    """Generate a user-facing upgrade or access message."""
-    label = get_feature_label(feature)
+# ============================================================
+# MISSING FEATURE MESSAGE
+# ============================================================
 
-    if feature_is_premium_only(feature):
+def creator_missing_feature_message(
+    feature
+):
+
+    label = get_feature_label(
+        feature
+    )
+
+    if feature in PREMIUM_ONLY_FEATURES:
+
         return (
-            f"{label} is available on the Premium plan."
+            f"{label} is available "
+            "on the Premium plan."
+        )
+
+    if feature in STANDARD_AND_ABOVE_FEATURES:
+
+        return (
+            f"{label} is available "
+            "on Standard and Premium plans."
         )
 
     return (
-        f"{label} is not available for your current account."
+        f"{label} is not available "
+        "for your current account."
+    )
+
+
+# ============================================================
+# COMMISSION
+# ============================================================
+
+def get_plan_commission_percentage(
+    plan
+):
+
+    plan = normalize_plan(
+        plan
+    )
+
+    return PLAN_COMMISSION_PERCENTAGES[
+        plan
+    ]
+
+
+def get_creator_commission_percentage(
+    creator
+):
+    """
+    Unknown/inactive creators receive the highest
+    commission rate as a conservative fallback.
+
+    Payment initiation must separately verify eligibility.
+    """
+
+    if not creator_can_enter_studio(
+        creator
+    ):
+
+        return PLAN_COMMISSION_PERCENTAGES[
+            PLAN_FREE
+        ]
+
+    plan = get_creator_plan(
+        creator
+    )
+
+    return PLAN_COMMISSION_PERCENTAGES.get(
+        plan,
+        PLAN_COMMISSION_PERCENTAGES[
+            PLAN_FREE
+        ],
     )
 
 
@@ -303,61 +779,159 @@ def creator_missing_feature_message(feature):
 # CREATOR PLAN SUMMARY
 # ============================================================
 
-def creator_plan_summary(creator):
-    """Return plan details for Studio, pricing and billing pages."""
+def creator_plan_summary(
+    creator
+):
+    """
+    Return plan information for Studio templates.
 
-    plan = get_creator_plan(creator)
-    features = PLAN_FEATURES.get(plan, set())
+    Retains existing keys for backwards compatibility.
+    """
+
+    plan = get_creator_plan(
+        creator
+    )
+
+    if not plan:
+        plan = PLAN_FREE
+
+    features = (
+        PLAN_FEATURES.get(
+            plan,
+            set(),
+        )
+        if creator_can_enter_studio(
+            creator
+        )
+        else set()
+    )
+
+    name = {
+        PLAN_FREE: "Free",
+        PLAN_STANDARD: "Standard",
+        PLAN_PREMIUM: "Premium",
+    }[plan]
+
+    commission_percentage = (
+        PLAN_COMMISSION_PERCENTAGES[
+            plan
+        ]
+    )
 
     return {
         "key": plan,
 
-        "name": (
-            "Premium"
-            if plan == PLAN_PREMIUM
-            else "Standard"
-        ),
+        "name": name,
 
         "price": PLAN_PRICES[plan],
-        "price_cents": PLAN_PRICES[plan] * 100,
 
-        "features": sorted(features),
+        "price_cents": (
+            PLAN_PRICES[plan]
+            * 100
+        ),
 
-        "is_standard": plan == PLAN_STANDARD,
-        "is_premium": plan == PLAN_PREMIUM,
+        "activation_price": (
+            PLAN_PRICES[plan]
+        ),
 
-        # Monetization
-        "can_receive_support":
-            FEATURE_FAN_SUPPORT in features,
+        "activation_price_cents": (
+            PLAN_PRICES[plan]
+            * 100
+        ),
 
-        "can_connect_payout":
-            FEATURE_PAYOUT_CONNECTION in features,
+        "billing_type": "once_off",
 
-        "can_create_fundraiser":
-            FEATURE_FUNDRAISING in features,
+        "commission_percentage": (
+            commission_percentage
+        ),
 
-        "can_publish_exclusive":
-            FEATURE_EXCLUSIVE_CONTENT in features,
+        "features": sorted(
+            features
+        ),
 
-        "can_offer_memberships":
-            FEATURE_PAID_MEMBERSHIPS in features,
+        "is_free": (
+            plan == PLAN_FREE
+        ),
 
-        # White-label
-        "can_customize_branding":
-            FEATURE_BRANDING in features,
+        "is_standard": (
+            plan == PLAN_STANDARD
+        ),
 
-        "can_use_subdomain":
-            FEATURE_SUBDOMAIN in features,
+        "is_premium": (
+            plan == PLAN_PREMIUM
+        ),
 
-        "can_use_custom_domain":
-            FEATURE_CUSTOM_DOMAIN in features,
+        "is_active": (
+            creator_can_enter_studio(
+                creator
+            )
+        ),
 
-        "can_use_advanced_branding":
-            FEATURE_ADVANCED_BRANDING in features,
+        # ----------------------------------------------------
+        # MONETIZATION
+        # ----------------------------------------------------
+
+        "can_receive_support": (
+            FEATURE_FAN_SUPPORT
+            in features
+        ),
+
+        "can_connect_payout": (
+            FEATURE_PAYOUT_CONNECTION
+            in features
+        ),
+
+        "can_receive_donations": (
+            FEATURE_DONATIONS
+            in features
+        ),
+
+        "can_create_fundraiser": (
+            FEATURE_FUNDRAISING
+            in features
+        ),
+
+        "can_publish_exclusive": (
+            FEATURE_EXCLUSIVE_CONTENT
+            in features
+        ),
+
+        "can_offer_memberships": (
+            FEATURE_PAID_MEMBERSHIPS
+            in features
+        ),
+
+        # ----------------------------------------------------
+        # WHITE-LABEL
+        # ----------------------------------------------------
+
+        "can_customize_branding": (
+            FEATURE_BRANDING
+            in features
+        ),
+
+        "can_use_subdomain": (
+            FEATURE_SUBDOMAIN
+            in features
+        ),
+
+        "can_use_custom_domain": (
+            FEATURE_CUSTOM_DOMAIN
+            in features
+        ),
+
+        "can_use_advanced_branding": (
+            FEATURE_ADVANCED_BRANDING
+            in features
+        ),
 
         "domain_type": (
             "custom_or_subdomain"
             if plan == PLAN_PREMIUM
-            else "subdomain_only"
+            else (
+                "subdomain_only"
+                if plan == PLAN_STANDARD
+                else "platform_profile"
+            )
         ),
     }
