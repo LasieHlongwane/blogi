@@ -1,0 +1,702 @@
+{% extends "base.html" %}
+
+{% block title %}
+Support {{ creator.display_name if creator else creator_account.username }} | Kalxa Creator
+{% endblock %}
+
+{% block content %}
+
+<style>
+
+/* =====================================================
+   PAGE
+===================================================== */
+
+.support-page {
+    min-height: 100vh;
+    padding: 45px 18px 80px;
+    background: #f5f3ef;
+    color: #17191d;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.support-container {
+    max-width: 520px;
+    margin: 0 auto;
+}
+
+/* =====================================================
+   NAVIGATION
+===================================================== */
+
+.support-back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+
+    margin-bottom: 25px;
+
+    color: #525862;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* =====================================================
+   HEADER
+===================================================== */
+
+.support-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.support-avatar {
+    width: 80px;
+    height: 80px;
+
+    border-radius: 50%;
+
+    margin: 0 auto 15px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #17191d;
+    color: #fff;
+
+    font-size: 34px;
+
+    overflow: hidden;
+}
+
+.support-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.support-eyebrow {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: #a17620;
+}
+
+.support-header h1 {
+    margin: 10px 0;
+    font-size: clamp(26px, 5vw, 34px);
+}
+
+.support-header p {
+    color: #686868;
+    line-height: 1.7;
+}
+
+/* =====================================================
+   CARD
+===================================================== */
+
+.support-card {
+    background: #fff;
+
+    border: 1px solid #e6e3dd;
+    border-radius: 20px;
+
+    padding: 28px;
+
+    box-shadow: 0 12px 35px rgba(0,0,0,.05);
+}
+
+.support-card h2 {
+    margin: 0 0 10px;
+    font-size: 20px;
+}
+
+.support-description {
+    color: #777;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+/* =====================================================
+   AMOUNT BUTTONS
+===================================================== */
+
+.amount-options {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+
+    margin: 22px 0;
+}
+
+.amount-option {
+    position: relative;
+    cursor: pointer;
+}
+
+.amount-option input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+
+.amount-option span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    min-height: 55px;
+
+    border: 1px solid #ddd;
+    border-radius: 12px;
+
+    background: #fff;
+
+    font-size: 17px;
+    font-weight: 800;
+
+    transition: .2s;
+}
+
+.amount-option input:checked + span {
+    background: #17191d;
+    border-color: #17191d;
+    color: #fff;
+}
+
+.amount-option input:focus-visible + span {
+    outline: 3px solid #f4b942;
+    outline-offset: 3px;
+}
+
+/* =====================================================
+   INPUTS
+===================================================== */
+
+.support-field {
+    display: block;
+    margin-bottom: 18px;
+}
+
+.support-field label {
+    display: block;
+
+    margin-bottom: 8px;
+
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.support-field input,
+.support-field textarea {
+    display: block;
+    width: 100%;
+
+    padding: 13px 14px;
+
+    border: 1px solid #ddd;
+    border-radius: 10px;
+
+    font: inherit;
+    font-size: 15px;
+
+    box-sizing: border-box;
+}
+
+.support-field input:focus,
+.support-field textarea:focus {
+    outline: none;
+    border-color: #17191d;
+}
+
+.support-field textarea {
+    min-height: 90px;
+    resize: vertical;
+}
+
+/* =====================================================
+   ANONYMOUS
+===================================================== */
+
+.anonymous-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    margin: 15px 0 25px;
+
+    font-size: 13px;
+    color: #555;
+}
+
+.anonymous-row input {
+    width: 17px;
+    height: 17px;
+}
+
+/* =====================================================
+   BUTTON
+===================================================== */
+
+.support-submit {
+    width: 100%;
+
+    padding: 16px;
+
+    border: none;
+    border-radius: 12px;
+
+    background: #17191d;
+    color: #fff;
+
+    font: inherit;
+    font-weight: 800;
+    font-size: 15px;
+
+    cursor: pointer;
+}
+
+.support-submit:hover {
+    opacity: .9;
+}
+
+.support-submit:disabled {
+    opacity: .55;
+    cursor: not-allowed;
+}
+
+.support-security {
+    text-align: center;
+
+    margin-top: 18px;
+
+    color: #888;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.support-notice {
+    padding: 14px;
+
+    background: #fff4dc;
+
+    border: 1px solid #f1d79a;
+    border-radius: 10px;
+
+    margin-top: 15px;
+
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+@media (max-width: 480px) {
+
+    .support-card {
+        padding: 20px;
+    }
+
+}
+
+</style>
+
+
+<div class="support-page">
+
+    <div class="support-container">
+
+
+        <!-- BACK -->
+
+        <a
+            href="{{ url_for(
+                'public.creator_home',
+                username=creator_account.username
+            ) }}"
+            class="support-back"
+        >
+            ← Back to creator
+        </a>
+
+
+        <!-- HEADER -->
+
+        <div class="support-header">
+
+            <div class="support-avatar">
+
+                {% if creator and creator.profile_image_url %}
+
+                    <img
+                        src="{{ creator.profile_image_url }}"
+                        alt="{{ creator.display_name }}"
+                    >
+
+                {% else %}
+
+                    ☕
+
+                {% endif %}
+
+            </div>
+
+
+            <span class="support-eyebrow">
+                SUPPORT A CREATOR
+            </span>
+
+
+            <h1>
+                Buy
+                {{ creator.display_name if creator else creator_account.username }}
+                a coffee ☕
+            </h1>
+
+
+            <p>
+                Your contribution helps support
+                independent creativity.
+            </p>
+
+        </div>
+
+
+        <!-- PAYMENT CARD -->
+
+        <div class="support-card">
+
+            <h2>
+                Choose your contribution
+            </h2>
+
+            <p class="support-description">
+                Every contribution makes a difference.
+                Choose an amount you're comfortable with.
+            </p>
+
+
+            <form
+                method="POST"
+                action="{{ url_for(
+                    'fan_payments.creator_support_pay',
+                    username=creator_account.username
+                ) }}"
+                id="support-payment-form"
+            >
+
+                <!-- AMOUNT -->
+
+                <div class="amount-options">
+
+                    {% for value in [10, 20, 50, 100] %}
+
+                        <label class="amount-option">
+
+                            <input
+                                type="radio"
+                                name="amount_choice"
+                                value="{{ value }}"
+                                {% if value == 20 %}checked{% endif %}
+                            >
+
+                            <span>
+                                R{{ value }}
+                            </span>
+
+                        </label>
+
+                    {% endfor %}
+
+
+                    <label class="amount-option">
+
+                        <input
+                            type="radio"
+                            name="amount_choice"
+                            value="custom"
+                        >
+
+                        <span>
+                            Custom amount
+                        </span>
+
+                    </label>
+
+                </div>
+
+
+                <!-- ACTUAL AMOUNT SENT TO BACKEND -->
+
+                <input
+                    type="hidden"
+                    name="amount"
+                    id="payment-amount"
+                    value="20"
+                >
+
+
+                <!-- CUSTOM AMOUNT -->
+
+                <div
+                    class="support-field"
+                    id="custom-amount-wrapper"
+                    hidden
+                >
+
+                    <label for="custom-amount">
+                        Enter amount (ZAR)
+                    </label>
+
+                    <input
+                        type="number"
+                        id="custom-amount"
+                        min="1"
+                        max="100000"
+                        step="0.01"
+                        inputmode="decimal"
+                        placeholder="e.g. 75.00"
+                        disabled
+                    >
+
+                </div>
+
+
+                <!-- SUPPORTER NAME -->
+
+                <div class="support-field">
+
+                    <label for="supporter-name">
+                        Your name (optional)
+                    </label>
+
+                    <input
+                        type="text"
+                        id="supporter-name"
+                        name="name"
+                        maxlength="120"
+                        placeholder="Your name"
+                    >
+
+                </div>
+
+
+                <!-- EMAIL -->
+
+                <div class="support-field">
+
+                    <label for="supporter-email">
+                        Email address
+                    </label>
+
+                    <input
+                        type="email"
+                        id="supporter-email"
+                        name="email"
+                        maxlength="255"
+                        autocomplete="email"
+                        placeholder="you@example.com"
+                        required
+                    >
+
+                </div>
+
+
+                <!-- MESSAGE -->
+
+                <div class="support-field">
+
+                    <label for="supporter-message">
+                        Message (optional)
+                    </label>
+
+                    <textarea
+                        id="supporter-message"
+                        name="message"
+                        maxlength="500"
+                        placeholder="Keep creating amazing content!"
+                    ></textarea>
+
+                </div>
+
+
+                <!-- ANONYMOUS -->
+
+                <label class="anonymous-row">
+
+                    <input
+                        type="checkbox"
+                        name="is_anonymous"
+                    >
+
+                    <span>
+                        Make my contribution anonymous
+                    </span>
+
+                </label>
+
+
+                <!-- SUBMIT -->
+
+                {% if payout_ready %}
+
+                    <button
+                        type="submit"
+                        class="support-submit"
+                        id="support-submit"
+                    >
+                        Continue to Paystack
+                    </button>
+
+                {% else %}
+
+                    <button
+                        type="button"
+                        class="support-submit"
+                        disabled
+                    >
+                        Contributions unavailable
+                    </button>
+
+                    <div class="support-notice">
+                        This creator hasn't connected
+                        their Paystack payout account yet.
+                    </div>
+
+                {% endif %}
+
+
+                <p class="support-security">
+                    🔒 Secure checkout powered by Paystack.
+                    Your payment details are handled by Paystack.
+                </p>
+
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<script>
+
+(function () {
+
+    const form = document.getElementById(
+        "support-payment-form"
+    );
+
+    if (!form) {
+        return;
+    }
+
+    const amountInput = document.getElementById(
+        "payment-amount"
+    );
+
+    const customWrapper = document.getElementById(
+        "custom-amount-wrapper"
+    );
+
+    const customInput = document.getElementById(
+        "custom-amount"
+    );
+
+    const amountOptions = form.querySelectorAll(
+        'input[name="amount_choice"]'
+    );
+
+
+    function updateAmount() {
+
+        const selected = form.querySelector(
+            'input[name="amount_choice"]:checked'
+        );
+
+        if (!selected) {
+            return;
+        }
+
+        const customSelected = (
+            selected.value === "custom"
+        );
+
+        customWrapper.hidden = !customSelected;
+
+        customInput.disabled = !customSelected;
+
+        customInput.required = customSelected;
+
+
+        if (customSelected) {
+
+            amountInput.value = (
+                customInput.value || ""
+            );
+
+        } else {
+
+            amountInput.value = selected.value;
+
+        }
+
+    }
+
+
+    amountOptions.forEach(function (option) {
+
+        option.addEventListener(
+            "change",
+            updateAmount
+        );
+
+    });
+
+
+    customInput.addEventListener(
+        "input",
+        updateAmount
+    );
+
+
+    form.addEventListener(
+        "submit",
+        function (event) {
+
+            updateAmount();
+
+            const amount = Number(
+                amountInput.value
+            );
+
+            if (
+                !Number.isFinite(amount)
+                || amount < 1
+                || amount > 100000
+            ) {
+
+                event.preventDefault();
+
+                alert(
+                    "Please enter an amount between R1 and R100,000."
+                );
+
+                return;
+
+            }
+
+        }
+    );
+
+
+    updateAmount();
+
+})();
+
+</script>
+
+{% endblock %}
