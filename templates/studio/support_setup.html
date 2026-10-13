@@ -1,4 +1,3 @@
-
 {% extends "studio/base.html" %}
 
 {% block title %}
@@ -185,6 +184,17 @@ Buy Me a Coffee | Kalxa Creator Studio
         color: #111318;
     }
 
+    .support-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 18px;
+    }
+
+    .support-actions .support-button {
+        margin-top: 0;
+    }
+
     /* =====================================================
        RULES
     ===================================================== */
@@ -242,6 +252,134 @@ Buy Me a Coffee | Kalxa Creator Studio
     }
 
     /* =====================================================
+       SUPPORT STATISTICS
+    ===================================================== */
+
+    .support-stats {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+    }
+
+    .support-stat {
+        padding: 20px;
+        border: 1px solid #e2e5e9;
+        border-radius: 12px;
+        background: #f8f9fa;
+    }
+
+    .support-stat-label {
+        display: block;
+        margin-bottom: 10px;
+        color: #737983;
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: .05em;
+    }
+
+    .support-stat-value {
+        display: block;
+        color: #111318;
+        font-size: 27px;
+        font-weight: 900;
+        letter-spacing: -.03em;
+    }
+
+    /* =====================================================
+       RECENT CONTRIBUTIONS
+    ===================================================== */
+
+    .support-table-wrapper {
+        width: 100%;
+        margin-top: 20px;
+        overflow-x: auto;
+    }
+
+    .support-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+
+    .support-table th {
+        padding: 13px 12px;
+        background: #f5f6f7;
+        color: #69707a;
+        text-align: left;
+        font-weight: 800;
+        white-space: nowrap;
+    }
+
+    .support-table td {
+        padding: 14px 12px;
+        border-bottom: 1px solid #eceef1;
+        color: #454b54;
+        vertical-align: top;
+    }
+
+    .support-table td strong {
+        color: #111318;
+    }
+
+    .support-table .support-message {
+        max-width: 230px;
+        overflow-wrap: anywhere;
+    }
+
+    .support-payment-status {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 999px;
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+
+    .support-payment-status.paid {
+        background: #eaf8ef;
+        color: #176c3a;
+    }
+
+    .support-payment-status.pending {
+        background: #fff4dc;
+        color: #856017;
+    }
+
+    .support-payment-status.failed,
+    .support-payment-status.refunded {
+        background: #fdebec;
+        color: #a32935;
+    }
+
+    .support-payment-status.other {
+        background: #eceef1;
+        color: #525862;
+    }
+
+    .support-empty {
+        padding: 30px 20px;
+        margin-top: 18px;
+        border: 1px dashed #dfe2e6;
+        border-radius: 12px;
+        background: #f8f9fa;
+        text-align: center;
+    }
+
+    .support-empty strong {
+        display: block;
+        margin-bottom: 8px;
+    }
+
+    .support-empty p {
+        margin: 0;
+        color: #737983;
+        font-size: 13px;
+        line-height: 1.7;
+    }
+
+    /* =====================================================
        UPGRADE
     ===================================================== */
 
@@ -262,7 +400,7 @@ Buy Me a Coffee | Kalxa Creator Studio
         margin: 0 0 15px;
         font-size: 13px;
         line-height: 1.65;
-        opacity: 0.8;
+        opacity: .8;
     }
 
     .support-upgrade-panel form {
@@ -296,6 +434,18 @@ Buy Me a Coffee | Kalxa Creator Studio
             flex-direction: column;
         }
 
+        .support-stats {
+            grid-template-columns: 1fr;
+        }
+
+        .support-actions {
+            flex-direction: column;
+        }
+
+        .support-actions .support-button {
+            text-align: center;
+        }
+
         .support-upgrade-panel button {
             width: 100%;
         }
@@ -303,6 +453,7 @@ Buy Me a Coffee | Kalxa Creator Studio
     }
 
 </style>
+
 
 <!-- =========================================================
      SAFE ACCOUNT CONTEXT
@@ -338,6 +489,7 @@ Buy Me a Coffee | Kalxa Creator Studio
     payout_account is defined
     and payout_account is not none
     and payout_account.status == 'active'
+    and payout_account.provider_subaccount_code
 ) %}
 
 {% set example_amount_cents = 10000 %}
@@ -345,6 +497,13 @@ Buy Me a Coffee | Kalxa Creator Studio
 {% set example_fee_cents = 300 if support_paid_active else 2300 %}
 
 {% set example_creator_cents = example_amount_cents - example_fee_cents %}
+
+{% set support_total = support_total_cents|default(0, true) %}
+
+{% set support_payments_count = support_count|default(0, true) %}
+
+{% set support_history = recent_support|default([], true) %}
+
 
 <div class="support-shell">
 
@@ -354,6 +513,7 @@ Buy Me a Coffee | Kalxa Creator Studio
     >
         ← Back to Monetisation
     </a>
+
 
     <!-- =====================================================
          INTRODUCTION
@@ -382,6 +542,7 @@ Buy Me a Coffee | Kalxa Creator Studio
             creators.
 
         </p>
+
 
         <!-- =================================================
              PLAN COMMISSION
@@ -415,6 +576,7 @@ Buy Me a Coffee | Kalxa Creator Studio
 
         </div>
 
+
         <p class="support-commission-note">
 
             {% if support_paid_active %}
@@ -432,17 +594,23 @@ Buy Me a Coffee | Kalxa Creator Studio
             {% endif %}
 
             Paystack processing fees may also apply.
+
             The final bank settlement can therefore
             be lower than the amount remaining
             after Kalxa's commission.
 
         </p>
 
+
         <!-- =================================================
              SUGGESTED AMOUNTS
         ================================================== -->
 
         <div class="support-amounts">
+
+            <span class="support-amount">
+                R10
+            </span>
 
             <span class="support-amount">
                 R20
@@ -461,6 +629,7 @@ Buy Me a Coffee | Kalxa Creator Studio
             </span>
 
         </div>
+
 
         <!-- =================================================
              PAYOUT STATUS
@@ -491,24 +660,46 @@ Buy Me a Coffee | Kalxa Creator Studio
                 marked active.
 
                 Eligible supporters can complete
-                payments once the public support
-                checkout is enabled and working.
+                payments through your public
+                Buy Me a Coffee page.
 
             </div>
 
+
             {% if support_account and support_account.username %}
 
-                <a
-                    href="{{ url_for(
-                        'fan_payments.creator_support',
-                        username=support_account.username
-                    ) }}"
-                    class="support-button"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                >
-                    View public support page ↗
-                </a>
+                <div class="support-actions">
+
+                    <!-- FIXED PUBLIC SUPPORT ENDPOINT -->
+
+                    <a
+                        href="{{ url_for(
+                            'fan_payments.creator_support',
+                            username=support_account.username
+                        ) }}"
+                        class="support-button"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        ☕ View public support page ↗
+                    </a>
+
+
+                    <!-- CREATOR PUBLIC HOMEPAGE -->
+
+                    <a
+                        href="{{ url_for(
+                            'public.creator_home',
+                            username=support_account.username
+                        ) }}"
+                        class="support-button secondary"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        View my website ↗
+                    </a>
+
+                </div>
 
             {% endif %}
 
@@ -534,6 +725,7 @@ Buy Me a Coffee | Kalxa Creator Studio
             </a>
 
         {% endif %}
+
 
         <!-- =================================================
              UPGRADE
@@ -578,6 +770,228 @@ Buy Me a Coffee | Kalxa Creator Studio
         {% endif %}
 
     </section>
+
+
+    <!-- =====================================================
+         SUPPORT STATISTICS
+    ====================================================== -->
+
+    <section class="support-card">
+
+        <h2>
+            Your fan support
+        </h2>
+
+        <p class="support-lead">
+            Overview of confirmed Buy Me a Coffee
+            contributions received through Kalxa.
+        </p>
+
+
+        <div class="support-stats">
+
+            <div class="support-stat">
+
+                <span class="support-stat-label">
+                    Total confirmed contributions
+                </span>
+
+                <strong class="support-stat-value">
+                    R{{ '%.2f'|format(support_total / 100) }}
+                </strong>
+
+            </div>
+
+
+            <div class="support-stat">
+
+                <span class="support-stat-label">
+                    Successful payments
+                </span>
+
+                <strong class="support-stat-value">
+                    {{ support_payments_count }}
+                </strong>
+
+            </div>
+
+        </div>
+
+
+        <p class="support-example-note">
+
+            Statistics include only payments marked
+            as paid after provider verification.
+
+            Pending, failed and refunded payments
+            are excluded from confirmed totals.
+
+        </p>
+
+    </section>
+
+
+    <!-- =====================================================
+         RECENT SUPPORT
+    ====================================================== -->
+
+    <section class="support-card">
+
+        <h2>
+            Recent contributions
+        </h2>
+
+        <p class="support-lead">
+            Your 10 most recent Buy Me a Coffee
+            payment attempts.
+        </p>
+
+
+        {% if support_history %}
+
+            <div class="support-table-wrapper">
+
+                <table class="support-table">
+
+                    <thead>
+
+                        <tr>
+
+                            <th>
+                                Supporter
+                            </th>
+
+                            <th>
+                                Amount
+                            </th>
+
+                            <th>
+                                Kalxa fee
+                            </th>
+
+                            <th>
+                                Status
+                            </th>
+
+                            <th>
+                                Date
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+
+                        {% for payment in support_history %}
+
+                            <tr>
+
+                                <td>
+
+                                    {% if payment.is_anonymous %}
+
+                                        <strong>
+                                            Anonymous
+                                        </strong>
+
+                                    {% elif payment.supporter_name %}
+
+                                        <strong>
+                                            {{ payment.supporter_name }}
+                                        </strong>
+
+                                    {% else %}
+
+                                        <strong>
+                                            Supporter
+                                        </strong>
+
+                                    {% endif %}
+
+                                    {% if payment.supporter_message %}
+
+                                        <div class="support-message">
+                                            {{ payment.supporter_message }}
+                                        </div>
+
+                                    {% endif %}
+
+                                </td>
+
+
+                                <td>
+
+                                    <strong>
+                                        R{{ '%.2f'|format(payment.amount_cents / 100) }}
+                                    </strong>
+
+                                </td>
+
+
+                                <td>
+
+                                    R{{ '%.2f'|format(payment.platform_fee_cents / 100) }}
+
+                                </td>
+
+
+                                <td>
+
+                                    {% set payment_status = payment.status|default('pending', true)|lower %}
+
+                                    <span class="support-payment-status {{ payment_status if payment_status in ['paid', 'pending', 'failed', 'refunded'] else 'other' }}">
+
+                                        {{ payment_status|title }}
+
+                                    </span>
+
+                                </td>
+
+
+                                <td>
+
+                                    {% if payment.created_at %}
+
+                                        {{ payment.created_at.strftime('%d %b %Y') }}
+
+                                    {% else %}
+
+                                        —
+
+                                    {% endif %}
+
+                                </td>
+
+                            </tr>
+
+                        {% endfor %}
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        {% else %}
+
+            <div class="support-empty">
+
+                <strong>
+                    No contributions yet ☕
+                </strong>
+
+                <p>
+                    Once supporters start contributing,
+                    their payment activity will appear here.
+                </p>
+
+            </div>
+
+        {% endif %}
+
+    </section>
+
 
     <!-- =====================================================
          HOW SUPPORT WORKS
@@ -638,6 +1052,7 @@ Buy Me a Coffee | Kalxa Creator Studio
 
     </section>
 
+
     <!-- =====================================================
          COMMISSION EXAMPLE
     ====================================================== -->
@@ -653,6 +1068,7 @@ Buy Me a Coffee | Kalxa Creator Studio
             commission for your current plan.
         </p>
 
+
         <div class="support-example">
 
             <div class="support-example-row">
@@ -667,6 +1083,7 @@ Buy Me a Coffee | Kalxa Creator Studio
 
             </div>
 
+
             <div class="support-example-row">
 
                 <span>
@@ -678,6 +1095,7 @@ Buy Me a Coffee | Kalxa Creator Studio
                 </strong>
 
             </div>
+
 
             <div class="support-example-row total">
 
@@ -692,6 +1110,7 @@ Buy Me a Coffee | Kalxa Creator Studio
             </div>
 
         </div>
+
 
         <p class="support-example-note">
 
