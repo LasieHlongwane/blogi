@@ -877,6 +877,10 @@ Buy Me a Coffee | Kalxa Creator Studio
                                 Date
                             </th>
 
+                            <th>
+                                Action
+                            </th>
+
                         </tr>
 
                     </thead>
@@ -961,6 +965,22 @@ Buy Me a Coffee | Kalxa Creator Studio
 
                                     {% endif %}
 
+                                </td>
+
+                                <td>
+                                    {% if payment.status in ['pending', 'failed'] %}
+                                        <form method="POST"
+                                              action="{{ url_for('studio.verify_support_payment', payment_id=payment.id) }}">
+                                            <input type="hidden" name="csrf_token"
+                                                   value="{{ support_verify_csrf }}">
+                                            <button type="submit" class="support-button secondary"
+                                                    style="margin-top:0;white-space:nowrap">
+                                                Verify payment
+                                            </button>
+                                        </form>
+                                    {% else %}
+                                        —
+                                    {% endif %}
                                 </td>
 
                             </tr>

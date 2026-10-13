@@ -2582,6 +2582,89 @@ def monetisation_payout():
 
 
 # ============================================================
+# VERIFY EXISTING FAN PAYMENT (CREATOR-OWNED + CSRF)
+# ============================================================
+
+@studio_bp.route(
+    "/monetisation/support/<int:payment_id>/verify",
+    methods=["POST"],
+)
+@studio_required
+def verify_support_payment(payment_id):
+    """Reconcile an existing payment; never create a new charge."""
+    import hmac
+    from routes.fan_payments import confirm_fan_payment
+
+    account = current_creator_account()
+    if account is None:
+        abort(403)
+
+    if not creator_has_feature(account, FEATURE_FAN_SUPPORT):
+        abort(403)
+
+    expected_token = session.get("support_verify_csrf")
+    submitted_token = request.form.get("csrf_token", "")
+    if (
+        not isinstance(expected_token, str)
+        or not isinstance(submitted_token, str)
+        or not expected_token
+        or not hmac.compare_digest(expected_token, submitted_token)
+    ):
+        abort(400, description="Invalid payment verification token.")
+
+    payment = FanPayment.query.filter_by(
+        id=payment_id,
+        creator_account_id=account.id,
+        payment_type="support",
+    ).first_or_404()
+
+    if payment.status == "paid":
+        flash("This contribution is already confirmed.", "success")
+        return redirect(url_for("studio.support_setup"), code=303)
+
+    if payment.status == "refunded":
+        flash("Refunded contributions cannot be reconfirmed.", "warning")
+        return redirect(url_for("studio.support_setup"), code=303)
+
+    if payment.status not in {"pending", "failed"}:
+        flash("This payment is not eligible for verification.", "warning")
+        return redirect(url_for("studio.support_setup"), code=303)
+
+    reference = payment.provider_reference
+    if not isinstance(reference, str) or not reference.strip():
+        flash("This payment has no Paystack reference.", "error")
+        return redirect(url_for("studio.support_setup"), code=303)
+
+    # Avoid retaining the prior read transaction while Paystack is queried.
+    db.session.rollback()
+    confirmed, reason = confirm_fan_payment(
+        reference,
+        source="creator_studio_reconciliation",
+    )
+
+    # Recheck ownership and status after verification before reporting success.
+    updated = FanPayment.query.filter_by(
+        id=payment_id,
+        creator_account_id=account.id,
+        payment_type="support",
+    ).first()
+
+    if confirmed and updated is not None and updated.status == "paid":
+        flash("Paystack verified this contribution. Status: Paid.", "success")
+    else:
+        current_app.logger.warning(
+            "Studio payment verification unsuccessful creator_id=%s payment_id=%s reason=%s",
+            account.id, payment_id, reason,
+        )
+        flash(
+            "Payment could not be confirmed. Check Render logs for the verification reason.",
+            "warning",
+        )
+
+    return redirect(url_for("studio.support_setup"), code=303)
+
+
+# ============================================================
 # SUPPORT SETUP
 # ============================================================
 
@@ -2707,6 +2790,12 @@ def support_setup():
     # RENDER
     # --------------------------------------------------------
 
+    # Dedicated session CSRF token for this payment-verification action.
+    # Flask session is signed by SECRET_KEY; do not expose this token in logs.
+    import secrets
+    if not session.get("support_verify_csrf"):
+        session["support_verify_csrf"] = secrets.token_urlsafe(32)
+
     return render_template(
         "studio/support_setup.html",
 
@@ -2727,6 +2816,7 @@ def support_setup():
         support_count=support_count,
 
         recent_support=recent_support,
+        support_verify_csrf=session["support_verify_csrf"],
     )
 
 
