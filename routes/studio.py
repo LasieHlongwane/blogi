@@ -2585,15 +2585,50 @@ def monetisation_payout():
 # SUPPORT SETUP
 # ============================================================
 
+# ============================================================
+# BUY ME A COFFEE
+# CREATOR SUPPORT MANAGEMENT
+# ============================================================
+
 @studio_bp.route(
-    "/monetisation/support"
+    "/monetisation/support",
+    methods=["GET"],
 )
 @studio_required
 def support_setup():
+    """
+    Creator Studio Buy Me a Coffee dashboard.
 
-    account = (
-        current_creator_account()
-    )
+    Shows:
+
+    - Current creator plan
+    - Kalxa commission
+    - Paystack payout account status
+    - Confirmed contribution totals
+    - Successful payment count
+    - Recent support payments
+
+    SECURITY:
+
+    All payment records are scoped to the
+    currently authenticated creator account.
+
+    Pending and failed payments are excluded
+    from confirmed financial totals.
+    """
+
+    # --------------------------------------------------------
+    # AUTHENTICATED CREATOR
+    # --------------------------------------------------------
+
+    account = current_creator_account()
+
+    if account is None:
+        abort(403)
+
+    # --------------------------------------------------------
+    # FEATURE ACCESS
+    # --------------------------------------------------------
 
     if not require_creator_feature(
         account,
@@ -2606,11 +2641,17 @@ def support_setup():
             )
         )
 
-    payout_account = (
-        creator_payout_account(
-            account
-        )
+    # --------------------------------------------------------
+    # PAYOUT ACCOUNT
+    # --------------------------------------------------------
+
+    payout_account = creator_payout_account(
+        account
     )
+
+    # --------------------------------------------------------
+    # CONFIRMED SUPPORT TOTAL
+    # --------------------------------------------------------
 
     support_total_cents = int(
         db.session.query(
@@ -2622,56 +2663,69 @@ def support_setup():
             )
         )
         .filter(
-            FanPayment.creator_account_id
-            == account.id,
-            FanPayment.payment_type
-            == "support",
-            FanPayment.status
-            == "paid",
+            FanPayment.creator_account_id == account.id,
+            FanPayment.payment_type == "support",
+            FanPayment.status == "paid",
         )
         .scalar()
         or 0
     )
 
+    # --------------------------------------------------------
+    # SUCCESSFUL SUPPORT COUNT
+    # --------------------------------------------------------
+
     support_count = (
         FanPayment.query
-        .filter_by(
-            creator_account_id=account.id,
-            payment_type="support",
-            status="paid",
+        .filter(
+            FanPayment.creator_account_id == account.id,
+            FanPayment.payment_type == "support",
+            FanPayment.status == "paid",
         )
         .count()
     )
 
+    # --------------------------------------------------------
+    # RECENT SUPPORT PAYMENTS
+    # --------------------------------------------------------
+
     recent_support = (
         FanPayment.query
-        .filter_by(
-            creator_account_id=account.id,
-            payment_type="support",
+        .filter(
+            FanPayment.creator_account_id == account.id,
+            FanPayment.payment_type == "support",
         )
         .order_by(
-            FanPayment.created_at.desc()
+            FanPayment.created_at.desc(),
+            FanPayment.id.desc(),
         )
         .limit(10)
         .all()
     )
 
+    # --------------------------------------------------------
+    # RENDER
+    # --------------------------------------------------------
+
     return render_template(
         "studio/support_setup.html",
+
         creator=creator_profile(
             account
         ),
+
         creator_account=account,
+
         payout_account=payout_account,
-        plan_summary=(
-            creator_plan_summary(
-                account
-            )
+
+        plan_summary=creator_plan_summary(
+            account
         ),
-        support_total_cents=(
-            support_total_cents
-        ),
+
+        support_total_cents=support_total_cents,
+
         support_count=support_count,
+
         recent_support=recent_support,
     )
 
