@@ -2,9 +2,9 @@
 # KALXA CREATOR
 # FAN PAYMENTS
 #
-# Free:     23% Kalxa commission
-# Standard:  3% Kalxa commission
-# Premium:   3% Kalxa commission
+# Free:      23% Kalxa commission
+# Standard:   3% Kalxa commission
+# Premium:    3% Kalxa commission
 #
 # PAYMENT PROVIDER: PAYSTACK
 #
@@ -13,7 +13,7 @@
 # FanPayment.platform_fee_cents stores the commission
 # calculated when the payment is created.
 #
-# It must not be recalculated after a creator changes plans.
+# It must never be recalculated after a plan change.
 #
 # Paystack must apply the corresponding settlement split.
 #
@@ -24,10 +24,10 @@ import re
 import uuid
 
 from datetime import datetime, timezone
+
 from decimal import (
     Decimal,
     InvalidOperation,
-    ROUND_HALF_UP,
 )
 
 from flask import (
@@ -87,9 +87,6 @@ PAYMENT_TYPE_SUPPORT = "support"
 
 PAYMENT_TYPE_CAMPAIGN = "campaign"
 
-# This is a configurable application limit, not a statement
-# of Paystack's maximum supported transaction amount.
-
 MAX_FAN_PAYMENT_CENTS = 10_000_000
 
 MIN_FAN_PAYMENT_CENTS = 100
@@ -140,6 +137,7 @@ def creator_by_username_or_404(username):
             db.func.lower(
                 CreatorAccount.username
             ) == username,
+
             CreatorAccount.account_status == "active",
         )
         .first_or_404()
@@ -246,9 +244,6 @@ def parse_amount_to_cents(value):
     if amount <= 0:
         return None
 
-    # Reject fractional cents rather than silently
-    # changing the amount entered by the supporter.
-
     cents = amount * Decimal("100")
 
     if cents != cents.to_integral_value():
@@ -342,19 +337,6 @@ def calculate_platform_fee(
     amount_cents,
 ):
 
-    """
-    Calculate Kalxa's commission using the creator's
-    verified entitlement at checkout creation.
-
-    Free:     23%
-    Standard:  3%
-    Premium:   3%
-
-    The calculated fee is persisted on FanPayment.
-
-    It must not change if the creator upgrades later.
-    """
-
     return calculate_commission_cents(
         creator,
         amount_cents,
@@ -362,12 +344,6 @@ def calculate_platform_fee(
 
 
 def creator_receivable_cents(payment):
-
-    """
-    Gross contribution less Kalxa's commission.
-
-    This excludes any separate Paystack processing fees.
-    """
 
     return (
         payment.amount_cents
@@ -427,18 +403,6 @@ def create_pending_fan_payment(
     campaign=None,
 ):
 
-    """
-    Create an immutable financial snapshot.
-
-    Important:
-
-    The platform fee is calculated BEFORE the payment
-    is sent to Paystack.
-
-    A creator upgrading tomorrow must not change the
-    commission on a payment created today.
-    """
-
     if payment_type not in {
         PAYMENT_TYPE_SUPPORT,
         PAYMENT_TYPE_CAMPAIGN,
@@ -476,8 +440,6 @@ def create_pending_fan_payment(
         raise ValueError(
             "Invalid platform commission."
         )
-
-    reference = new_payment_reference()
 
     payment = FanPayment(
         creator_account_id=creator.id,
@@ -518,7 +480,9 @@ def create_pending_fan_payment(
 
         provider=PAYMENT_PROVIDER,
 
-        provider_reference=reference,
+        provider_reference=(
+            new_payment_reference()
+        ),
 
         status="pending",
     )
@@ -540,25 +504,6 @@ def start_paystack_checkout(
     creator,
     payout_account,
 ):
-
-    """
-    Initialize a Paystack transaction.
-
-    REQUIRED PAYSTACK SERVICE CONTRACT:
-
-    initialize_fan_payment must accept:
-
-        platform_fee_cents
-
-    and must arrange the provider-side settlement so that
-    Kalxa receives its commission.
-
-    Do not remove this parameter merely to make an older
-    paystack_service.py implementation work.
-
-    Paystack's exact split configuration and processing-fee
-    bearer must be implemented and verified in that service.
-    """
 
     if not payout_is_ready(payout_account):
 
@@ -638,6 +583,448 @@ def start_paystack_checkout(
         )
 
     return authorization_url
+
+
+# ============================================================
+# PAYSTACK TRANSACTION VALIDATION
+# ============================================================
+
+def validate_verified_transaction(
+    payment,
+    verified_data,
+):
+    """
+    Validate the transaction independently against Paystack.
+
+    Never trust a callback query parameter or webhook payload
+    as proof of successful payment.
+
+    Returns:
+        (valid, reason, provider_transaction_id)
+    """
+
+    if not isinstance(verified_data, dict):
+
+        return (
+            False,
+            "invalid_provider_response",
+            None,
+        )
+
+    provider_status = str(
+        verified_data.get("status")
+        or ""
+    ).strip().lower()
+
+    if provider_status != "success":
+
+        return (
+            False,
+            "provider_not_successful",
+            None,
+        )
+
+    provider_reference = str(
+        verified_data.get("reference")
+        or ""
+    ).strip()
+
+    if (
+        provider_reference
+        != payment.provider_reference
+    ):
+
+        return (
+            False,
+            "reference_mismatch",
+            None,
+        )
+
+    provider_currency = str(
+        verified_data.get("currency")
+        or ""
+    ).strip().upper()
+
+    if (
+        provider_currency
+        != PAYMENT_CURRENCY
+    ):
+
+        return (
+            False,
+            "currency_mismatch",
+            None,
+        )
+
+    provider_amount = (
+        verified_data.get("amount")
+    )
+
+    if type(provider_amount) is not int:
+
+        return (
+            False,
+            "invalid_provider_amount",
+            None,
+        )
+
+    if (
+        provider_amount
+        != payment.amount_cents
+    ):
+
+        return (
+            False,
+            "amount_mismatch",
+            None,
+        )
+
+    if not (
+        0
+        <= payment.platform_fee_cents
+        <= payment.amount_cents
+    ):
+
+        return (
+            False,
+            "invalid_stored_commission",
+            None,
+        )
+
+    metadata = get_metadata(
+        verified_data
+    )
+
+    if (
+        str(metadata.get("creator_account_id"))
+        != str(payment.creator_account_id)
+    ):
+
+        return (
+            False,
+            "creator_metadata_mismatch",
+            None,
+        )
+
+    if (
+        str(metadata.get("fan_payment_id"))
+        != str(payment.id)
+    ):
+
+        return (
+            False,
+            "payment_metadata_mismatch",
+            None,
+        )
+
+    if (
+        metadata.get("payment_type")
+        != payment.payment_type
+    ):
+
+        return (
+            False,
+            "payment_type_mismatch",
+            None,
+        )
+
+    metadata_fee = metadata.get(
+        "platform_fee_cents"
+    )
+
+    if metadata_fee is not None:
+
+        if (
+            str(metadata_fee)
+            != str(payment.platform_fee_cents)
+        ):
+
+            return (
+                False,
+                "commission_metadata_mismatch",
+                None,
+            )
+
+    metadata_receivable = metadata.get(
+        "creator_receivable_cents"
+    )
+
+    if metadata_receivable is not None:
+
+        if (
+            str(metadata_receivable)
+            != str(
+                creator_receivable_cents(payment)
+            )
+        ):
+
+            return (
+                False,
+                "receivable_metadata_mismatch",
+                None,
+            )
+
+    if (
+        payment.payment_type
+        == PAYMENT_TYPE_CAMPAIGN
+    ):
+
+        if (
+            str(metadata.get("campaign_id"))
+            != str(payment.campaign_id)
+        ):
+
+            return (
+                False,
+                "campaign_metadata_mismatch",
+                None,
+            )
+
+    provider_transaction_id = (
+        verified_data.get("id")
+    )
+
+    if (
+        provider_transaction_id is None
+        or isinstance(
+            provider_transaction_id,
+            bool,
+        )
+    ):
+
+        return (
+            False,
+            "missing_transaction_id",
+            None,
+        )
+
+    provider_transaction_id = str(
+        provider_transaction_id
+    ).strip()
+
+    if not provider_transaction_id:
+
+        return (
+            False,
+            "empty_transaction_id",
+            None,
+        )
+
+    return (
+        True,
+        "verified",
+        provider_transaction_id,
+    )
+
+
+# ============================================================
+# CONFIRM PAYMENT
+# ============================================================
+
+def confirm_fan_payment(
+    reference,
+    *,
+    source,
+):
+    """
+    Independently verify and confirm a Paystack transaction.
+
+    Used by:
+        - Paystack webhook
+        - Payment return
+        - Creator reconciliation
+
+    All three paths use identical financial validation.
+
+    Row locking and status checks make processing idempotent.
+    """
+
+    reference = str(
+        reference or ""
+    ).strip()
+
+    if not reference:
+
+        return (
+            False,
+            "missing_reference",
+        )
+
+    try:
+
+        payment = (
+            db.session.query(FanPayment)
+            .filter(
+                FanPayment.provider == PAYMENT_PROVIDER,
+                FanPayment.provider_reference == reference,
+            )
+            .with_for_update()
+            .first()
+        )
+
+        if payment is None:
+
+            db.session.rollback()
+
+            return (
+                False,
+                "payment_not_found",
+            )
+
+        payment_id = payment.id
+
+        if payment.status == "paid":
+
+            db.session.rollback()
+
+            return (
+                True,
+                "already_paid",
+            )
+
+        if payment.status == "refunded":
+
+            db.session.rollback()
+
+            return (
+                False,
+                "payment_refunded",
+            )
+
+        # ----------------------------------------------------
+        # VERIFY DIRECTLY WITH PAYSTACK
+        # ----------------------------------------------------
+
+        verified_data = verify_transaction(
+            reference
+        )
+
+        valid, reason, transaction_id = (
+            validate_verified_transaction(
+                payment,
+                verified_data,
+            )
+        )
+
+        if not valid:
+
+            db.session.rollback()
+
+            current_app.logger.warning(
+                (
+                    "Kalxa fan payment verification rejected. "
+                    "payment_id=%s source=%s reason=%s"
+                ),
+                payment_id,
+                source,
+                reason,
+            )
+
+            return (
+                False,
+                reason,
+            )
+
+        # ----------------------------------------------------
+        # PREVENT TRANSACTION REUSE
+        # ----------------------------------------------------
+
+        duplicate_transaction = (
+            FanPayment.query
+            .filter(
+                FanPayment.provider == PAYMENT_PROVIDER,
+                FanPayment.provider_transaction_id
+                == transaction_id,
+                FanPayment.id != payment_id,
+            )
+            .first()
+        )
+
+        if duplicate_transaction:
+
+            db.session.rollback()
+
+            current_app.logger.error(
+                (
+                    "Paystack transaction reuse rejected. "
+                    "payment_id=%s source=%s"
+                ),
+                payment_id,
+                source,
+            )
+
+            return (
+                False,
+                "duplicate_transaction",
+            )
+
+        # ----------------------------------------------------
+        # CONFIRM PAYMENT
+        # ----------------------------------------------------
+
+        payment.status = "paid"
+
+        payment.provider_transaction_id = (
+            transaction_id
+        )
+
+        payment.paid_at = utc_now()
+
+        db.session.commit()
+
+        current_app.logger.info(
+            (
+                "Kalxa fan payment confirmed. "
+                "payment_id=%s creator_id=%s "
+                "source=%s type=%s amount_cents=%s "
+                "platform_fee_cents=%s"
+            ),
+            payment_id,
+            payment.creator_account_id,
+            source,
+            payment.payment_type,
+            payment.amount_cents,
+            payment.platform_fee_cents,
+        )
+
+        return (
+            True,
+            "confirmed",
+        )
+
+    except PaystackError:
+
+        db.session.rollback()
+
+        current_app.logger.exception(
+            (
+                "Paystack verification API failed. "
+                "source=%s"
+            ),
+            source,
+        )
+
+        return (
+            False,
+            "provider_error",
+        )
+
+    except Exception:
+
+        db.session.rollback()
+
+        current_app.logger.exception(
+            (
+                "Unexpected fan payment confirmation error. "
+                "source=%s"
+            ),
+            source,
+        )
+
+        return (
+            False,
+            "internal_error",
+        )
 
 
 # ============================================================
@@ -760,7 +1147,7 @@ def creator_support_pay(username):
         return redirect(return_url)
 
     # --------------------------------------------------------
-    # CREATE LOCAL FINANCIAL RECORD
+    # CREATE PENDING PAYMENT
     # --------------------------------------------------------
 
     try:
@@ -788,7 +1175,7 @@ def creator_support_pay(username):
         return redirect(return_url)
 
     # --------------------------------------------------------
-    # START PAYSTACK
+    # INITIALIZE PAYSTACK CHECKOUT
     # --------------------------------------------------------
 
     try:
@@ -811,11 +1198,6 @@ def creator_support_pay(username):
             "Paystack coffee checkout failed. payment_id=%s",
             payment.id,
         )
-
-        # The provider checkout was not successfully
-        # initialized. Keep the audit record but mark
-        # it failed unless a concurrent webhook already
-        # confirmed payment.
 
         try:
 
@@ -1094,7 +1476,7 @@ def campaign_pay(
         payment = create_pending_fan_payment(
             creator=creator,
             amount_cents=amount_cents,
-            supporter=supporter,
+            supporter= support er,
             payment_type=PAYMENT_TYPE_CAMPAIGN,
             campaign=campaign,
         )
@@ -1173,9 +1555,6 @@ def campaign_pay(
 # ============================================================
 # PAYMENT RETURN
 # ============================================================
-# ============================================================
-# PAYMENT RETURN
-# ============================================================
 
 @fan_payments_bp.route(
     "/payment/return",
@@ -1210,8 +1589,28 @@ def payment_return():
     if payment is None:
         abort(404)
 
-    # The callback URL is not proof of payment.
-    # Only a verified webhook should mark the payment paid.
+    # --------------------------------------------------------
+    # VERIFY TRANSACTION ON RETURN
+    # --------------------------------------------------------
+
+    confirmed, reason = (
+        confirm_fan_payment(
+            reference,
+            source="browser_return",
+        )
+    )
+
+    # Refresh after verification.
+    db.session.expire_all()
+
+    payment = (
+        FanPayment.query
+        .filter_by(
+            provider=PAYMENT_PROVIDER,
+            provider_reference=reference,
+        )
+        .first()
+    )
 
     if payment.status == "paid":
 
@@ -1219,19 +1618,38 @@ def payment_return():
             "public/payment_result.html",
             payment=payment,
             payment_confirmed=True,
-            message="Payment confirmed. Thank you!",
+            message="Payment confirmed. Thank you for your support!",
+        )
+
+    if reason in {
+        "provider_error",
+        "internal_error",
+    }:
+
+        message = (
+            "Your payment could not be confirmed right now. "
+            "Please check again shortly."
+        )
+
+    elif reason == "provider_not_successful":
+
+        message = (
+            "Your payment has not yet been confirmed by Paystack."
+        )
+
+    else:
+
+        message = (
+            "Your payment is being verified. "
+            "Please check again shortly."
         )
 
     return render_template(
         "public/payment_result.html",
         payment=payment,
         payment_confirmed=False,
-        message=(
-            "Your payment is being confirmed. "
-            "Please check again shortly."
-        ),
+        message=message,
     )
-
 
 
 # ============================================================
@@ -1268,7 +1686,7 @@ def paystack_webhook():
     except PaystackError:
 
         current_app.logger.exception(
-            "Paystack webhook verification error."
+            "Paystack webhook signature verification error."
         )
 
         return "", 500
@@ -1309,357 +1727,127 @@ def paystack_webhook():
 
     if not reference:
 
-        return "", 200
-
-    # --------------------------------------------------------
-    # LOCK PAYMENT
-    # --------------------------------------------------------
-
-    try:
-
-        payment = (
-            db.session.query(
-                FanPayment
-            )
-            .filter(
-                FanPayment.provider == PAYMENT_PROVIDER,
-                FanPayment.provider_reference == reference,
-            )
-            .with_for_update()
-            .first()
-        )
-
-        if not payment:
-
-            db.session.rollback()
-
-            current_app.logger.warning(
-                "Unknown Paystack reference: %s",
-                reference,
-            )
-
-            return "", 200
-
-        # ----------------------------------------------------
-        # IDEMPOTENCY
-        # ----------------------------------------------------
-
-        if payment.status == "paid":
-
-            db.session.rollback()
-
-            return "", 200
-
-        if payment.status == "refunded":
-
-            db.session.rollback()
-
-            current_app.logger.warning(
-                "Ignoring charge.success for refunded payment %s",
-                payment.id,
-            )
-
-            return "", 200
-
-        # ----------------------------------------------------
-        # VERIFY DIRECTLY WITH PAYSTACK
-        # ----------------------------------------------------
-
-        verified_data = verify_transaction(
-            reference
-        )
-
-        if not isinstance(verified_data, dict):
-
-            db.session.rollback()
-
-            return "", 500
-
-        provider_status = str(
-            verified_data.get("status")
-            or ""
-        ).strip().lower()
-
-        provider_reference = str(
-            verified_data.get("reference")
-            or ""
-        ).strip()
-
-        provider_currency = str(
-            verified_data.get("currency")
-            or ""
-        ).strip().upper()
-
-        provider_amount = (
-            verified_data.get("amount")
-        )
-
-        if (
-            type(provider_amount) is not int
-        ):
-
-            db.session.rollback()
-
-            current_app.logger.error(
-                "Invalid Paystack amount for payment %s",
-                payment.id,
-            )
-
-            return "", 200
-
-        # ----------------------------------------------------
-        # FINANCIAL VALIDATION
-        # ----------------------------------------------------
-
-        if provider_status != "success":
-
-            db.session.rollback()
-
-            return "", 200
-
-        if provider_reference != payment.provider_reference:
-
-            db.session.rollback()
-
-            current_app.logger.error(
-                "Paystack reference mismatch for payment %s",
-                payment.id,
-            )
-
-            return "", 200
-
-        if provider_currency != PAYMENT_CURRENCY:
-
-            db.session.rollback()
-
-            current_app.logger.error(
-                "Paystack currency mismatch for payment %s",
-                payment.id,
-            )
-
-            return "", 200
-
-        if provider_amount != payment.amount_cents:
-
-            db.session.rollback()
-
-            current_app.logger.error(
-                "Paystack amount mismatch for payment %s",
-                payment.id,
-            )
-
-            return "", 200
-
-        # ----------------------------------------------------
-        # VALIDATE STORED COMMISSION
-        # ----------------------------------------------------
-
-        if not (
-            0
-            <= payment.platform_fee_cents
-            <= payment.amount_cents
-        ):
-
-            db.session.rollback()
-
-            current_app.logger.error(
-                "Invalid commission on payment %s",
-                payment.id,
-            )
-
-            return "", 200
-
-        # ----------------------------------------------------
-        # METADATA VALIDATION
-        # ----------------------------------------------------
-
-        metadata = get_metadata(
-            verified_data
-        )
-
-        if (
-            str(metadata.get("creator_account_id"))
-            != str(payment.creator_account_id)
-        ):
-
-            db.session.rollback()
-
-            current_app.logger.error(
-                "Creator metadata mismatch: payment %s",
-                payment.id,
-            )
-
-            return "", 200
-
-        if (
-            str(metadata.get("fan_payment_id"))
-            != str(payment.id)
-        ):
-
-            db.session.rollback()
-
-            current_app.logger.error(
-                "Payment metadata mismatch: payment %s",
-                payment.id,
-            )
-
-            return "", 200
-
-        if (
-            metadata.get("payment_type")
-            != payment.payment_type
-        ):
-
-            db.session.rollback()
-
-            current_app.logger.error(
-                "Payment type mismatch: payment %s",
-                payment.id,
-            )
-
-            return "", 200
-
-        # ----------------------------------------------------
-        # COMMISSION METADATA
-        # ----------------------------------------------------
-
-        metadata_fee = metadata.get(
-            "platform_fee_cents"
-        )
-
-        # Legacy payments may not contain this metadata.
-        # New payments must include it.
-
-        if metadata_fee is not None:
-
-            if (
-                str(metadata_fee)
-                != str(payment.platform_fee_cents)
-            ):
-
-                db.session.rollback()
-
-                current_app.logger.error(
-                    "Commission metadata mismatch: payment %s",
-                    payment.id,
-                )
-
-                return "", 200
-
-        # ----------------------------------------------------
-        # CAMPAIGN INTEGRITY
-        # ----------------------------------------------------
-
-        if payment.payment_type == PAYMENT_TYPE_CAMPAIGN:
-
-            if (
-                str(metadata.get("campaign_id"))
-                != str(payment.campaign_id)
-            ):
-
-                db.session.rollback()
-
-                current_app.logger.error(
-                    "Campaign metadata mismatch: payment %s",
-                    payment.id,
-                )
-
-                return "", 200
-
-        # ----------------------------------------------------
-        # PROVIDER TRANSACTION ID
-        # ----------------------------------------------------
-
-        provider_transaction_id = (
-            verified_data.get("id")
-        )
-
-        if provider_transaction_id is None:
-
-            db.session.rollback()
-
-            current_app.logger.error(
-                "Missing Paystack transaction ID: payment %s",
-                payment.id,
-            )
-
-            return "", 200
-
-        provider_transaction_id = str(
-            provider_transaction_id
-        )
-
-        # ----------------------------------------------------
-        # PREVENT TRANSACTION REUSE
-        # ----------------------------------------------------
-
-        duplicate_transaction = (
-            FanPayment.query
-            .filter(
-                FanPayment.provider_transaction_id
-                == provider_transaction_id,
-
-                FanPayment.id != payment.id,
-            )
-            .first()
-        )
-
-        if duplicate_transaction:
-
-            db.session.rollback()
-
-            current_app.logger.error(
-                "Paystack transaction ID already used."
-            )
-
-            return "", 200
-
-        # ----------------------------------------------------
-        # MARK PAID
-        # ----------------------------------------------------
-
-        payment.status = "paid"
-
-        payment.provider_transaction_id = (
-            provider_transaction_id
-        )
-
-        payment.paid_at = utc_now()
-
-        db.session.commit()
-
-        current_app.logger.info(
-            (
-                "Kalxa fan payment confirmed. "
-                "payment_id=%s creator_id=%s "
-                "type=%s amount_cents=%s "
-                "platform_fee_cents=%s"
-            ),
-            payment.id,
-            payment.creator_account_id,
-            payment.payment_type,
-            payment.amount_cents,
-            payment.platform_fee_cents,
+        current_app.logger.warning(
+            "Paystack webhook missing transaction reference."
         )
 
         return "", 200
 
-    except PaystackError:
+    # --------------------------------------------------------
+    # CONFIRM USING SHARED VERIFICATION
+    # --------------------------------------------------------
 
-        db.session.rollback()
-
-        current_app.logger.exception(
-            "Paystack verification failed."
+    confirmed, reason = (
+        confirm_fan_payment(
+            reference,
+            source="webhook",
         )
+    )
+
+    if confirmed:
+
+        return "", 200
+
+    if reason in {
+        "provider_error",
+        "internal_error",
+    }:
 
         return "", 500
 
-    except Exception:
+    current_app.logger.warning(
+        (
+            "Paystack webhook did not confirm payment. "
+            "reason=%s"
+        ),
+        reason,
+    )
 
-        db.session.rollback()
+    return "", 200
 
-        current_app.logger.exception(
-            "Unexpected Paystack webhook error."
+
+# ============================================================
+# CREATOR PAYMENT RECONCILIATION
+# ============================================================
+
+@fan_payments_bp.route(
+    "/reconcile/<int:payment_id>",
+    methods=["POST"],
+)
+def reconcile_creator_payment(payment_id):
+    """
+    Reconcile an existing fan payment without creating
+    another Paystack charge.
+
+    SECURITY:
+    Requires authenticated creator session.
+    The payment must belong to that creator.
+
+    IMPORTANT:
+    This endpoint must be protected by your existing
+    Studio authentication system.
+    """
+
+    from routes.studio import (
+        current_creator_account,
+    )
+
+    account = current_creator_account()
+
+    if account is None:
+
+        abort(403)
+
+    payment = (
+        FanPayment.query
+        .filter_by(
+            id=payment_id,
+            creator_account_id=account.id,
+            provider=PAYMENT_PROVIDER,
+        )
+        .first_or_404()
+    )
+
+    if payment.status == "refunded":
+
+        flash(
+            "Refunded payments cannot be reconciled.",
+            "warning",
         )
 
-        return "", 500
+    elif payment.status == "paid":
+
+        flash(
+            "This payment is already confirmed.",
+            "success",
+        )
+
+    else:
+
+        confirmed, reason = (
+            confirm_fan_payment(
+                payment.provider_reference,
+                source="creator_reconciliation",
+            )
+        )
+
+        if confirmed:
+
+            flash(
+                "Payment successfully verified with Paystack.",
+                "success",
+            )
+
+        else:
+
+            flash(
+                "Payment is not yet confirmed. "
+                "Please try again later.",
+                "warning",
+            )
+
+    return redirect(
+        url_for(
+            "studio.support_setup"
+        )
+    )
