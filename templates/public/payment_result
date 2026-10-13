@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% block title %}
+Payment Status | Kalxa Creator
+{% endblock %}
+
+{% block content %}
+
+<style>
+
+.payment-result-page {
+    min-height: 75vh;
+
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    padding: 30px 18px;
+
+    background: #f5f3ef;
+}
+
+.payment-result-card {
+    width: 100%;
+    max-width: 480px;
+
+    background: #fff;
+
+    border-radius: 20px;
+
+    padding: 40px 28px;
+
+    text-align: center;
+
+    box-shadow: 0 12px 35px rgba(0,0,0,.06);
+}
+
+.payment-result-icon {
+    font-size: 55px;
+    margin-bottom: 20px;
+}
+
+.payment-result-card h1 {
+    margin-bottom: 15px;
+}
+
+.payment-result-card p {
+    color: #666;
+    line-height: 1.7;
+}
+
+.payment-result-reference {
+    margin-top: 20px;
+    padding: 12px;
+
+    border-radius: 10px;
+
+    background: #f5f5f5;
+
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+.payment-result-button {
+    display: inline-block;
+
+    margin-top: 25px;
+    padding: 14px 22px;
+
+    border-radius: 10px;
+
+    background: #17191d;
+    color: #fff;
+
+    text-decoration: none;
+    font-weight: 700;
+}
+
+</style>
+
+
+<div class="payment-result-page">
+
+    <div class="payment-result-card">
+
+        {% if payment_confirmed %}
+
+            <div class="payment-result-icon">
+                💚
+            </div>
+
+            <h1>
+                Thank you for your support!
+            </h1>
+
+            <p>
+                Your contribution has been confirmed.
+                Thank you for supporting independent creators.
+            </p>
+
+        {% else %}
+
+            <div class="payment-result-icon">
+                ⏳
+            </div>
+
+            <h1>
+                Payment confirmation
+            </h1>
+
+            <p>
+                {{ message }}
+            </p>
+
+            <p>
+                If you've completed your payment,
+                please allow a little time for confirmation.
+            </p>
+
+        {% endif %}
+
+
+        {% if payment %}
+
+            <div class="payment-result-reference">
+
+                Reference:
+
+                {{ payment.provider_reference }}
+
+            </div>
+
+        {% endif %}
+
+
+        <a
+            href="{{ url_for('public.home') }}"
+            class="payment-result-button"
+        >
+            Return home
+        </a>
+
+    </div>
+
+</div>
+
+{% endblock %}
