@@ -1173,6 +1173,9 @@ def campaign_pay(
 # ============================================================
 # PAYMENT RETURN
 # ============================================================
+# ============================================================
+# PAYMENT RETURN
+# ============================================================
 
 @fan_payments_bp.route(
     "/payment/return",
@@ -1190,6 +1193,7 @@ def payment_return():
 
         return render_template(
             "public/payment_result.html",
+            payment=None,
             payment_confirmed=False,
             message="We could not identify this payment.",
         )
@@ -1203,27 +1207,31 @@ def payment_return():
         .first()
     )
 
-    if not payment:
-
+    if payment is None:
         abort(404)
 
-    # Never confirm payment from browser query parameters.
+    # The callback URL is not proof of payment.
+    # Only a verified webhook should mark the payment paid.
+
+    if payment.status == "paid":
+
+        return render_template(
+            "public/payment_result.html",
+            payment=payment,
+            payment_confirmed=True,
+            message="Payment confirmed. Thank you!",
+        )
 
     return render_template(
         "public/payment_result.html",
-
         payment=payment,
-
-        payment_confirmed=(
-            payment.status == "paid"
-        ),
-
+        payment_confirmed=False,
         message=(
-            "Payment confirmed. Thank you!"
-            if payment.status == "paid"
-            else "Your payment is being confirmed."
+            "Your payment is being confirmed. "
+            "Please check again shortly."
         ),
     )
+
 
 
 # ============================================================
