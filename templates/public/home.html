@@ -1,170 +1,689 @@
 {% extends "base.html" %}
-{% block title %}{{ site_brand.title if site_brand else (creator.display_name if creator else 'Creator') }}{% endblock %}
+
+{% block title %}
+{{ site_brand.title if site_brand else (creator.display_name if creator else 'Creator') }}
+{% endblock %}
+
 {% block content %}
+
 {% include "public/includes/branding_head.html" %}
-<div class="creator-site creator-public-home" data-creator-theme="{{ site_brand.theme if site_brand else 'light' }}" data-creator-font="{{ site_brand.font_family if site_brand else 'system' }}">
+
+<div
+    class="creator-site creator-public-home"
+    data-creator-theme="{{ site_brand.theme if site_brand else 'light' }}"
+    data-creator-font="{{ site_brand.font_family if site_brand else 'system' }}"
+>
+
 <style>
-.creator-site {background:var(--creator-background,inherit);color:var(--creator-text,inherit)}
-.creator-site[data-creator-font="serif"] {font-family:Georgia,'Times New Roman',serif}
-.creator-site[data-creator-font="mono"] {font-family:Consolas,monospace}
-.creator-site[data-creator-font="sans"] {font-family:Arial,Helvetica,sans-serif}
-.creator-site[data-creator-font="system"] {font-family:system-ui,-apple-system,sans-serif}
-.creator-site .primary-button,.creator-site .newsletter-form button,.creator-site .exclusive-button {background:var(--creator-primary,#17191d);color:#fff}
-.creator-site .secondary-button,.creator-site .content-card-body a,.creator-site .category-pill {border-color:var(--creator-primary,#17191d);color:var(--creator-primary,#17191d)}
-.creator-site .eyebrow,.creator-site .post-category {color:var(--creator-accent,var(--creator-primary,#17191d))}
-.creator-site .creator-brand-header {overflow:hidden;margin-bottom:1.5rem}
-.creator-site .creator-brand-identity {display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem}
-.creator-site .creator-brand-identity h1 {margin:0;font-size:1.4rem}
-.creator-site .creator-brand-identity p {margin:.25rem 0 0}
-.creator-site .creator-brand-footer {padding:2rem 1.25rem;text-align:center}
-.creator-site .creator-brand-footer p {margin:.3rem 0}
-.creator-site .support-section {padding:3rem 1.25rem;text-align:center}
-.creator-site .coffee-form {max-width:460px;margin:1.5rem auto 0;text-align:left;background:var(--creator-background,#fff);border:1px solid #ddd;border-radius:16px;padding:1.25rem;color:var(--creator-text,#17191d)}
-.creator-site .coffee-amounts {display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:.4rem;margin:.7rem 0 1rem}
-.creator-site .coffee-amounts label {cursor:pointer}
-.creator-site .coffee-amounts input {position:absolute;opacity:0;width:1px;height:1px}
-.creator-site .coffee-amounts span {display:block;border:1px solid #bbb;border-radius:9px;padding:.7rem .2rem;text-align:center;font-size:.85rem;font-weight:700}
-.creator-site .coffee-amounts input:checked+span {background:var(--creator-primary,#17191d);color:#fff;border-color:var(--creator-primary,#17191d)}
-.creator-site .coffee-amounts input:focus-visible+span {outline:3px solid var(--creator-accent,#f4b942);outline-offset:2px}
-.creator-site .coffee-form .coffee-field {display:block;margin:1rem 0;font-weight:600}
-.creator-site .coffee-form .coffee-field input,.creator-site .coffee-form .coffee-field textarea {display:block;width:100%;margin-top:.35rem;border:1px solid #bbb;border-radius:9px;padding:.75rem;font:inherit;box-sizing:border-box}
-.creator-site .coffee-form .coffee-submit {display:block;width:100%;border:0;border-radius:10px;padding:.9rem 1rem;background:var(--creator-primary,#17191d);color:#fff;font:inherit;font-weight:700}
-.creator-site .coffee-form .coffee-submit:disabled {opacity:.6;cursor:not-allowed}
-.creator-site .coffee-form .coffee-note {font-size:.85rem;margin:.75rem 0 0;line-height:1.5}
-@media(max-width:420px){.creator-site .coffee-amounts {grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+/* =====================================================
+   CREATOR THEME
+===================================================== */
+
+.creator-site {
+    background: var(--creator-background, inherit);
+    color: var(--creator-text, inherit);
+}
+
+.creator-site[data-creator-font="serif"] {
+    font-family: Georgia, 'Times New Roman', serif;
+}
+
+.creator-site[data-creator-font="mono"] {
+    font-family: Consolas, monospace;
+}
+
+.creator-site[data-creator-font="sans"] {
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.creator-site[data-creator-font="system"] {
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.creator-site .primary-button,
+.creator-site .newsletter-form button,
+.creator-site .exclusive-button {
+    background: var(--creator-primary, #17191d);
+    color: #fff;
+}
+
+.creator-site .secondary-button,
+.creator-site .content-card-body a,
+.creator-site .category-pill {
+    border-color: var(--creator-primary, #17191d);
+    color: var(--creator-primary, #17191d);
+}
+
+.creator-site .eyebrow,
+.creator-site .post-category {
+    color: var(
+        --creator-accent,
+        var(--creator-primary, #17191d)
+    );
+}
+
+/* =====================================================
+   BRANDING
+===================================================== */
+
+.creator-site .creator-brand-header {
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.creator-site .creator-brand-identity {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+}
+
+.creator-site .creator-brand-identity h1 {
+    margin: 0;
+    font-size: 1.4rem;
+}
+
+.creator-site .creator-brand-identity p {
+    margin: .25rem 0 0;
+}
+
+.creator-site .creator-brand-footer {
+    padding: 2rem 1.25rem;
+    text-align: center;
+}
+
+.creator-site .creator-brand-footer p {
+    margin: .3rem 0;
+}
+
+/* =====================================================
+   BUY ME A COFFEE
+===================================================== */
+
+.creator-site .support-section {
+    padding: 3.5rem 1.25rem;
+    text-align: center;
+}
+
+.creator-site .support-icon {
+    display: block;
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+.creator-site .support-section h2 {
+    margin-bottom: .75rem;
+}
+
+.creator-site .support-section p {
+    max-width: 440px;
+    margin: 0 auto;
+    line-height: 1.7;
+}
+
+.creator-site .coffee-button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: .6rem;
+
+    margin-top: 1.5rem;
+    padding: 1rem 1.8rem;
+
+    border-radius: 12px;
+
+    background: var(
+        --creator-primary,
+        #17191d
+    );
+
+    color: #fff;
+
+    font-weight: 700;
+    text-decoration: none;
+
+    transition: transform .2s ease, opacity .2s ease;
+}
+
+.creator-site .coffee-button:hover {
+    transform: translateY(-2px);
+    opacity: .9;
+}
+
+.creator-site .coffee-unavailable {
+    display: block;
+    margin-top: 1rem;
+    opacity: .7;
+    font-size: .9rem;
+}
+
 </style>
+
+
 {% include "public/includes/branding_header.html" %}
+
+
+<!-- =====================================================
+     CREATOR HERO
+===================================================== -->
+
 <section class="creator-hero">
-  <div class="creator-profile">
-    {% if creator and creator.profile_image_url %}
-      <img src="{{ creator.profile_image_url }}" alt="{{ creator.display_name }}" class="profile-image">
+
+    <div class="creator-profile">
+
+        {% if creator and creator.profile_image_url %}
+
+            <img
+                src="{{ creator.profile_image_url }}"
+                alt="{{ creator.display_name }}"
+                class="profile-image"
+            >
+
+        {% else %}
+
+            <div class="profile-placeholder">
+                ♥
+            </div>
+
+        {% endif %}
+
+
+        <div class="creator-info">
+
+            <span class="eyebrow">
+                CREATOR
+            </span>
+
+            <h1>
+                {{ creator.display_name if creator else 'Your Creator Name' }}
+            </h1>
+
+            <p class="tagline">
+
+                {{
+                    site_brand.tagline
+                    if site_brand and site_brand.tagline
+                    else (
+                        creator.tagline
+                        if creator and creator.tagline
+                        else 'Stories, moments and experiences worth sharing.'
+                    )
+                }}
+
+            </p>
+
+            {% if creator and creator.bio %}
+
+                <p class="bio">
+                    {{ creator.bio }}
+                </p>
+
+            {% endif %}
+
+
+            <div class="hero-actions">
+
+                <a
+                    href="#latest"
+                    class="primary-button"
+                >
+                    Explore my world
+                </a>
+
+                <a
+                    href="#newsletter"
+                    class="secondary-button"
+                >
+                    Subscribe
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- INTRO REEL -->
+
+    {% if creator and creator.intro_reel_url %}
+
+        <div class="intro-reel">
+
+            <span class="eyebrow">
+                MEET ME
+            </span>
+
+            <video
+                controls
+                playsinline
+                preload="metadata"
+
+                {% if creator.intro_reel_thumbnail_url %}
+                    poster="{{ creator.intro_reel_thumbnail_url }}"
+                {% endif %}
+            >
+
+                <source
+                    src="{{ creator.intro_reel_url }}"
+                >
+
+                Your browser does not support video.
+
+            </video>
+
+        </div>
+
     {% else %}
-      <div class="profile-placeholder">♥</div>
+
+        <div class="intro-placeholder">
+
+            <div class="play-icon">
+                ▶
+            </div>
+
+            <strong>
+                Meet Me
+            </strong>
+
+            <span>
+                Introduction reel coming soon.
+            </span>
+
+        </div>
+
     {% endif %}
-    <div class="creator-info">
-      <span class="eyebrow">CREATOR</span>
-      <h1>{{ creator.display_name if creator else 'Your Creator Name' }}</h1>
-      <p class="tagline">{{ (site_brand.tagline if site_brand and site_brand.tagline else (creator.tagline if creator and creator.tagline else 'Stories, moments and experiences worth sharing.')) }}</p>
-      {% if creator and creator.bio %}<p class="bio">{{ creator.bio }}</p>{% endif %}
-      <div class="hero-actions">
-        <a href="#latest" class="primary-button">Explore my world</a>
-        <a href="#newsletter" class="secondary-button">Subscribe</a>
-      </div>
-    </div>
-  </div>
-  {% if creator and creator.intro_reel_url %}
-    <div class="intro-reel">
-      <span class="eyebrow">MEET ME</span>
-      <video controls playsinline preload="metadata" {% if creator.intro_reel_thumbnail_url %}poster="{{ creator.intro_reel_thumbnail_url }}"{% endif %}>
-        <source src="{{ creator.intro_reel_url }}">Your browser does not support video.
-      </video>
-    </div>
-  {% else %}
-    <div class="intro-placeholder"><div class="play-icon">▶</div><strong>Meet Me</strong><span>Introduction reel coming soon.</span></div>
-  {% endif %}
+
 </section>
+
+
+<!-- =====================================================
+     CATEGORIES
+===================================================== -->
+
 {% if categories %}
+
 <section class="categories-section">
-  <div class="section-heading"><span class="eyebrow">EXPLORE</span><h2>My world</h2></div>
-  <div class="category-row">
-    {% for category in categories %}
-      <a href="#latest" class="category-pill">{{ category.name }}</a>
-    {% endfor %}
-  </div>
+
+    <div class="section-heading">
+
+        <span class="eyebrow">
+            EXPLORE
+        </span>
+
+        <h2>
+            My world
+        </h2>
+
+    </div>
+
+    <div class="category-row">
+
+        {% for category in categories %}
+
+            <a
+                href="#latest"
+                class="category-pill"
+            >
+                {{ category.name }}
+            </a>
+
+        {% endfor %}
+
+    </div>
+
 </section>
+
 {% endif %}
-<section class="latest-section" id="latest">
-  <div class="section-heading"><span class="eyebrow">NEW</span><h2>Latest from me</h2><p>Stories, reels and vlogs from my world.</p></div>
-  {% if posts %}
-    <div class="content-grid">
-      {% for post in posts %}
-      <article class="content-card">
-        <div class="content-cover">
-          {% if post.cover_image_url %}<img src="{{ post.cover_image_url }}" alt="{{ post.title }}">{% else %}<div class="cover-placeholder">{{ post.content_type|upper }}</div>{% endif %}
-          <div class="content-badges"><span class="type-badge">{{ post.content_type }}</span>{% if post.access_level == 'subscriber' %}<span class="premium-badge">🔒 Exclusive</span>{% endif %}</div>
-        </div>
-        <div class="content-card-body">
-          {% if post.category %}<span class="post-category">{{ post.category.name }}</span>{% endif %}
-          <h3>{{ post.title }}</h3>
-          {% if post.excerpt %}<p>{{ post.excerpt }}</p>{% endif %}
-          {% if creator and creator.creator_account_id and public_username %}
-            <a href="{{ url_for('public.creator_content_detail',username=public_username,slug=post.slug) }}">View <span>→</span></a>
-          {% else %}
-            <a href="{{ url_for('public.content_detail',slug=post.slug) }}">View <span>→</span></a>
-          {% endif %}
-        </div>
-      </article>
-      {% endfor %}
+
+
+<!-- =====================================================
+     LATEST CONTENT
+===================================================== -->
+
+<section
+    class="latest-section"
+    id="latest"
+>
+
+    <div class="section-heading">
+
+        <span class="eyebrow">
+            NEW
+        </span>
+
+        <h2>
+            Latest from me
+        </h2>
+
+        <p>
+            Stories, reels and vlogs from my world.
+        </p>
+
     </div>
-  {% else %}
-    <div class="empty-content"><strong>The story starts here.</strong><p>New stories, reels and vlogs will appear here.</p></div>
-  {% endif %}
+
+
+    {% if posts %}
+
+        <div class="content-grid">
+
+            {% for post in posts %}
+
+                <article class="content-card">
+
+                    <div class="content-cover">
+
+                        {% if post.cover_image_url %}
+
+                            <img
+                                src="{{ post.cover_image_url }}"
+                                alt="{{ post.title }}"
+                            >
+
+                        {% else %}
+
+                            <div class="cover-placeholder">
+                                {{ post.content_type|upper }}
+                            </div>
+
+                        {% endif %}
+
+
+                        <div class="content-badges">
+
+                            <span class="type-badge">
+                                {{ post.content_type }}
+                            </span>
+
+                            {% if post.access_level == 'subscriber' %}
+
+                                <span class="premium-badge">
+                                    🔒 Exclusive
+                                </span>
+
+                            {% endif %}
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="content-card-body">
+
+                        {% if post.category %}
+
+                            <span class="post-category">
+                                {{ post.category.name }}
+                            </span>
+
+                        {% endif %}
+
+                        <h3>
+                            {{ post.title }}
+                        </h3>
+
+                        {% if post.excerpt %}
+
+                            <p>
+                                {{ post.excerpt }}
+                            </p>
+
+                        {% endif %}
+
+
+                        {% if creator and creator.creator_account_id and public_username %}
+
+                            <a
+                                href="{{ url_for(
+                                    'public.creator_content_detail',
+                                    username=public_username,
+                                    slug=post.slug
+                                ) }}"
+                            >
+                                View <span>→</span>
+                            </a>
+
+                        {% else %}
+
+                            <a
+                                href="{{ url_for(
+                                    'public.content_detail',
+                                    slug=post.slug
+                                ) }}"
+                            >
+                                View <span>→</span>
+                            </a>
+
+                        {% endif %}
+
+                    </div>
+
+                </article>
+
+            {% endfor %}
+
+        </div>
+
+    {% else %}
+
+        <div class="empty-content">
+
+            <strong>
+                The story starts here.
+            </strong>
+
+            <p>
+                New stories, reels and vlogs will appear here.
+            </p>
+
+        </div>
+
+    {% endif %}
+
 </section>
-<section class="exclusive-section" id="exclusive">
-  <div class="exclusive-inner">
-    <span class="exclusive-label">🔒 EXCLUSIVE</span><h2>Come a little closer.</h2>
-    <p>Watch exclusive vlogs, behind-the-scenes moments and content I only share with my members.</p>
-    <div class="price"><strong>R30</strong><span>/ month</span></div>
-    <a href="#" class="exclusive-button">Become a member</a>
-    <small>Watch all exclusive content while your membership is active.</small>
-  </div>
-</section>
-<section class="newsletter-section" id="newsletter">
-  <div class="newsletter-copy"><span class="eyebrow">STAY CLOSE</span><h2>Never miss a post.</h2><p>Enter your email and get notified when a new story, reel or vlog drops.</p></div>
-  {% if creator and creator.creator_account_id and public_username %}
-    <form method="POST" action="{{ url_for('public.creator_newsletter_subscribe',username=public_username) }}" class="newsletter-form">
-  {% else %}
-    <form method="POST" action="{{ url_for('public.newsletter_subscribe') }}" class="newsletter-form">
-  {% endif %}
-    <div class="newsletter-honeypot" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
-    <label for="newsletter-email">Email address</label>
-    <div class="newsletter-input-row"><input type="email" id="newsletter-email" name="email" maxlength="255" autocomplete="email" placeholder="you@example.com" required><button type="submit">Subscribe</button></div>
-    <small>No spam. Unsubscribe whenever you want.</small>
-  </form>
-</section>
-<section class="support-section" id="support">
-  <span class="support-icon">☕</span>
-  <h2>Enjoying my content?</h2>
-  <p>You can support what I create with a small contribution.</p>
-  <form class="coffee-form" id="coffee-form">
-    <label id="coffee-amount-label">Choose your amount (ZAR)</label>
-    <div class="coffee-amounts" role="group" aria-labelledby="coffee-amount-label">
-      {% for value in [10, 20, 50, 100] %}
-        <label><input type="radio" name="amount_choice" value="{{ value }}" {% if value == 20 %}checked{% endif %}><span>R{{ value }}</span></label>
-      {% endfor %}
-      <label><input type="radio" name="amount_choice" value="custom"><span>Other</span></label>
+
+
+<!-- =====================================================
+     EXCLUSIVE MEMBERSHIP
+===================================================== -->
+
+<section
+    class="exclusive-section"
+    id="exclusive"
+>
+
+    <div class="exclusive-inner">
+
+        <span class="exclusive-label">
+            🔒 EXCLUSIVE
+        </span>
+
+        <h2>
+            Come a little closer.
+        </h2>
+
+        <p>
+            Watch exclusive vlogs, behind-the-scenes moments
+            and content I only share with my members.
+        </p>
+
+        <div class="price">
+
+            <strong>
+                R30
+            </strong>
+
+            <span>
+                / month
+            </span>
+
+        </div>
+
+        <a
+            href="#"
+            class="exclusive-button"
+        >
+            Become a member
+        </a>
+
+        <small>
+            Watch all exclusive content while your
+            membership is active.
+        </small>
+
     </div>
-    <label class="coffee-field" id="custom-amount-field" hidden>Custom amount in rand
-      <input id="coffee-custom-amount" name="custom_amount" type="number" min="5" max="10000" step="0.01" inputmode="decimal" placeholder="e.g. 75.00" disabled>
-    </label>
-    <label class="coffee-field">Your email address
-      <input type="email" name="supporter_email" maxlength="255" autocomplete="email" placeholder="you@example.com" required>
-    </label>
-    <label class="coffee-field">Message (optional)
-      <textarea name="supporter_message" maxlength="500" rows="3" placeholder="Keep creating! "></textarea>
-    </label>
-    <div aria-hidden="true" style="position:absolute;left:-10000px"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
-    <button type="submit" class="coffee-submit" disabled title="Paystack checkout is not yet connected">Continue to Paystack — coming soon</button>
-    <p class="coffee-note" role="status">Choose your amount now. Secure payments will be enabled after the creator's Paystack payout setup is connected.</p>
-  </form>
+
 </section>
-<script>
-(function () {
-  const form = document.getElementById('coffee-form');
-  if (!form) return;
-  const customField = document.getElementById('custom-amount-field');
-  const customInput = document.getElementById('coffee-custom-amount');
-  const update = () => {
-    const selected = form.querySelector('input[name="amount_choice"]:checked');
-    const isCustom = selected && selected.value === 'custom';
-    customField.hidden = !isCustom;
-    customInput.disabled = !isCustom;
-    customInput.required = Boolean(isCustom);
-  };
-  form.querySelectorAll('input[name="amount_choice"]').forEach(input => input.addEventListener('change', update));
-  update();
-})();
-</script>
+
+
+<!-- =====================================================
+     NEWSLETTER
+===================================================== -->
+
+<section
+    class="newsletter-section"
+    id="newsletter"
+>
+
+    <div class="newsletter-copy">
+
+        <span class="eyebrow">
+            STAY CLOSE
+        </span>
+
+        <h2>
+            Never miss a post.
+        </h2>
+
+        <p>
+            Enter your email and get notified when
+            a new story, reel or vlog drops.
+        </p>
+
+    </div>
+
+
+    {% if creator and creator.creator_account_id and public_username %}
+
+        <form
+            method="POST"
+            action="{{ url_for(
+                'public.creator_newsletter_subscribe',
+                username=public_username
+            ) }}"
+            class="newsletter-form"
+        >
+
+    {% else %}
+
+        <form
+            method="POST"
+            action="{{ url_for(
+                'public.newsletter_subscribe'
+            ) }}"
+            class="newsletter-form"
+        >
+
+    {% endif %}
+
+
+        <div
+            class="newsletter-honeypot"
+            aria-hidden="true"
+        >
+
+            <input
+                type="text"
+                name="website"
+                tabindex="-1"
+                autocomplete="off"
+            >
+
+        </div>
+
+
+        <label for="newsletter-email">
+            Email address
+        </label>
+
+
+        <div class="newsletter-input-row">
+
+            <input
+                type="email"
+                id="newsletter-email"
+                name="email"
+                maxlength="255"
+                autocomplete="email"
+                placeholder="you@example.com"
+                required
+            >
+
+            <button type="submit">
+                Subscribe
+            </button>
+
+        </div>
+
+
+        <small>
+            No spam. Unsubscribe whenever you want.
+        </small>
+
+    </form>
+
+</section>
+
+
+<!-- =====================================================
+     BUY ME A COFFEE
+===================================================== -->
+
+<section
+    class="support-section"
+    id="support"
+>
+
+    <span class="support-icon">
+        ☕
+    </span>
+
+    <h2>
+        Enjoying my content?
+    </h2>
+
+    <p>
+        You can support what I create
+        with a small contribution.
+    </p>
+
+
+    {% if creator_account and creator_account.monetization_enabled %}
+
+        <a
+            href="{{ url_for(
+                'fan_payments.creator_support',
+                username=creator_account.username
+            ) }}"
+            class="coffee-button"
+        >
+            ☕ Buy me a coffee
+        </a>
+
+    {% else %}
+
+        <span class="coffee-unavailable">
+            Contributions are currently unavailable.
+        </span>
+
+    {% endif %}
+
+</section>
+
+
 {% include "public/includes/branding_footer.html" %}
+
 </div>
+
 {% endblock %}
