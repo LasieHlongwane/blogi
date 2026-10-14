@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% block title %}Exclusive Membership | {{ creator.display_name if creator else creator_account.username }}{% endblock %}
+{% block content %}
+<main style="max-width:560px;margin:3rem auto;padding:1.5rem;font-family:system-ui,sans-serif">
+  <p style="font-size:.75rem;letter-spacing:.12em;font-weight:700">🔒 EXCLUSIVE MEMBERSHIP</p>
+  <h1>Come a little closer.</h1>
+  <p>Watch exclusive vlogs, behind-the-scenes moments and content I only share with my members.</p>
+  <p><strong>Choose your monthly contribution.</strong> From R30.</p>
+  {% if payout_ready %}
+  <form method="post" action="{{ url_for('membership.pay', username=creator_account.username) }}" id="membership-form">
+    {# Insert your application's CSRF token here if CSRF protection is enabled. #}
+    <fieldset style="border:0;padding:0;display:flex;gap:.75rem;flex-wrap:wrap;margin:1.2rem 0">
+      <legend style="margin-bottom:.75rem">Suggested amounts</legend>
+      <label><input type="radio" name="suggested" value="30" checked> R30</label>
+      <label><input type="radio" name="suggested" value="50"> R50</label>
+      <label><input type="radio" name="suggested" value="100"> R100</label>
+    </fieldset>
+    <label for="amount">Monthly contribution (ZAR)</label>
+    <input id="amount" name="amount" type="number" min="30" max="100000" step="0.01" value="30.00" required style="display:block;width:100%;padding:.8rem;margin:.4rem 0 1rem">
+    <label for="email">Your email address</label>
+    <input id="email" name="email" type="email" maxlength="255" autocomplete="email" required placeholder="you@example.com" style="display:block;width:100%;padding:.8rem;margin:.4rem 0 1rem">
+    <p style="font-size:.85rem">One payment provides one calendar month of membership. Payments do not renew automatically. You can choose a new amount when you renew. No password is required.</p>
+    <button type="submit" style="padding:1rem 1.5rem;background:#111318;color:white;border:0;border-radius:.5rem;cursor:pointer">Continue to secure payment →</button>
+  </form>
+  {% else %}
+    <p>Membership payments are not available for this creator yet.</p>
+  {% endif %}
+</main>
+<script>
+document.querySelectorAll('input[name="suggested"]').forEach(function (radio) {
+  radio.addEventListener('change', function () {
+    document.getElementById('amount').value = Number(radio.value).toFixed(2);
+  });
+});
+</script>
+{% endblock %}
