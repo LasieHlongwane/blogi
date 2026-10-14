@@ -1,14 +1,20 @@
-"""Manual calendar-month access periods and strict verified-payment handling."""
+"""Membership payment periods, active access checks and magic-link tokens."""
 import calendar
-from datetime import datetime, timezone
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal, InvalidOperation
-from sqlalchemy.exc import IntegrityError
 from extensions import db
-from membership_models import CreatorMembership, MembershipPayment, MembershipSubscriber
+from membership_models import (
+    CreatorMembership, MembershipPayment, MembershipSubscriber, MembershipLoginToken,
+)
 from services.creator_monetization import calculate_commission_cents
 
 MIN_CENTS = 3000
 MAX_CENTS = 10_000_000
+MAGIC_LINK_MINUTES = 15
+MAGIC_LINK_COOLDOWN_SECONDS = 60
+MAGIC_LINK_MAX_PER_HOUR = 5
 
 
 def now_utc():
@@ -47,11 +53,17 @@ def active_membership(membership):
                 as_utc(membership.current_period_end) > now_utc())
 
 
-def new_pending_payment(creator, email, amount_cents, reference):
-    """Create membership and payment. Caller handles rollback on error.
+def member_has_access(subscriber_id, creator_account_id):
+    """Always query the database; a signed browser session alone grants nothing."""
+    if type(subscriber_id) is not int or type(creator_account_id) is not int:
+        return False
+    membership = CreatorMembership.query.filter_by(
+        subscriber_id=subscriber_id, creator_account_id=creator_account_id
+    ).first()
+    return active_membership(membership)
 
-    DB uniqueness protects one email identity and one creator membership.
-    """
+
+def new_pending_payment(creator, email, amount_cents, reference):
     subscriber = MembershipSubscriber.query.filter_by(email=email).first()
     if subscriber is None:
         subscriber = MembershipSubscriber(email=email)
@@ -61,39 +73,40 @@ def new_pending_payment(creator, email, amount_cents, reference):
         subscriber_id=subscriber.id, creator_account_id=creator.id
     ).first()
     if membership is None:
-        membership = CreatorMembership(subscriber_id=subscriber.id,
-                                       creator_account_id=creator.id,
-                                       monthly_amount_cents=amount_cents)
+        membership = CreatorMembership(
+            subscriber_id=subscriber.id, creator_account_id=creator.id,
+            monthly_amount_cents=amount_cents,
+        )
         db.session.add(membership)
         db.session.flush()
     fee = calculate_commission_cents(creator, amount_cents)
     if type(fee) is not int or not 0 < fee < amount_cents:
         raise ValueError('Invalid platform fee')
-    payment = MembershipPayment(membership_id=membership.id,
-                                creator_account_id=creator.id,
-                                amount_cents=amount_cents,
-                                platform_fee_cents=fee,
-                                provider_reference=reference)
+    payment = MembershipPayment(
+        membership_id=membership.id, creator_account_id=creator.id,
+        amount_cents=amount_cents, platform_fee_cents=fee,
+        provider_reference=reference,
+    )
     db.session.add(payment)
     db.session.commit()
     return payment
 
 
 def activate_verified_payment(payment, transaction_id):
-    """Must be called inside a transaction holding a FOR UPDATE payment row lock.
-
-    The caller must validate Paystack verification data first. Do not call
-    this function on a browser callback or unsigned webhook alone.
-    """
+    """Caller MUST hold payment row lock and verify Paystack transaction."""
     if payment.status == 'paid':
         return False
     if payment.status != 'pending':
         raise ValueError('Payment is not pending')
-    membership = db.session.query(CreatorMembership).filter_by(id=payment.membership_id).with_for_update().one()
+    membership = db.session.query(CreatorMembership).filter_by(
+        id=payment.membership_id
+    ).with_for_update().one()
     now = now_utc()
     old_end = as_utc(membership.current_period_end)
     start = max(now, old_end) if old_end else now
-    membership.current_period_start = now if not active_membership(membership) else membership.current_period_start
+    membership.current_period_start = (
+        membership.current_period_start if active_membership(membership) else now
+    )
     membership.current_period_end = add_calendar_month(start)
     membership.monthly_amount_cents = payment.amount_cents
     membership.status = 'active'
@@ -101,3 +114,63 @@ def activate_verified_payment(payment, transaction_id):
     payment.status = 'paid'
     payment.paid_at = now
     return True
+
+
+def create_magic_link_token(subscriber_id, creator_account_id):
+    """Returns plaintext token only once. Stores only its SHA-256 digest.
+
+    Caller must send email and commit. A DB-backed per-member rate limit
+    avoids duplicate sends across Gunicorn workers.
+    """
+    now = now_utc()
+    recent = MembershipLoginToken.query.filter_by(
+        subscriber_id=subscriber_id, creator_account_id=creator_account_id
+    ).order_by(MembershipLoginToken.created_at.desc()).first()
+    if recent and as_utc(recent.created_at) > now - timedelta(seconds=MAGIC_LINK_COOLDOWN_SECONDS):
+        return None
+    count = MembershipLoginToken.query.filter(
+        MembershipLoginToken.subscriber_id == subscriber_id,
+        MembershipLoginToken.creator_account_id == creator_account_id,
+        MembershipLoginToken.created_at >= now - timedelta(hours=1),
+    ).count()
+    if count >= MAGIC_LINK_MAX_PER_HOUR:
+        return None
+    token = secrets.token_urlsafe(48)
+    db.session.add(MembershipLoginToken(
+        subscriber_id=subscriber_id,
+        creator_account_id=creator_account_id,
+        token_hash=hashlib.sha256(token.encode('utf-8')).hexdigest(),
+        expires_at=now + timedelta(minutes=MAGIC_LINK_MINUTES),
+    ))
+    db.session.commit()
+    return token
+
+
+def consume_magic_link_token(raw_token, creator_account_id):
+    """Atomically consume token, returning subscriber ID on success.
+
+    Caller commits BEFORE setting authenticated session state.
+    """
+    if not isinstance(raw_token, str) or not 20 <= len(raw_token) <= 256:
+        return None
+    digest = hashlib.sha256(raw_token.encode('utf-8')).hexdigest()
+    token = db.session.query(MembershipLoginToken).filter_by(
+        token_hash=digest, creator_account_id=creator_account_id
+    ).with_for_update().first()
+    if not token or token.consumed_at or as_utc(token.expires_at) <= now_utc():
+        db.session.rollback()
+        return None
+    if not member_has_access(token.subscriber_id, creator_account_id):
+        db.session.rollback()
+        return None
+    token.consumed_at = now_utc()
+    # Invalidate other outstanding tokens for the same member and creator.
+    MembershipLoginToken.query.filter(
+        MembershipLoginToken.subscriber_id == token.subscriber_id,
+        MembershipLoginToken.creator_account_id == creator_account_id,
+        MembershipLoginToken.id != token.id,
+        MembershipLoginToken.consumed_at.is_(None),
+    ).update({'consumed_at': now_utc()}, synchronize_session=False)
+    subscriber_id = token.subscriber_id
+    db.session.commit()
+    return subscriber_id
