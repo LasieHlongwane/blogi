@@ -1,13 +1,10 @@
 {% extends "base.html" %}
-
 {% block title %}{{ post.title }} | {{ site_brand.title if site_brand else (creator.display_name if creator else 'Creator') }}{% endblock %}
-
 {% block content %}
 {% include "public/includes/branding_head.html" %}
-
 <div class="creator-site creator-public-detail" data-creator-theme="{{ site_brand.theme if site_brand else 'light' }}" data-creator-font="{{ site_brand.font_family if site_brand else 'system' }}">
 <style>
-.creator-site {background:var(--creator-background,inherit);color:var(--creator-text,inherit)}
+.creator-site{background:var(--creator-background,inherit);color:var(--creator-text,inherit)}
 .creator-site[data-creator-font="serif"]{font-family:Georgia,'Times New Roman',serif}
 .creator-site[data-creator-font="mono"]{font-family:Consolas,monospace}
 .creator-site[data-creator-font="sans"]{font-family:Arial,Helvetica,sans-serif}
@@ -20,7 +17,10 @@
 .creator-site .creator-brand-identity h1{margin:0;font-size:1.4rem}
 .creator-site .creator-brand-identity p{margin:.25rem 0 0}
 .creator-site .creator-brand-footer{padding:2rem 1.25rem;text-align:center}
-/* Clickable media */
+.creator-public-detail .member-status{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:14px 16px;margin:0 0 20px;border-radius:14px;background:#e9f7ed;color:#176332;font-size:14px}
+.creator-public-detail .member-status a,.creator-public-detail .member-status button{font:inherit;color:inherit;font-weight:700}
+.creator-public-detail .member-status form{display:inline-flex;margin:0}
+.creator-public-detail .member-status button{border:0;background:none;text-decoration:underline;cursor:pointer}
 .creator-public-detail .media-open{position:relative;display:block;width:100%;padding:0;border:0;background:transparent;color:inherit;font:inherit;cursor:zoom-in;text-align:inherit}
 .creator-public-detail .media-open:focus-visible{outline:3px solid var(--creator-accent,#3483fa);outline-offset:4px}
 .creator-public-detail .media-open img{display:block;width:100%;height:auto}
@@ -30,7 +30,6 @@
 .creator-public-detail .public-video-player .media-open .video-play-icon{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:grid;place-items:center;width:64px;height:64px;border-radius:50%;background:rgba(0,0,0,.74);color:#fff;font-size:26px;pointer-events:none}
 .creator-public-detail .public-story-gallery figure{margin:0}
 .creator-public-detail .public-story-gallery figure .media-open{overflow:hidden;border-radius:inherit}
-/* Fullscreen lightbox: placed outside creator-site to avoid stacking/overflow issues */
 .kalxa-lightbox[hidden]{display:none!important}
 .kalxa-lightbox{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;background:rgba(5,7,11,.97);color:#fff;overscroll-behavior:contain}
 .kalxa-lightbox *{box-sizing:border-box}
@@ -49,22 +48,31 @@
 body.kalxa-lightbox-open{overflow:hidden}
 @media(max-width:600px){.kalxa-lightbox-toolbar{min-height:54px;padding:7px 10px}.kalxa-lightbox-stage{gap:4px;padding:5px 6px 14px}.kalxa-lightbox-nav{width:34px;height:46px;font-size:23px}.creator-public-detail .media-open .media-expand-label{right:8px;bottom:8px;padding:7px 10px;font-size:11px}}
 </style>
-
 {% include "public/includes/branding_header.html" %}
-
 <main class="content-detail-page">
 <article class="content-detail">
+    {% if post_is_exclusive and member_has_access %}
+    <div class="member-status" role="status">
+        <strong>✓ Exclusive membership active</strong>
+        <span>You have access to this creator's members-only content.</span>
+        {% if creator_account %}
+        <form method="POST" action="{{ url_for('membership.sign_out',username=creator_account.username) }}">
+            {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+            <button type="submit">Sign out</button>
+        </form>
+        {% endif %}
+    </div>
+    {% endif %}
     <header class="content-detail-header">
         <div class="content-detail-meta">
             <span class="content-type-pill">{{ post.content_type|upper }}</span>
             {% if post.category %}<span>{{ post.category.name }}</span>{% endif %}
             {% if post.published_at %}<span>{{ post.published_at.strftime('%d %b %Y') }}</span>{% endif %}
-            {% if post.access_level == 'subscriber' %}<span class="exclusive-pill">🔒 MEMBERS</span>{% endif %}
+            {% if post_is_exclusive %}<span class="exclusive-pill">🔒 MEMBERS</span>{% endif %}
         </div>
         <h1>{{ post.title }}</h1>
         {% if post.excerpt %}<p class="content-detail-excerpt">{{ post.excerpt }}</p>{% endif %}
     </header>
-
     {% if post.cover_image_url %}
     <div class="content-detail-cover">
         <button type="button" class="media-open" data-media-type="image" data-media-src="{{ post.cover_image_url }}" data-media-caption="{{ post.title }} — Cover image" aria-label="View cover image fullscreen">
@@ -73,7 +81,6 @@ body.kalxa-lightbox-open{overflow:hidden}
         </button>
     </div>
     {% endif %}
-
     {% if post.content_type in ['reel', 'vlog'] and video %}
     <div class="public-video-player {% if post.content_type == 'reel' %}reel-player{% endif %}">
         <button type="button" class="media-open" data-media-type="video" data-media-src="{{ video.media_url }}" data-media-poster="{{ video.thumbnail_url or '' }}" data-media-caption="{{ post.title }} — {{ post.content_type|capitalize }}" aria-label="Play {{ post.content_type }} fullscreen">
@@ -85,7 +92,6 @@ body.kalxa-lightbox-open{overflow:hidden}
         </button>
     </div>
     {% endif %}
-
     {% if post.body %}
     <div class="content-body">
         {% for paragraph in post.body.split('\n') %}
@@ -93,7 +99,6 @@ body.kalxa-lightbox-open{overflow:hidden}
         {% endfor %}
     </div>
     {% endif %}
-
     {% if post.content_type == 'story' and gallery_images %}
     <div class="public-story-gallery">
         {% for image in gallery_images %}
@@ -107,66 +112,49 @@ body.kalxa-lightbox-open{overflow:hidden}
         {% endfor %}
     </div>
     {% endif %}
-
     {% if creator %}
     <section class="post-creator-card">
-        {% if creator.profile_image_url %}
-            <img src="{{ creator.profile_image_url }}" alt="{{ creator.display_name }}">
-        {% else %}
-            <div class="creator-mini-placeholder">{{ creator.display_name[:1] }}</div>
-        {% endif %}
-        <div>
-            <small>CREATED BY</small>
-            <strong>{{ creator.display_name }}</strong>
-            {% if creator.tagline %}<p>{{ creator.tagline }}</p>{% endif %}
-        </div>
+        {% if creator.profile_image_url %}<img src="{{ creator.profile_image_url }}" alt="{{ creator.display_name }}">
+        {% else %}<div class="creator-mini-placeholder">{{ creator.display_name[:1] }}</div>{% endif %}
+        <div><small>CREATED BY</small><strong>{{ creator.display_name }}</strong>{% if creator.tagline %}<p>{{ creator.tagline }}</p>{% endif %}</div>
     </section>
     {% endif %}
-
     <section class="comments-section" id="comments">
         <div class="comments-heading">
             <div><span class="comments-eyebrow">CONVERSATION</span><h2>Comments</h2></div>
             <span class="comment-count">{{ comment_count }} {{ 'comment' if comment_count == 1 else 'comments' }}</span>
         </div>
-
         {% if creator and creator.creator_account_id and public_username %}
-        <form method="POST" action="{{ url_for('public.creator_add_comment', username=public_username, post_id=post.id) }}" class="comment-form">
+        <form method="POST" action="{{ url_for('public.creator_add_comment',username=public_username,post_id=post.id) }}" class="comment-form">
         {% else %}
-        <form method="POST" action="{{ url_for('public.add_comment', post_id=post.id) }}" class="comment-form">
+        <form method="POST" action="{{ url_for('public.add_comment',post_id=post.id) }}" class="comment-form">
         {% endif %}
-            {# Include CSRF token here if your Flask app enables CSRF protection. #}
+            {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
             <div class="comment-honeypot" aria-hidden="true"><label>Website<input type="text" name="website" tabindex="-1" autocomplete="off"></label></div>
             <label>Your name<input type="text" name="author_name" maxlength="80" required placeholder="How should we call you?"></label>
             <label>Join the conversation<textarea name="body" maxlength="1500" rows="4" required placeholder="Share your thoughts..."></textarea></label>
             <div class="comment-form-footer"><small>No account required.</small><button type="submit">Post comment</button></div>
         </form>
-
         <div class="comments-list">
             {% for comment in comments %}
             <article class="comment-card" id="comment-{{ comment.id }}">
                 <div class="comment-author-row">
                     <div class="comment-avatar">{{ comment.author_name[:1]|upper }}</div>
-                    <div>
-                        <strong>{{ comment.author_name }}</strong>
-                        {% if comment.is_creator %}<span class="creator-badge">CREATOR</span>{% endif %}
-                        <small>{{ comment.created_at.strftime('%d %b %Y · %H:%M') }}</small>
-                    </div>
+                    <div><strong>{{ comment.author_name }}</strong>{% if comment.is_creator %}<span class="creator-badge">CREATOR</span>{% endif %}<small>{{ comment.created_at.strftime('%d %b %Y · %H:%M') }}</small></div>
                 </div>
                 <div class="comment-body">{{ comment.body }}</div>
                 <button type="button" class="reply-toggle" data-reply-target="reply-form-{{ comment.id }}" aria-expanded="false">Reply</button>
-
                 {% if creator and creator.creator_account_id and public_username %}
-                <form method="POST" action="{{ url_for('public.creator_add_reply', username=public_username, comment_id=comment.id) }}" class="reply-form" id="reply-form-{{ comment.id }}">
+                <form method="POST" action="{{ url_for('public.creator_add_reply',username=public_username,comment_id=comment.id) }}" class="reply-form" id="reply-form-{{ comment.id }}">
                 {% else %}
-                <form method="POST" action="{{ url_for('public.add_reply', comment_id=comment.id) }}" class="reply-form" id="reply-form-{{ comment.id }}">
+                <form method="POST" action="{{ url_for('public.add_reply',comment_id=comment.id) }}" class="reply-form" id="reply-form-{{ comment.id }}">
                 {% endif %}
-                    {# Include CSRF token here if your Flask app enables CSRF protection. #}
+                    {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
                     <div class="comment-honeypot" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
                     <label>Your name<input type="text" name="author_name" maxlength="80" required placeholder="Your name"></label>
                     <label>Reply<textarea name="body" maxlength="1500" rows="3" required placeholder="Write a reply..."></textarea></label>
                     <button type="submit">Post reply</button>
                 </form>
-
                 {% if comment.replies %}
                 <div class="comment-replies">
                     {% for reply in comment.replies %}
@@ -174,11 +162,7 @@ body.kalxa-lightbox-open{overflow:hidden}
                         <article class="comment-reply" id="comment-{{ reply.id }}">
                             <div class="comment-author-row">
                                 <div class="comment-avatar small">{{ reply.author_name[:1]|upper }}</div>
-                                <div>
-                                    <strong>{{ reply.author_name }}</strong>
-                                    {% if reply.is_creator %}<span class="creator-badge">CREATOR</span>{% endif %}
-                                    <small>{{ reply.created_at.strftime('%d %b %Y · %H:%M') }}</small>
-                                </div>
+                                <div><strong>{{ reply.author_name }}</strong>{% if reply.is_creator %}<span class="creator-badge">CREATOR</span>{% endif %}<small>{{ reply.created_at.strftime('%d %b %Y · %H:%M') }}</small></div>
                             </div>
                             <div class="comment-body">{{ reply.body }}</div>
                         </article>
@@ -196,8 +180,6 @@ body.kalxa-lightbox-open{overflow:hidden}
 </main>
 {% include "public/includes/branding_footer.html" %}
 </div>
-
-<!-- Fullscreen viewer outside creator-site so fixed positioning is reliable. -->
 <div id="kalxa-lightbox" class="kalxa-lightbox" role="dialog" aria-modal="true" aria-label="Fullscreen media viewer" aria-hidden="true" hidden>
     <div class="kalxa-lightbox-toolbar">
         <span id="kalxa-lightbox-caption" class="kalxa-lightbox-caption"></span>
@@ -209,12 +191,9 @@ body.kalxa-lightbox-open{overflow:hidden}
         <button type="button" id="kalxa-lightbox-next" class="kalxa-lightbox-nav" aria-label="Next image" hidden>&rsaquo;</button>
     </div>
 </div>
-
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     'use strict';
-
-    // Existing anonymous comment reply controls.
     document.querySelectorAll('.reply-toggle').forEach(function (button) {
         button.addEventListener('click', function () {
             const form = document.getElementById(button.dataset.replyTarget);
@@ -228,8 +207,6 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
-
-    // Fullscreen media viewer.
     const triggers = Array.from(document.querySelectorAll('.creator-public-detail .media-open'));
     const lightbox = document.getElementById('kalxa-lightbox');
     const content = document.getElementById('kalxa-lightbox-content');
@@ -238,134 +215,82 @@ document.addEventListener('DOMContentLoaded', function () {
     const previousButton = document.getElementById('kalxa-lightbox-prev');
     const nextButton = document.getElementById('kalxa-lightbox-next');
     if (!lightbox || !content || !closeButton) return;
-
-    const imageTriggers = triggers.filter(function (button) {
-        return button.dataset.mediaType === 'image';
-    });
+    const imageTriggers = triggers.filter(function (button) { return button.dataset.mediaType === 'image'; });
     let activeTrigger = null;
     let previousFocus = null;
     let previousBodyOverflow = '';
-
     function stopVideo() {
         const playingVideo = content.querySelector('video');
-        if (playingVideo) {
-            playingVideo.pause();
-            playingVideo.removeAttribute('src');
-            playingVideo.load();
-        }
+        if (playingVideo) { playingVideo.pause(); playingVideo.removeAttribute('src'); playingVideo.load(); }
     }
-
     function updateNavigation() {
         const isImage = activeTrigger && activeTrigger.dataset.mediaType === 'image';
         const showNavigation = isImage && imageTriggers.length > 1;
         previousButton.hidden = !showNavigation;
         nextButton.hidden = !showNavigation;
     }
-
     function showMedia(trigger) {
         if (!trigger) return;
         const src = trigger.dataset.mediaSrc;
         const type = trigger.dataset.mediaType;
         if (!src || (type !== 'image' && type !== 'video')) return;
-
-        stopVideo();
-        content.replaceChildren();
-        activeTrigger = trigger;
+        stopVideo(); content.replaceChildren(); activeTrigger = trigger;
         caption.textContent = trigger.dataset.mediaCaption || '';
-
         if (type === 'video') {
             const player = document.createElement('video');
-            player.src = src;
-            player.controls = true;
-            player.autoplay = true;
-            player.playsInline = true;
-            player.preload = 'metadata';
+            player.src = src; player.controls = true; player.autoplay = true;
+            player.playsInline = true; player.preload = 'metadata';
             if (trigger.dataset.mediaPoster) player.poster = trigger.dataset.mediaPoster;
             content.appendChild(player);
-            const playAttempt = player.play();
-            if (playAttempt && typeof playAttempt.catch === 'function') {
-                playAttempt.catch(function () {
-                    // Autoplay can be blocked; native play controls remain available.
-                });
-            }
+            const attempt = player.play();
+            if (attempt && typeof attempt.catch === 'function') attempt.catch(function () {});
         } else {
             const image = document.createElement('img');
-            image.src = src;
-            image.alt = trigger.dataset.mediaCaption || 'Fullscreen image';
+            image.src = src; image.alt = trigger.dataset.mediaCaption || 'Fullscreen image';
             content.appendChild(image);
         }
         updateNavigation();
     }
-
     function openMedia(trigger) {
         if (lightbox.hidden) {
             previousFocus = document.activeElement;
             previousBodyOverflow = document.body.style.overflow;
             document.body.classList.add('kalxa-lightbox-open');
-            lightbox.hidden = false;
-            lightbox.setAttribute('aria-hidden', 'false');
+            lightbox.hidden = false; lightbox.setAttribute('aria-hidden', 'false');
         }
-        showMedia(trigger);
-        closeButton.focus();
+        showMedia(trigger); closeButton.focus();
     }
-
     function closeMedia() {
         if (lightbox.hidden) return;
-        stopVideo();
-        content.replaceChildren();
-        lightbox.hidden = true;
+        stopVideo(); content.replaceChildren(); lightbox.hidden = true;
         lightbox.setAttribute('aria-hidden', 'true');
         document.body.classList.remove('kalxa-lightbox-open');
         document.body.style.overflow = previousBodyOverflow;
         activeTrigger = null;
-        if (previousFocus && typeof previousFocus.focus === 'function') {
-            previousFocus.focus();
-        }
+        if (previousFocus && typeof previousFocus.focus === 'function') previousFocus.focus();
     }
-
     function moveImage(step) {
         if (!activeTrigger || activeTrigger.dataset.mediaType !== 'image') return;
         const index = imageTriggers.indexOf(activeTrigger);
         if (index < 0 || imageTriggers.length < 2) return;
-        const nextIndex = (index + step + imageTriggers.length) % imageTriggers.length;
-        showMedia(imageTriggers[nextIndex]);
+        showMedia(imageTriggers[(index + step + imageTriggers.length) % imageTriggers.length]);
     }
-
-    triggers.forEach(function (trigger) {
-        trigger.addEventListener('click', function () { openMedia(trigger); });
-    });
+    triggers.forEach(function (trigger) { trigger.addEventListener('click', function () { openMedia(trigger); }); });
     closeButton.addEventListener('click', closeMedia);
     previousButton.addEventListener('click', function () { moveImage(-1); });
     nextButton.addEventListener('click', function () { moveImage(1); });
-
-    lightbox.addEventListener('click', function (event) {
-        if (event.target === lightbox || event.target === content) closeMedia();
-    });
-
+    lightbox.addEventListener('click', function (event) { if (event.target === lightbox || event.target === content) closeMedia(); });
     document.addEventListener('keydown', function (event) {
         if (lightbox.hidden) return;
-        if (event.key === 'Escape') {
-            event.preventDefault();
-            closeMedia();
-        } else if (event.key === 'ArrowLeft') {
-            event.preventDefault();
-            moveImage(-1);
-        } else if (event.key === 'ArrowRight') {
-            event.preventDefault();
-            moveImage(1);
-        } else if (event.key === 'Tab') {
-            // Keep keyboard focus inside the modal.
+        if (event.key === 'Escape') { event.preventDefault(); closeMedia(); }
+        else if (event.key === 'ArrowLeft') { event.preventDefault(); moveImage(-1); }
+        else if (event.key === 'ArrowRight') { event.preventDefault(); moveImage(1); }
+        else if (event.key === 'Tab') {
             const controls = Array.from(lightbox.querySelectorAll('button:not([hidden])'));
             if (!controls.length) return;
-            const first = controls[0];
-            const last = controls[controls.length - 1];
-            if (event.shiftKey && document.activeElement === first) {
-                event.preventDefault();
-                last.focus();
-            } else if (!event.shiftKey && document.activeElement === last) {
-                event.preventDefault();
-                first.focus();
-            }
+            const first = controls[0], last = controls[controls.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
         }
     });
 });
