@@ -3,6 +3,7 @@
 Exclusive posts fail closed until a verified, active email membership session exists.
 """
 import re
+import os
 import secrets
 import time
 from datetime import datetime, timezone
@@ -216,6 +217,41 @@ def render_creator_home(creator, creator_account_id, public_username=None):
     )
 
 
+def _media_display_url(media, exclusive):
+    """Use short-lived Cloudinary token URLs; never downgrade protected assets."""
+    if media is None:
+        return None
+    delivery = getattr(media, 'delivery_type', 'upload') or 'upload'
+    if exclusive:
+        if delivery != 'authenticated' or not media.public_id:
+            # Existing public assets must be migrated, not exposed to members.
+            abort(503, description='Exclusive media requires secure migration.')
+        token_key = current_app.config.get('CLOUDINARY_AUTH_TOKEN_KEY') or os.environ.get('CLOUDINARY_AUTH_TOKEN_KEY')
+        if not token_key:
+            abort(503, description='Secure media delivery is not configured.')
+        from services.cloudinary_service import configure_cloudinary
+        import cloudinary.utils
+        configure_cloudinary()
+        try:
+            # Requires Cloudinary token-based authentication enabled on the account.
+            url, _ = cloudinary.utils.cloudinary_url(
+                media.public_id,
+                resource_type=media.resource_type or 'image',
+                type='authenticated',
+                secure=True,
+                sign_url=True,
+                auth_token={'key': token_key, 'duration': 120},
+            )
+            return url
+        except Exception:
+            current_app.logger.exception('Could not generate authenticated media URL')
+            abort(503, description='Secure media is temporarily unavailable.')
+    if delivery != 'upload':
+        # Public posts with authenticated assets need explicit re-publication.
+        abort(503, description='Media needs publishing migration.')
+    return media.media_url
+
+
 def render_content_detail(creator, post, public_username=None):
     if creator is None or post is None or creator.creator_account_id != post.creator_account_id:
         abort(404)
@@ -225,6 +261,11 @@ def render_content_detail(creator, post, public_username=None):
         post_id=post.id, media_type='gallery_image',
     ).order_by(ContentMedia.media_order.asc()).all()
     video = ContentMedia.query.filter_by(post_id=post.id, media_type='video').first()
+    protected = is_exclusive(post)
+    gallery_sources = {item.id: _media_display_url(item, protected) for item in gallery_images}
+    video_source = _media_display_url(video, protected) if video else None
+    # Private thumbnails must not expose a public URL; use the video player itself.
+    video_poster = None if protected else (video.thumbnail_url if video else None)
     comments = Comment.query.filter_by(
         post_id=post.id, parent_id=None, status='approved',
     ).order_by(Comment.created_at.desc()).all()
@@ -232,6 +273,7 @@ def render_content_detail(creator, post, public_username=None):
     response = make_response(render_template(
         'public/content_detail.html', creator=creator, post=post,
         gallery_images=gallery_images, video=video, comments=comments,
+        gallery_sources=gallery_sources, video_source=video_source, video_poster=video_poster,
         comment_count=comment_count, public_username=public_username,
         member_has_access=has_active_membership(post.creator_account_id),
         membership_sign_in_url=membership_sign_in_url(db.session.get(CreatorAccount, post.creator_account_id)),
