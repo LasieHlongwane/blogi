@@ -1046,6 +1046,8 @@ def process_post_video(
         existing.public_id = result["public_id"]
 
         existing.resource_type = "video"
+        
+        existing.delivery_type = result["delivery_type"]
 
         existing.thumbnail_url = result.get(
             "thumbnail_url"
@@ -1071,6 +1073,9 @@ def process_post_video(
             media_url=result["url"],
             public_id=result["public_id"],
             resource_type="video",
+            
+            delivery_type=result["delivery_type"],
+            
             thumbnail_url=result.get(
                 "thumbnail_url"
             ),
@@ -1111,125 +1116,67 @@ def process_post_video(
 # ============================================================
 # STORY GALLERY
 # ============================================================
-
-def process_story_gallery(
-    creator,
-    post,
-    files,
-):
-
-    files = [
-        file
-        for file in files
-        if file and file.filename
-    ]
-
+def process_story_gallery(creator, post, files):
+    """Upload public galleries normally and exclusive galleries as authenticated assets."""
+    files = [file for file in files if file and file.filename]
     if not files:
         return True, None
-
     if len(files) > 10:
-
-        return (
-            False,
-            "You can upload up to 10 "
-            "gallery images at a time.",
-        )
-
+        return False, "You can upload up to 10 gallery images at a time."
     for file in files:
-
         valid, error = validate_image(file)
-
         if not valid:
             return False, error
 
-    # --------------------------------------------------------
-    # EXCLUSIVE MEDIA
-    # --------------------------------------------------------
-
-    is_private = (
-        post.access_level == "subscriber"
-    )
-
+    is_private = post.access_level in ("subscriber", "exclusive")
     latest = (
-        ContentMedia.query
-        .filter_by(
-            post_id=post.id,
-            media_type="gallery_image",
-        )
-        .order_by(
-            ContentMedia.media_order.desc()
-        )
-        .first()
+        ContentMedia.query.filter_by(post_id=post.id, media_type="gallery_image")
+        .order_by(ContentMedia.media_order.desc()).first()
     )
-
-    next_order = (
-        latest.media_order + 1
-        if latest
-        else 1
-    )
-
+    next_order = latest.media_order + 1 if latest else 1
     uploaded = []
-
     try:
-
         for file in files:
-
             result = upload_image(
                 file,
-                folder=post_cloudinary_folder(
-                    creator,
-                    post,
-                    "gallery",
-                ),
+                folder=post_cloudinary_folder(creator, post, "gallery"),
                 private=is_private,
             )
-
             uploaded.append(result)
-
+            delivery_type = result.get("delivery_type")
+            if delivery_type != ("authenticated" if is_private else "upload"):
+                raise ValueError("Cloudinary returned an unexpected delivery type")
+            if not result.get("public_id"):
+                raise ValueError("Cloudinary upload has no public ID")
             media = ContentMedia(
                 post_id=post.id,
                 media_type="gallery_image",
-                media_url=result["url"],
+                media_url=None if is_private else result.get("url"),
                 public_id=result["public_id"],
                 resource_type="image",
+                delivery_type=delivery_type,
                 width=result.get("width"),
                 height=result.get("height"),
                 media_order=next_order,
             )
-
             db.session.add(media)
-
             next_order += 1
-
+        db.session.flush()
     except Exception:
-
+        db.session.rollback()
         for result in uploaded:
-
             try:
-
                 delete_media(
                     result.get("public_id"),
                     resource_type="image",
-                    delivery_type=result.get(
-                        "delivery_type",
-                        "upload",
-                    ),
+                    delivery_type=result.get("delivery_type", "upload"),
                 )
-
             except Exception:
-
-                current_app.logger.exception(
-                    "Gallery cleanup failed."
-                )
-
-        db.session.rollback()
-
-        return (
-            False,
-            "Gallery upload failed.",
-        )
-
+                current_app.logger.exception("Gallery cleanup failed.")
+        return False, "Gallery upload failed."
     return True, None
+
+
 # ============================================================
 # CAMPAIGN PAYMENT STATISTICS
 # ============================================================
