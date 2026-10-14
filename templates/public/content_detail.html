@@ -83,9 +83,9 @@ body.kalxa-lightbox-open{overflow:hidden}
     {% endif %}
     {% if post.content_type in ['reel', 'vlog'] and video %}
     <div class="public-video-player {% if post.content_type == 'reel' %}reel-player{% endif %}">
-        <button type="button" class="media-open" data-media-type="video" data-media-src="{{ video.media_url }}" data-media-poster="{{ video.thumbnail_url or '' }}" data-media-caption="{{ post.title }} — {{ post.content_type|capitalize }}" aria-label="Play {{ post.content_type }} fullscreen">
-            <video playsinline muted preload="metadata" tabindex="-1" aria-hidden="true" {% if video.thumbnail_url %}poster="{{ video.thumbnail_url }}"{% endif %}>
-                <source src="{{ video.media_url }}">
+        <button type="button" class="media-open" data-media-type="video" data-media-src="{{ video_source }}" data-media-poster="{{ video_poster or '' }}" data-media-caption="{{ post.title }} — {{ post.content_type|capitalize }}" aria-label="Play {{ post.content_type }} fullscreen">
+            <video playsinline muted preload="metadata" tabindex="-1" aria-hidden="true" {% if video_poster %}poster="{{ video_poster }}"{% endif %}>
+                <source src="{{ video_source }}">
             </video>
             <span class="video-play-icon" aria-hidden="true">▶</span>
             <span class="media-expand-label" aria-hidden="true">⛶ Watch fullscreen</span>
@@ -103,8 +103,8 @@ body.kalxa-lightbox-open{overflow:hidden}
     <div class="public-story-gallery">
         {% for image in gallery_images %}
         <figure>
-            <button type="button" class="media-open" data-media-type="image" data-media-src="{{ image.media_url }}" data-media-caption="{{ image.caption or post.title }}" aria-label="View story image {{ loop.index }} fullscreen">
-                <img src="{{ image.media_url }}" alt="{{ image.caption or post.title }}" loading="lazy">
+            <button type="button" class="media-open" data-media-type="image" data-media-src="{{ gallery_sources.get(image.id) }}" data-media-caption="{{ image.caption or post.title }}" aria-label="View story image {{ loop.index }} fullscreen">
+                <img src="{{ gallery_sources.get(image.id) }}" alt="{{ image.caption or post.title }}" loading="lazy">
                 <span class="media-expand-label" aria-hidden="true">⛶ View</span>
             </button>
             {% if image.caption %}<figcaption>{{ image.caption }}</figcaption>{% endif %}
