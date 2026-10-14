@@ -1,3 +1,4 @@
+
 import os
 
 from dotenv import load_dotenv
@@ -73,33 +74,141 @@ def get_database_engine_options(database_url):
     if url.get_backend_name() == "postgresql":
 
         return {
-            # Check connections before reusing them.
             "pool_pre_ping": True,
-
-            # Recycle connections older than 5 minutes.
             "pool_recycle": 300,
-
-            # Maximum number of persistent connections
-            # maintained per SQLAlchemy engine.
             "pool_size": 3,
-
-            # Allow two additional temporary connections.
             "max_overflow": 2,
-
-            # Wait up to 30 seconds for a connection.
             "pool_timeout": 30,
 
-            # PostgreSQL driver connection settings.
             "connect_args": {
                 "connect_timeout": 10,
                 "sslmode": "require",
             },
         }
 
-    # SQLite does not use PostgreSQL SSL settings.
     return {
         "pool_pre_ping": True,
     }
+
+
+# ============================================================
+# KALXA CREATOR — PRICING CONFIGURATION
+# ============================================================
+
+# Store monetary values in cents to avoid floating-point
+# errors when working with payments.
+#
+# R1.00 = 100 cents
+
+PLAN_PRICES_CENTS = {
+    "free": 0,
+    "standard": 30000,
+    "premium": 50000,
+}
+
+# Commission rates are stored in basis points.
+#
+# 10000 basis points = 100%
+# 2500 basis points = 25%
+#  800 basis points = 8%
+#  500 basis points = 5%
+
+PLAN_COMMISSION_BPS = {
+    "free": 2500,
+    "standard": 800,
+    "premium": 500,
+}
+
+# Standard → Premium upgrade:
+# R500 Premium - R300 Standard = R200
+#
+# Eligibility must be verified using the creator's
+# successful Standard activation payment record.
+
+STANDARD_TO_PREMIUM_UPGRADE_CENTS = 20000
+
+
+def get_plan_price_cents(plan):
+    """
+    Return the once-off activation price for a plan.
+    """
+
+    plan = str(plan).strip().lower()
+
+    if plan not in PLAN_PRICES_CENTS:
+        raise ValueError(
+            f"Unsupported creator plan: {plan}"
+        )
+
+    return PLAN_PRICES_CENTS[plan]
+
+
+def get_plan_commission_bps(plan):
+    """
+    Return the Kalxa commission rate in basis points.
+    """
+
+    plan = str(plan).strip().lower()
+
+    if plan not in PLAN_COMMISSION_BPS:
+        raise ValueError(
+            f"Unsupported creator plan: {plan}"
+        )
+
+    return PLAN_COMMISSION_BPS[plan]
+
+
+def calculate_platform_fee_cents(
+    amount_cents,
+    plan,
+):
+    """
+    Calculate Kalxa's commission on a fan payment.
+
+    Uses integer arithmetic with half-up rounding.
+
+    Payment provider fees are not deducted here.
+    """
+
+    if (
+        isinstance(amount_cents, bool)
+        or not isinstance(amount_cents, int)
+        or amount_cents <= 0
+    ):
+        raise ValueError(
+            "Payment amount must be a positive integer "
+            "number of cents."
+        )
+
+    commission_bps = get_plan_commission_bps(
+        plan
+    )
+
+    return (
+        amount_cents * commission_bps + 5000
+    ) // 10000
+
+
+def calculate_creator_share_cents(
+    amount_cents,
+    plan,
+):
+    """
+    Return the creator's share after Kalxa commission.
+
+    Payment provider fees are excluded.
+    """
+
+    platform_fee_cents = (
+        calculate_platform_fee_cents(
+            amount_cents,
+            plan,
+        )
+    )
+
+    return (
+        amount_cents - platform_fee_cents
+    )
 
 
 # ============================================================
@@ -224,6 +333,8 @@ class Config:
         )
     )
 
+    # Preserved for compatibility with existing features.
+    # Creator plan activation fees are once-off, not monthly.
     CREATOR_SUBSCRIPTION_DAYS = int(
         os.getenv(
             "CREATOR_SUBSCRIPTION_DAYS",
@@ -232,15 +343,52 @@ class Config:
     )
 
     # ========================================================
+    # CREATOR PRICING
+    # ========================================================
+
+    CREATOR_FREE_ACTIVATION_CENTS = (
+        PLAN_PRICES_CENTS["free"]
+    )
+
+    CREATOR_STANDARD_ACTIVATION_CENTS = (
+        PLAN_PRICES_CENTS["standard"]
+    )
+
+    CREATOR_PREMIUM_ACTIVATION_CENTS = (
+        PLAN_PRICES_CENTS["premium"]
+    )
+
+    CREATOR_STANDARD_TO_PREMIUM_UPGRADE_CENTS = (
+        STANDARD_TO_PREMIUM_UPGRADE_CENTS
+    )
+
+    CREATOR_FREE_COMMISSION_BPS = (
+        PLAN_COMMISSION_BPS["free"]
+    )
+
+    CREATOR_STANDARD_COMMISSION_BPS = (
+        PLAN_COMMISSION_BPS["standard"]
+    )
+
+    CREATOR_PREMIUM_COMMISSION_BPS = (
+        PLAN_COMMISSION_BPS["premium"]
+    )
+
+    CREATOR_PLAN_PRICES_CENTS = (
+        PLAN_PRICES_CENTS.copy()
+    )
+
+    CREATOR_PLAN_COMMISSION_BPS = (
+        PLAN_COMMISSION_BPS.copy()
+    )
+
+    # ========================================================
     # YOCO
     # ========================================================
     #
-    # IMPORTANT:
-    #
-    # YOCO_SECRET_KEY must ONLY exist in the environment.
+    # Yoco handles once-off creator plan activations.
     #
     # Never commit actual Yoco credentials to GitHub.
-    #
     # ========================================================
 
     YOCO_SECRET_KEY = os.getenv(
@@ -258,4 +406,29 @@ class Config:
 
     YOCO_WEBHOOK_SECRET = os.getenv(
         "YOCO_WEBHOOK_SECRET"
+    )
+
+    # ========================================================
+    # PAYSTACK
+    # ========================================================
+    #
+    # Paystack handles eligible fan payments.
+    #
+    # Commission must be calculated and recorded
+    # server-side for each payment.
+    #
+    # Never expose the secret key in frontend code.
+    # ========================================================
+
+    PAYSTACK_SECRET_KEY = os.getenv(
+        "PAYSTACK_SECRET_KEY"
+    )
+
+    PAYSTACK_PUBLIC_KEY = os.getenv(
+        "PAYSTACK_PUBLIC_KEY"
+    )
+
+    PAYSTACK_BASE_URL = os.getenv(
+        "PAYSTACK_BASE_URL",
+        "https://api.paystack.co",
     )
