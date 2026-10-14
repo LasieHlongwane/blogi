@@ -28,37 +28,117 @@ class AdminUser(PasswordMixin, db.Model):
 
 
 class CreatorAccount(PasswordMixin, db.Model):
-    __tablename__ = 'creator_accounts'
+    __tablename__ = "creator_accounts"
+
     id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False, index=True)
-    email = db.Column(db.String(255), unique=True, nullable=False, index=True)
-    password_hash = db.Column(db.String(255), nullable=False)
-    # New accounts should be created with plan='free', account_status='active'.
-    # Do not infer a legacy paid activation from plan alone.
-    plan = db.Column(db.String(30), default='free', nullable=False, index=True)
-    account_status = db.Column(db.String(30), default='active', nullable=False, index=True)
-    payment_status = db.Column(db.String(30), default='unpaid', nullable=False, index=True)
-    registration_paid_at = db.Column(db.DateTime(timezone=True))
-    approved_at = db.Column(db.DateTime(timezone=True))
-    # Legacy subscription columns retained for backward compatibility.
-    subscription_status = db.Column(db.String(30), default='inactive', nullable=False, index=True)
-    subscription_started_at = db.Column(db.DateTime(timezone=True))
-    subscription_expires_at = db.Column(db.DateTime(timezone=True), index=True)
-    last_login_at = db.Column(db.DateTime(timezone=True))
-    created_at = db.Column(db.DateTime(timezone=True), default=utc_now, nullable=False)
-    updated_at = db.Column(db.DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
+
+    username = db.Column(
+        db.String(80),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    email = db.Column(
+        db.String(255),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    password_hash = db.Column(
+        db.String(255),
+        nullable=False,
+    )
+
+    # New creators start on Free.
+    plan = db.Column(
+        db.String(30),
+        default="free",
+        nullable=False,
+        index=True,
+    )
+
+    account_status = db.Column(
+        db.String(30),
+        default="active",
+        nullable=False,
+        index=True,
+    )
+
+    payment_status = db.Column(
+        db.String(30),
+        default="unpaid",
+        nullable=False,
+        index=True,
+    )
+
+    registration_paid_at = db.Column(
+        db.DateTime(timezone=True),
+    )
+
+    approved_at = db.Column(
+        db.DateTime(timezone=True),
+    )
+
+    # Legacy subscription fields retained.
+    subscription_status = db.Column(
+        db.String(30),
+        default="inactive",
+        nullable=False,
+        index=True,
+    )
+
+    subscription_started_at = db.Column(
+        db.DateTime(timezone=True),
+    )
+
+    subscription_expires_at = db.Column(
+        db.DateTime(timezone=True),
+        index=True,
+    )
+
+    last_login_at = db.Column(
+        db.DateTime(timezone=True),
+    )
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    updated_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        onupdate=utc_now,
+        nullable=False,
+    )
 
     @property
     def monetization_enabled(self):
-        # Free creators may accept Buy Me a Coffee support.
-        return self.account_status == 'active' and (
-            self.plan == 'free' or (
-                self.plan in ('standard', 'premium')
-                and self.payment_status == 'paid'
+        """
+        Free creators may receive Buy Me a Coffee support.
+
+        Paid creators require a successful activation state.
+
+        Other monetization restrictions must still be enforced
+        by the relevant feature routes.
+        """
+
+        if self.account_status != "active":
+            return False
+
+        if self.plan == "free":
+            return True
+
+        if self.plan in ("standard", "premium"):
+            return (
+                self.payment_status == "paid"
                 and self.registration_paid_at is not None
             )
-        )
 
+        return False
 
 class PlatformSubscription(db.Model):
     # Legacy subscription record retained to avoid breaking existing routes.
