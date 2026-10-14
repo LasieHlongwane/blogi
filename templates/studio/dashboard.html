@@ -276,6 +276,7 @@ Dashboard | Kalxa Creator Studio
     .upgrade-panel-note {
         margin-top: 13px;
         font-size: 11px;
+        line-height: 1.6;
         opacity: 0.7;
     }
 
@@ -388,15 +389,27 @@ Dashboard | Kalxa Creator Studio
      SAFE ACCOUNT CONTEXT
 ========================================================== -->
 
-{% set dashboard_account = creator_account|default(none, true) %}
+{% set dashboard_account =
+    creator_account|default(none, true)
+%}
 
 {% if dashboard_account is none %}
-    {% set dashboard_account = g.get('creator_account', none) %}
+
+    {% set dashboard_account =
+        g.get('creator_account', none)
+    %}
+
 {% endif %}
 
-{% set dashboard_plan = dashboard_account.plan|default('free', true)|lower if dashboard_account else 'free' %}
+{% set dashboard_plan =
+    dashboard_account.plan|default('free', true)|lower
+    if dashboard_account else 'free'
+%}
 
-{% set dashboard_status = dashboard_account.account_status|default('unknown', true) if dashboard_account else 'unknown' %}
+{% set dashboard_status =
+    dashboard_account.account_status|default('unknown', true)
+    if dashboard_account else 'unknown'
+%}
 
 {% set dashboard_paid_verified = (
     dashboard_account is not none
@@ -410,6 +423,11 @@ Dashboard | Kalxa Creator Studio
     and dashboard_plan in ['standard', 'premium']
 ) %}
 
+{% set dashboard_free_active = (
+    dashboard_status == 'active'
+    and dashboard_plan == 'free'
+) %}
+
 {% set dashboard_effective_plan = (
     dashboard_plan if dashboard_paid_active else 'free'
 ) %}
@@ -421,7 +439,26 @@ Dashboard | Kalxa Creator Studio
     and dashboard_effective_plan == 'premium'
 ) %}
 
-{% set dashboard_can_support = dashboard_status == 'active' %}
+{% set dashboard_can_support = (
+    dashboard_status == 'active'
+    and (
+        dashboard_free_active
+        or dashboard_paid_active
+    )
+) %}
+
+{#
+    This value must come from a successful,
+    verified Standard payment in the ledger.
+
+    It must not be inferred from the plan name.
+    The checkout endpoint must independently
+    validate eligibility.
+#}
+
+{% set dashboard_verified_standard_payment =
+    has_verified_standard_payment|default(false)
+%}
 
 <div class="creator-dashboard">
 
@@ -475,28 +512,30 @@ Dashboard | Kalxa Creator Studio
                 {% if dashboard_has_premium %}
 
                     <p class="current-plan-price">
-                        R150 once-off
+                        Premium · Once-off activation
                     </p>
 
                     <p class="current-plan-description">
                         Your Premium plan is activated.
                         Access the full creator experience,
                         including fundraising and advanced tools.
+                        There is no monthly Kalxa platform renewal.
                     </p>
 
                 {% elif dashboard_has_standard %}
 
                     <p class="current-plan-price">
-                        R100 once-off
+                        Standard · Once-off activation
                     </p>
 
                     <p class="current-plan-description">
                         Your Standard plan is activated.
                         Publish exclusive content and keep
                         more of your fan contributions.
+                        There is no monthly Kalxa platform renewal.
                     </p>
 
-                {% else %}
+                {% elif dashboard_free_active %}
 
                     <p class="current-plan-price">
                         R0 forever
@@ -506,6 +545,18 @@ Dashboard | Kalxa Creator Studio
                         Start publishing, grow your community
                         and receive fan support.
                         Upgrade whenever you're ready.
+                    </p>
+
+                {% else %}
+
+                    <p class="current-plan-price">
+                        Activation pending
+                    </p>
+
+                    <p class="current-plan-description">
+                        Your account or payment status
+                        requires verification before
+                        paid creator features can be enabled.
                     </p>
 
                 {% endif %}
@@ -626,16 +677,22 @@ Dashboard | Kalxa Creator Studio
                     KALXA COMMISSION
                 </span>
 
-                {% if dashboard_has_standard %}
+                {% if dashboard_has_premium %}
 
                     <strong>
-                        3%
+                        5%
+                    </strong>
+
+                {% elif dashboard_has_standard %}
+
+                    <strong>
+                        8%
                     </strong>
 
                 {% else %}
 
                     <strong>
-                        23%
+                        25%
                     </strong>
 
                 {% endif %}
@@ -659,7 +716,7 @@ Dashboard | Kalxa Creator Studio
 
         {% if dashboard_status == 'active' %}
 
-            {% if dashboard_effective_plan == 'free' %}
+            {% if dashboard_free_active %}
 
                 <div class="upgrade-panel">
 
@@ -668,12 +725,13 @@ Dashboard | Kalxa Creator Studio
                     </h3>
 
                     <p>
-                        Upgrade to Standard to reduce your Kalxa
-                        commission from 23% to 3% and unlock
-                        exclusive content.
+                        Activate Standard for R300 once-off
+                        to reduce Kalxa's commission from
+                        25% to 8% and unlock exclusive content.
 
-                        Or choose Premium for fundraising,
-                        advanced analytics and custom domains.
+                        Or activate Premium for R500 once-off
+                        and receive a 5% commission rate,
+                        fundraising and advanced creator tools.
                     </p>
 
                     <div class="upgrade-actions">
@@ -683,6 +741,8 @@ Dashboard | Kalxa Creator Studio
                             action="{{ url_for('payments.creator_checkout') }}"
                         >
 
+                            {# Add your CSRF field if enabled. #}
+
                             <input
                                 type="hidden"
                                 name="plan"
@@ -690,7 +750,7 @@ Dashboard | Kalxa Creator Studio
                             >
 
                             <button type="submit">
-                                Standard · R100 once-off
+                                Standard · R300 once-off
                             </button>
 
                         </form>
@@ -699,6 +759,8 @@ Dashboard | Kalxa Creator Studio
                             method="POST"
                             action="{{ url_for('payments.creator_checkout') }}"
                         >
+
+                            {# Add your CSRF field if enabled. #}
 
                             <input
                                 type="hidden"
@@ -710,7 +772,7 @@ Dashboard | Kalxa Creator Studio
                                 type="submit"
                                 class="secondary"
                             >
-                                Premium · R150 once-off
+                                Premium · R500 once-off
                             </button>
 
                         </form>
@@ -719,7 +781,7 @@ Dashboard | Kalxa Creator Studio
 
                     <div class="upgrade-panel-note">
                         Secure one-time activation with Yoco.
-                        No monthly Kalxa subscription fees.
+                        No monthly Kalxa platform subscription fees.
                     </div>
 
                 </div>
@@ -732,37 +794,93 @@ Dashboard | Kalxa Creator Studio
                         Ready for Premium?
                     </h3>
 
-                    <p>
-                        Upgrade your Standard account for
-                        R50 once-off to unlock fundraising,
-                        advanced analytics and custom domains.
-                    </p>
+                    {% if dashboard_verified_standard_payment %}
 
-                    <div class="upgrade-actions">
+                        <p>
+                            Upgrade your verified Standard account
+                            for R200 once-off to unlock fundraising,
+                            advanced analytics and custom domains.
 
-                        <form
-                            method="POST"
-                            action="{{ url_for('payments.creator_checkout') }}"
-                        >
+                            Your Kalxa commission will decrease
+                            from 8% to 5% after successful activation.
+                        </p>
 
-                            <input
-                                type="hidden"
-                                name="plan"
-                                value="premium"
+                        <div class="upgrade-actions">
+
+                            <form
+                                method="POST"
+                                action="{{ url_for('payments.creator_checkout') }}"
                             >
 
-                            <button type="submit">
-                                Upgrade to Premium · R50
-                            </button>
+                                {# Add your CSRF field if enabled. #}
 
-                        </form>
+                                <input
+                                    type="hidden"
+                                    name="plan"
+                                    value="premium"
+                                >
 
-                    </div>
+                                <button type="submit">
+                                    Upgrade to Premium · R200
+                                </button>
+
+                            </form>
+
+                        </div>
+
+                    {% else %}
+
+                        <p>
+                            Your previous Standard activation
+                            must be verified in Kalxa's payment
+                            records before the R200 Premium
+                            upgrade can be offered.
+                        </p>
+
+                        <div class="upgrade-actions">
+
+                            <a
+                                href="{{ url_for('creator_auth.pending') }}"
+                                style="
+                                    display: inline-block;
+                                    padding: 12px 16px;
+                                    border-radius: 9px;
+                                    background: #ffffff;
+                                    color: #111318;
+                                    font-size: 12px;
+                                    font-weight: 800;
+                                    text-decoration: none;
+                                "
+                            >
+                                Check activation status →
+                            </a>
+
+                        </div>
+
+                    {% endif %}
 
                     <div class="upgrade-panel-note">
-                        One-time upgrade.
-                        Your existing content and audience stay intact.
+                        Your existing content and audience
+                        remain intact when you upgrade.
                     </div>
+
+                </div>
+
+            {% elif dashboard_plan in ['standard', 'premium']
+                and not dashboard_paid_active %}
+
+                <div class="upgrade-panel">
+
+                    <h3>
+                        Payment verification required
+                    </h3>
+
+                    <p>
+                        Your account is marked as a paid plan,
+                        but the activation has not yet been
+                        verified. Contact Kalxa support if
+                        you have already completed payment.
+                    </p>
 
                 </div>
 
@@ -911,11 +1029,15 @@ Dashboard | Kalxa Creator Studio
                 </p>
 
                 <small>
-                    {% if dashboard_has_standard %}
-                        3% Kalxa commission
+
+                    {% if dashboard_has_premium %}
+                        5% Kalxa commission
+                    {% elif dashboard_has_standard %}
+                        8% Kalxa commission
                     {% else %}
-                        23% Kalxa commission
+                        25% Kalxa commission
                     {% endif %}
+
                 </small>
 
             </a>
