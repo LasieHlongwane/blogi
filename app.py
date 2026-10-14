@@ -6,9 +6,12 @@ Features:
 - Creator websites
 - Creator authentication
 - Creator Studio
-- Fan payments
+- Fan payments / Buy Me a Coffee
+- Exclusive creator memberships
+- Email-based membership architecture
+- Manual monthly membership renewals
+- Paystack split-payment integration
 - Yoco plan activation
-- Paystack integration
 - Custom-domain resolution
 - Neon PostgreSQL
 - Flask-Migrate
@@ -38,23 +41,62 @@ def create_app():
     app.config.from_object(Config)
 
     # ========================================================
+    # EXCLUSIVE MEMBERSHIP CONFIGURATION
+    # ========================================================
+    #
+    # Memberships use manual monthly renewal.
+    #
+    # Subscribers:
+    # - Choose an amount from R30 upwards.
+    # - Pay through Paystack.
+    # - Do not need traditional customer accounts.
+    # - Will authenticate using secure email links.
+    #
+    # IMPORTANT:
+    # These settings do not automatically activate
+    # membership access or recurring billing.
+    # ========================================================
+
+    app.config.setdefault(
+        "MEMBERSHIP_MIN_AMOUNT_CENTS",
+        3000,
+    )
+
+    app.config.setdefault(
+        "MEMBERSHIP_MAX_AMOUNT_CENTS",
+        10_000_000,
+    )
+
+    app.config.setdefault(
+        "MEMBERSHIP_CURRENCY",
+        "ZAR",
+    )
+
+    app.config.setdefault(
+        "MEMBERSHIP_PAYMENT_PROVIDER",
+        "paystack",
+    )
+
+    app.config.setdefault(
+        "MEMBERSHIP_AUTOMATIC_RENEWAL",
+        False,
+    )
+
+    app.config.setdefault(
+        "MEMBERSHIP_RENEWAL_REMINDER_DAYS",
+        7,
+    )
+
+    # ========================================================
     # NEON POSTGRESQL CONNECTION RELIABILITY
     # ========================================================
     #
     # Neon may close idle database connections.
     #
-    # Without pool_pre_ping, SQLAlchemy may attempt to
-    # reuse a connection that is no longer available.
+    # pool_pre_ping checks connections before reuse.
+    # pool_recycle avoids excessively old connections.
     #
-    # This can produce errors such as:
-    #
-    # psycopg.OperationalError:
-    # SSL connection has been closed unexpectedly
-    #
-    # These options improve connection reliability.
-    #
-    # IMPORTANT:
-    # Configure the engine before db.init_app(app).
+    # Configure these options before db.init_app(app).
     # ========================================================
 
     existing_engine_options = dict(
@@ -69,8 +111,10 @@ def create_app():
         "pool_timeout": 30,
     }
 
-    # Preserve other engine options already supplied by Config.
-    existing_engine_options.update(connection_options)
+    # Preserve other options already supplied by Config.
+    existing_engine_options.update(
+        connection_options
+    )
 
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = (
         existing_engine_options
@@ -94,51 +138,139 @@ def create_app():
     # ========================================================
     # REGISTER SQLALCHEMY MODELS
     # ========================================================
+    #
+    # Import models before running migrations.
+    #
+    # Existing application models are defined in models.py.
+    #
+    # New membership models are defined in
+    # membership_models.py.
+    #
+    # Importing both modules ensures Flask-Migrate
+    # can discover the membership tables.
+    # ========================================================
 
     import models  # noqa: F401
+
+    import membership_models  # noqa: F401
 
     # ========================================================
     # IMPORT BLUEPRINTS
     # ========================================================
 
+    # --------------------------------------------------------
+    # PUBLIC CREATOR WEBSITES
+    # --------------------------------------------------------
+
     from routes.public import public_bp
+
+    # --------------------------------------------------------
+    # PLATFORM ADMINISTRATION
+    # --------------------------------------------------------
 
     from routes.admin import admin_bp
 
+    # --------------------------------------------------------
+    # CREATOR AUTHENTICATION
+    # --------------------------------------------------------
+
     from routes.creator_auth import creator_auth_bp
+
+    # --------------------------------------------------------
+    # BUY ME A COFFEE / FUNDRAISING
+    # --------------------------------------------------------
 
     from routes.fan_payments import fan_payments_bp
 
+    # --------------------------------------------------------
+    # CREATOR STUDIO
+    # --------------------------------------------------------
+
     from routes.studio import studio_bp
 
+    # --------------------------------------------------------
+    # YOCO CREATOR PLAN PAYMENTS
+    # --------------------------------------------------------
+
     from routes.payments import payments_bp
+
+    # --------------------------------------------------------
+    # EXCLUSIVE MEMBERSHIPS
+    # --------------------------------------------------------
+    #
+    # Handles:
+    #
+    # - Public membership checkout
+    # - Custom membership contribution amounts
+    # - Paystack membership payments
+    # - Payment verification
+    # - Membership activation
+    # - Manual renewal
+    #
+    # Passwordless email login and protected media
+    # will be integrated separately.
+    # --------------------------------------------------------
+
+    from routes.membership_routes import membership_bp
 
     # ========================================================
     # REGISTER BLUEPRINTS
     # ========================================================
 
+    # --------------------------------------------------------
+    # PUBLIC
+    # --------------------------------------------------------
+
     app.register_blueprint(
         public_bp
     )
+
+    # --------------------------------------------------------
+    # ADMIN
+    # --------------------------------------------------------
 
     app.register_blueprint(
         admin_bp
     )
 
+    # --------------------------------------------------------
+    # CREATOR AUTH
+    # --------------------------------------------------------
+
     app.register_blueprint(
         creator_auth_bp
     )
+
+    # --------------------------------------------------------
+    # FAN PAYMENTS
+    # --------------------------------------------------------
 
     app.register_blueprint(
         fan_payments_bp
     )
 
+    # --------------------------------------------------------
+    # CREATOR STUDIO
+    # --------------------------------------------------------
+
     app.register_blueprint(
         studio_bp
     )
 
+    # --------------------------------------------------------
+    # YOCO PAYMENTS
+    # --------------------------------------------------------
+
     app.register_blueprint(
         payments_bp
+    )
+
+    # --------------------------------------------------------
+    # EXCLUSIVE MEMBERSHIPS
+    # --------------------------------------------------------
+
+    app.register_blueprint(
+        membership_bp
     )
 
     # ========================================================
@@ -147,7 +279,13 @@ def create_app():
     #
     # Must be installed after blueprint registration.
     #
-    # Used to resolve creator-specific domains.
+    # Resolves:
+    #
+    # - Creator-specific websites
+    # - Creator subdomains
+    # - Custom domains
+    #
+    # Existing hostname resolution behavior is preserved.
     # ========================================================
 
     install_hostname_resolver(
