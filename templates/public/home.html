@@ -1,124 +1,1208 @@
 {% extends "base.html" %}
-{% block title %}{{ site_brand.title if site_brand else (creator.display_name if creator else 'Creator') }}{% endblock %}
+
+{% block title %}
+{{ site_brand.title if site_brand else (creator.display_name if creator else 'Creator') }}
+{% endblock %}
+
 {% block content %}
+
 {% include "public/includes/branding_head.html" %}
-<div class="creator-site creator-public-home" data-creator-theme="{{ site_brand.theme if site_brand else 'light' }}" data-creator-font="{{ site_brand.font_family if site_brand else 'system' }}">
+
+<div
+    class="creator-site creator-public-home"
+    data-creator-theme="{{ site_brand.theme if site_brand else 'light' }}"
+    data-creator-font="{{ site_brand.font_family if site_brand else 'system' }}"
+>
+
 <style>
-.creator-site { background:var(--creator-background,inherit); color:var(--creator-text,inherit); }
-.creator-site[data-creator-font="serif"] {font-family:Georgia,'Times New Roman',serif}
-.creator-site[data-creator-font="mono"] {font-family:Consolas,monospace}
-.creator-site[data-creator-font="sans"] {font-family:Arial,Helvetica,sans-serif}
-.creator-site[data-creator-font="system"] {font-family:system-ui,-apple-system,sans-serif}
-.creator-site .primary-button,.creator-site .newsletter-form button,.creator-site .exclusive-button {background:var(--creator-primary,#17191d);color:#fff}
-.creator-site .secondary-button,.creator-site .content-card-body a,.creator-site .category-pill {border-color:var(--creator-primary,#17191d);color:var(--creator-primary,#17191d)}
-.creator-site .eyebrow,.creator-site .post-category {color:var(--creator-accent,var(--creator-primary,#17191d))}
-.creator-site .creator-brand-header {overflow:hidden;margin-bottom:1.5rem}
-.creator-site .creator-brand-identity {display:flex;align-items:center;gap:1rem;padding:1rem 1.25rem}
-.creator-site .creator-brand-identity h1 {margin:0;font-size:1.4rem}
-.creator-site .creator-brand-identity p {margin:.25rem 0 0}
-.creator-site .creator-brand-footer {padding:2rem 1.25rem;text-align:center}
-.creator-site .creator-brand-footer p {margin:.3rem 0}
+
+/* ============================================================
+   GLOBAL CREATOR THEME
+============================================================ */
+
+.creator-site {
+    background: var(--creator-background, inherit);
+    color: var(--creator-text, inherit);
+}
+
+.creator-site[data-creator-font="serif"] {
+    font-family: Georgia, 'Times New Roman', serif;
+}
+
+.creator-site[data-creator-font="mono"] {
+    font-family: Consolas, monospace;
+}
+
+.creator-site[data-creator-font="sans"] {
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.creator-site[data-creator-font="system"] {
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+.creator-site .primary-button,
+.creator-site .newsletter-form button,
+.creator-site .exclusive-button {
+    background: var(--creator-primary, #17191d);
+    color: #fff;
+}
+
+.creator-site .secondary-button,
+.creator-site .content-card-body a,
+.creator-site .category-pill {
+    border-color: var(--creator-primary, #17191d);
+    color: var(--creator-primary, #17191d);
+}
+
+.creator-site .eyebrow,
+.creator-site .post-category {
+    color: var(
+        --creator-accent,
+        var(--creator-primary, #17191d)
+    );
+}
+
+.creator-site .creator-brand-header {
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.creator-site .creator-brand-identity {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+}
+
+.creator-site .creator-brand-identity h1 {
+    margin: 0;
+    font-size: 1.4rem;
+}
+
+.creator-site .creator-brand-identity p {
+    margin: .25rem 0 0;
+}
+
+.creator-site .creator-brand-footer {
+    padding: 2rem 1.25rem;
+    text-align: center;
+}
+
+.creator-site .creator-brand-footer p {
+    margin: .3rem 0;
+}
+
+/* ============================================================
+   EXCLUSIVE MEMBERSHIP SECTION
+============================================================ */
+
+.creator-site .exclusive-section {
+    padding: 4.5rem 1.25rem;
+    text-align: center;
+}
+
+.creator-site .exclusive-inner {
+    width: 100%;
+    max-width: 680px;
+    margin: 0 auto;
+}
+
+.creator-site .exclusive-label {
+    display: inline-block;
+    margin-bottom: 1rem;
+    font-size: .78rem;
+    font-weight: 800;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+}
+
+.creator-site .exclusive-inner h2 {
+    margin: 0 0 1rem;
+    font-size: clamp(2rem, 5vw, 3rem);
+    line-height: 1.15;
+}
+
+.creator-site .exclusive-description {
+    max-width: 530px;
+    margin: 0 auto 1.8rem;
+    line-height: 1.7;
+}
+
+.creator-site .membership-pricing {
+    max-width: 490px;
+    margin: 2rem auto;
+}
+
+.creator-site .membership-pricing-label {
+    display: block;
+    margin-bottom: 1rem;
+    font-size: .9rem;
+    font-weight: 700;
+}
+
+.creator-site .membership-amount-options {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: .65rem;
+}
+
+.creator-site .membership-amount-option {
+    position: relative;
+    display: block;
+    cursor: pointer;
+}
+
+.creator-site .membership-amount-option input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+
+.creator-site .membership-amount-option span {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 52px;
+    padding: .7rem .35rem;
+    border: 1px solid #d7d7d7;
+    border-radius: 12px;
+    background: #fff;
+    color: #17191d;
+    font-weight: 750;
+    transition:
+        background .2s ease,
+        color .2s ease,
+        border-color .2s ease,
+        transform .2s ease;
+}
+
+.creator-site .membership-amount-option:hover span {
+    transform: translateY(-2px);
+    border-color: var(--creator-primary, #17191d);
+}
+
+.creator-site .membership-amount-option input:checked + span {
+    background: var(--creator-primary, #17191d);
+    border-color: var(--creator-primary, #17191d);
+    color: #fff;
+}
+
+.creator-site .membership-amount-option input:focus-visible + span {
+    outline: 3px solid var(--creator-accent, #f4b942);
+    outline-offset: 3px;
+}
+
+.creator-site .membership-custom-field {
+    display: none;
+    margin-top: 1rem;
+    text-align: left;
+}
+
+.creator-site .membership-custom-field.is-visible {
+    display: block;
+}
+
+.creator-site .membership-custom-field label {
+    display: block;
+    margin-bottom: .45rem;
+    font-size: .85rem;
+    font-weight: 700;
+}
+
+.creator-site .membership-custom-field input {
+    width: 100%;
+    min-height: 50px;
+    padding: .8rem 1rem;
+    border: 1px solid #d7d7d7;
+    border-radius: 12px;
+    background: #fff;
+    color: #17191d;
+    font: inherit;
+}
+
+.creator-site .membership-custom-field input:focus {
+    outline: 2px solid var(--creator-accent, #f4b942);
+    outline-offset: 2px;
+}
+
+.creator-site .membership-selected-price {
+    margin: 1.5rem 0;
+}
+
+.creator-site .membership-selected-price strong {
+    font-size: 2.5rem;
+    font-weight: 850;
+}
+
+.creator-site .membership-selected-price span {
+    font-size: .95rem;
+}
+
+.creator-site .membership-action {
+    display: flex;
+    justify-content: center;
+    margin-top: 1.5rem;
+}
+
+.creator-site .membership-action .exclusive-button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: .5rem;
+    min-height: 52px;
+    padding: .9rem 2rem;
+    border: 0;
+    border-radius: 12px;
+    text-decoration: none;
+    font: inherit;
+    font-weight: 800;
+    cursor: pointer;
+    transition: opacity .2s ease, transform .2s ease;
+}
+
+.creator-site .membership-action .exclusive-button:hover {
+    opacity: .92;
+    transform: translateY(-2px);
+}
+
+.creator-site .membership-action .exclusive-button:focus-visible {
+    outline: 3px solid var(--creator-accent, #f4b942);
+    outline-offset: 3px;
+}
+
+.creator-site .membership-benefits {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: .75rem 1.2rem;
+    margin: 1.5rem 0;
+    font-size: .83rem;
+}
+
+.creator-site .membership-benefits span {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+}
+
+.creator-site .membership-note {
+    display: block;
+    max-width: 480px;
+    margin: 1rem auto 0;
+    font-size: .8rem;
+    line-height: 1.6;
+}
+
+.creator-site .membership-active-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .5rem;
+    margin: 1rem 0;
+    padding: .75rem 1rem;
+    border-radius: 999px;
+    background: #e7f8ec;
+    color: #176332;
+    font-size: .9rem;
+    font-weight: 800;
+}
+
+.creator-site .membership-unavailable {
+    display: inline-block;
+    padding: .9rem 1.2rem;
+    border-radius: 12px;
+    background: #ececec;
+    color: #555;
+    font-size: .9rem;
+}
+
+.creator-site .membership-extra-support {
+    margin-top: 1.2rem;
+    font-size: .85rem;
+}
+
+.creator-site .membership-extra-support a {
+    color: inherit;
+    font-weight: 800;
+    text-decoration: underline;
+}
+
+/* ============================================================
+   RESPONSIVE
+============================================================ */
+
+@media (max-width: 540px) {
+
+    .creator-site .exclusive-section {
+        padding: 3.5rem 1rem;
+    }
+
+    .creator-site .membership-amount-options {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .creator-site .membership-action .exclusive-button {
+        width: 100%;
+    }
+
+    .creator-site .membership-benefits {
+        flex-direction: column;
+        align-items: center;
+        gap: .65rem;
+    }
+
+}
+
 </style>
+
 {% include "public/includes/branding_header.html" %}
+
+<!-- ============================================================
+     CREATOR HERO
+============================================================ -->
+
 <section class="creator-hero">
-  <div class="creator-profile">
-    {% if creator and creator.profile_image_url %}
-      <img src="{{ creator.profile_image_url }}" alt="{{ creator.display_name }}" class="profile-image">
+
+    <div class="creator-profile">
+
+        {% if creator and creator.profile_image_url %}
+
+            <img
+                src="{{ creator.profile_image_url }}"
+                alt="{{ creator.display_name }}"
+                class="profile-image"
+            >
+
+        {% else %}
+
+            <div class="profile-placeholder">♥</div>
+
+        {% endif %}
+
+        <div class="creator-info">
+
+            <span class="eyebrow">CREATOR</span>
+
+            <h1>
+                {{ creator.display_name if creator else 'Your Creator Name' }}
+            </h1>
+
+            <p class="tagline">
+                {{
+                    site_brand.tagline
+                    if site_brand and site_brand.tagline
+                    else (
+                        creator.tagline
+                        if creator and creator.tagline
+                        else 'Stories, moments and experiences worth sharing.'
+                    )
+                }}
+            </p>
+
+            {% if creator and creator.bio %}
+
+                <p class="bio">
+                    {{ creator.bio }}
+                </p>
+
+            {% endif %}
+
+            <div class="hero-actions">
+
+                <a href="#latest" class="primary-button">
+                    Explore my world
+                </a>
+
+                <a href="#newsletter" class="secondary-button">
+                    Subscribe
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    {% if creator and creator.intro_reel_url %}
+
+        <div class="intro-reel">
+
+            <span class="eyebrow">MEET ME</span>
+
+            <video
+                controls
+                playsinline
+                preload="metadata"
+                {% if creator.intro_reel_thumbnail_url %}
+                    poster="{{ creator.intro_reel_thumbnail_url }}"
+                {% endif %}
+            >
+
+                <source src="{{ creator.intro_reel_url }}">
+
+                Your browser does not support video.
+
+            </video>
+
+        </div>
+
     {% else %}
-      <div class="profile-placeholder">♥</div>
+
+        <div class="intro-placeholder">
+
+            <div class="play-icon">▶</div>
+
+            <strong>Meet Me</strong>
+
+            <span>
+                Introduction reel coming soon.
+            </span>
+
+        </div>
+
     {% endif %}
-    <div class="creator-info">
-      <span class="eyebrow">CREATOR</span>
-      <h1>{{ creator.display_name if creator else 'Your Creator Name' }}</h1>
-      <p class="tagline">{{ (site_brand.tagline if site_brand and site_brand.tagline else (creator.tagline if creator and creator.tagline else 'Stories, moments and experiences worth sharing.')) }}</p>
-      {% if creator and creator.bio %}<p class="bio">{{ creator.bio }}</p>{% endif %}
-      <div class="hero-actions">
-        <a href="#latest" class="primary-button">Explore my world</a>
-        <a href="#newsletter" class="secondary-button">Subscribe</a>
-      </div>
-    </div>
-  </div>
-  {% if creator and creator.intro_reel_url %}
-    <div class="intro-reel">
-      <span class="eyebrow">MEET ME</span>
-      <video controls playsinline preload="metadata" {% if creator.intro_reel_thumbnail_url %}poster="{{ creator.intro_reel_thumbnail_url }}"{% endif %}>
-        <source src="{{ creator.intro_reel_url }}">Your browser does not support video.
-      </video>
-    </div>
-  {% else %}
-    <div class="intro-placeholder"><div class="play-icon">▶</div><strong>Meet Me</strong><span>Introduction reel coming soon.</span></div>
-  {% endif %}
+
 </section>
+
+<!-- ============================================================
+     CATEGORIES
+============================================================ -->
+
 {% if categories %}
+
 <section class="categories-section">
-  <div class="section-heading"><span class="eyebrow">EXPLORE</span><h2>My world</h2></div>
-  <div class="category-row">
-    {% for category in categories %}
-      <a href="#latest" class="category-pill">{{ category.name }}</a>
-    {% endfor %}
-  </div>
-</section>
-{% endif %}
-<section class="latest-section" id="latest">
-  <div class="section-heading"><span class="eyebrow">NEW</span><h2>Latest from me</h2><p>Stories, reels and vlogs from my world.</p></div>
-  {% if posts %}
-    <div class="content-grid">
-      {% for post in posts %}
-      <article class="content-card">
-        <div class="content-cover">
-          {% if post.cover_image_url %}<img src="{{ post.cover_image_url }}" alt="{{ post.title }}" loading="lazy">{% else %}<div class="cover-placeholder">{{ post.content_type|upper }}</div>{% endif %}
-          <div class="content-badges"><span class="type-badge">{{ post.content_type }}</span>{% if post.access_level == 'subscriber' %}<span class="premium-badge">🔒 Exclusive</span>{% endif %}</div>
-        </div>
-        <div class="content-card-body">
-          {% if post.category %}<span class="post-category">{{ post.category.name }}</span>{% endif %}
-          <h3>{{ post.title }}</h3>
-          {% if post.excerpt %}<p>{{ post.excerpt }}</p>{% endif %}
-          {% if creator and creator.creator_account_id and public_username %}
-            <a href="{{ url_for('public.creator_content_detail',username=public_username,slug=post.slug) }}">View <span>→</span></a>
-          {% else %}
-            <a href="{{ url_for('public.content_detail',slug=post.slug) }}">View <span>→</span></a>
-          {% endif %}
-        </div>
-      </article>
-      {% endfor %}
+
+    <div class="section-heading">
+
+        <span class="eyebrow">EXPLORE</span>
+
+        <h2>My world</h2>
+
     </div>
-  {% else %}
-    <div class="empty-content"><strong>The story starts here.</strong><p>New stories, reels and vlogs will appear here.</p></div>
-  {% endif %}
+
+    <div class="category-row">
+
+        {% for category in categories %}
+
+            <a href="#latest" class="category-pill">
+                {{ category.name }}
+            </a>
+
+        {% endfor %}
+
+    </div>
+
 </section>
+
+{% endif %}
+
+<!-- ============================================================
+     LATEST CONTENT
+============================================================ -->
+
+<section class="latest-section" id="latest">
+
+    <div class="section-heading">
+
+        <span class="eyebrow">NEW</span>
+
+        <h2>Latest from me</h2>
+
+        <p>
+            Stories, reels and vlogs from my world.
+        </p>
+
+    </div>
+
+    {% if posts %}
+
+        <div class="content-grid">
+
+            {% for post in posts %}
+
+            <article class="content-card">
+
+                <div class="content-cover">
+
+                    {% if post.cover_image_url %}
+
+                        <img
+                            src="{{ post.cover_image_url }}"
+                            alt="{{ post.title }}"
+                            loading="lazy"
+                        >
+
+                    {% else %}
+
+                        <div class="cover-placeholder">
+                            {{ post.content_type|upper }}
+                        </div>
+
+                    {% endif %}
+
+                    <div class="content-badges">
+
+                        <span class="type-badge">
+                            {{ post.content_type }}
+                        </span>
+
+                        {% if post.access_level == 'subscriber' %}
+
+                            <span class="premium-badge">
+                                🔒 Exclusive
+                            </span>
+
+                        {% endif %}
+
+                    </div>
+
+                </div>
+
+                <div class="content-card-body">
+
+                    {% if post.category %}
+
+                        <span class="post-category">
+                            {{ post.category.name }}
+                        </span>
+
+                    {% endif %}
+
+                    <h3>
+                        {{ post.title }}
+                    </h3>
+
+                    {% if post.excerpt %}
+
+                        <p>
+                            {{ post.excerpt }}
+                        </p>
+
+                    {% endif %}
+
+                    {% if creator and creator.creator_account_id and public_username %}
+
+                        <a
+                            href="{{ url_for(
+                                'public.creator_content_detail',
+                                username=public_username,
+                                slug=post.slug
+                            ) }}"
+                        >
+                            {% if post.access_level == 'subscriber' and not member_has_access %}
+                                Unlock content
+                            {% else %}
+                                View
+                            {% endif %}
+                            <span>→</span>
+                        </a>
+
+                    {% else %}
+
+                        <a
+                            href="{{ url_for(
+                                'public.content_detail',
+                                slug=post.slug
+                            ) }}"
+                        >
+                            {% if post.access_level == 'subscriber' and not member_has_access %}
+                                Unlock content
+                            {% else %}
+                                View
+                            {% endif %}
+                            <span>→</span>
+                        </a>
+
+                    {% endif %}
+
+                </div>
+
+            </article>
+
+            {% endfor %}
+
+        </div>
+
+    {% else %}
+
+        <div class="empty-content">
+
+            <strong>
+                The story starts here.
+            </strong>
+
+            <p>
+                New stories, reels and vlogs will appear here.
+            </p>
+
+        </div>
+
+    {% endif %}
+
+</section>
+
+<!-- ============================================================
+     EXCLUSIVE MEMBERSHIPS
+============================================================ -->
+
 <section class="exclusive-section" id="exclusive">
-  <div class="exclusive-inner">
-    <span class="exclusive-label">🔒 EXCLUSIVE</span><h2>Come a little closer.</h2>
-    <p>Watch exclusive vlogs, behind-the-scenes moments and content I only share with my members.</p>
-    <div class="price"><strong>R30</strong><span>/ month</span></div>
-    <span class="exclusive-button exclusive-coming-soon">Membership coming soon</span>
-    <small>Watch all exclusive content while your membership is active.</small>
-  </div>
+
+    <div class="exclusive-inner">
+
+        <span class="exclusive-label">
+            🔒 EXCLUSIVE
+        </span>
+
+        <h2>
+            Come a little closer.
+        </h2>
+
+        <p class="exclusive-description">
+            Watch exclusive vlogs, behind-the-scenes moments
+            and content I only share with my members.
+        </p>
+
+        {% if membership_enabled %}
+
+            {% if member_has_access %}
+
+                <!-- ACTIVE MEMBER -->
+
+                <div class="membership-active-badge">
+                    ✓ Your exclusive membership is active
+                </div>
+
+                <p>
+                    Thank you for supporting my creative journey.
+                    Your exclusive content is ready to explore.
+                </p>
+
+                <div class="membership-action">
+
+                    <a
+                        href="#latest"
+                        class="exclusive-button"
+                    >
+                        Explore Exclusive Content →
+                    </a>
+
+                </div>
+
+                <small class="membership-note">
+                    Your access remains available while
+                    your membership is active.
+                </small>
+
+            {% else %}
+
+                <!-- NEW MEMBER / EXPIRED MEMBER -->
+
+                <div
+                    class="membership-pricing"
+                    id="membership-pricing"
+                >
+
+                    <span class="membership-pricing-label">
+                        Choose your monthly contribution
+                    </span>
+
+                    <div
+                        class="membership-amount-options"
+                        role="radiogroup"
+                        aria-label="Monthly membership amount"
+                    >
+
+                        <label class="membership-amount-option">
+
+                            <input
+                                type="radio"
+                                name="membership_amount_choice"
+                                value="30"
+                                checked
+                            >
+
+                            <span>R30</span>
+
+                        </label>
+
+                        <label class="membership-amount-option">
+
+                            <input
+                                type="radio"
+                                name="membership_amount_choice"
+                                value="50"
+                            >
+
+                            <span>R50</span>
+
+                        </label>
+
+                        <label class="membership-amount-option">
+
+                            <input
+                                type="radio"
+                                name="membership_amount_choice"
+                                value="100"
+                            >
+
+                            <span>R100</span>
+
+                        </label>
+
+                        <label class="membership-amount-option">
+
+                            <input
+                                type="radio"
+                                name="membership_amount_choice"
+                                value="custom"
+                            >
+
+                            <span>Custom</span>
+
+                        </label>
+
+                    </div>
+
+                    <div
+                        class="membership-custom-field"
+                        id="membership-custom-field"
+                    >
+
+                        <label for="membership-custom-amount">
+                            Enter your amount (minimum R30)
+                        </label>
+
+                        <input
+                            type="number"
+                            id="membership-custom-amount"
+                            min="30"
+                            max="100000"
+                            step="0.01"
+                            placeholder="e.g. 150"
+                            inputmode="decimal"
+                        >
+
+                    </div>
+
+                    <div class="membership-selected-price">
+
+                        <strong id="membership-display-amount">
+                            R30
+                        </strong>
+
+                        <span>/ month</span>
+
+                    </div>
+
+                    <div class="membership-action">
+
+                        <a
+                            href="{{ membership_join_url }}"
+                            class="exclusive-button"
+                            id="membership-join-button"
+                            data-base-url="{{ membership_join_url }}"
+                        >
+                            Unlock Exclusive Content →
+                        </a>
+
+                    </div>
+
+                    <div class="membership-benefits">
+
+                        <span>✓ Exclusive stories</span>
+
+                        <span>✓ Members-only vlogs</span>
+
+                        <span>✓ Behind-the-scenes moments</span>
+
+                    </div>
+
+                    <small class="membership-note">
+                        No account or password required.
+                        Access is provided through your email.
+                        Your membership lasts one month and
+                        renews only when you choose to pay again.
+                    </small>
+
+                </div>
+
+            {% endif %}
+
+        {% else %}
+
+            <!-- MEMBERSHIPS UNAVAILABLE -->
+
+            <div class="membership-selected-price">
+
+                <strong>R30</strong>
+
+                <span>/ month starting price</span>
+
+            </div>
+
+            <span class="membership-unavailable">
+                Exclusive memberships are not available yet.
+            </span>
+
+            <small class="membership-note">
+                Check back soon for exclusive stories,
+                behind-the-scenes moments and members-only vlogs.
+            </small>
+
+        {% endif %}
+
+    </div>
+
 </section>
+
+<!-- ============================================================
+     NEWSLETTER
+============================================================ -->
+
 <section class="newsletter-section" id="newsletter">
-  <div class="newsletter-copy"><span class="eyebrow">STAY CLOSE</span><h2>Never miss a post.</h2><p>Enter your email and get notified when a new story, reel or vlog drops.</p></div>
-  {% if creator and creator.creator_account_id and public_username %}
-    <form method="POST" action="{{ url_for('public.creator_newsletter_subscribe',username=public_username) }}" class="newsletter-form">
-  {% else %}
-    <form method="POST" action="{{ url_for('public.newsletter_subscribe') }}" class="newsletter-form">
-  {% endif %}
-    <div class="newsletter-honeypot" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
-    <label for="newsletter-email">Email address</label>
-    <div class="newsletter-input-row"><input type="email" id="newsletter-email" name="email" maxlength="255" autocomplete="email" placeholder="you@example.com" required><button type="submit">Subscribe</button></div>
-    <small>No spam. Unsubscribe whenever you want.</small>
-  </form>
+
+    <div class="newsletter-copy">
+
+        <span class="eyebrow">
+            STAY CLOSE
+        </span>
+
+        <h2>
+            Never miss a post.
+        </h2>
+
+        <p>
+            Enter your email and get notified when a new
+            story, reel or vlog drops.
+        </p>
+
+    </div>
+
+    {% if creator and creator.creator_account_id and public_username %}
+
+        <form
+            method="POST"
+            action="{{ url_for(
+                'public.creator_newsletter_subscribe',
+                username=public_username
+            ) }}"
+            class="newsletter-form"
+        >
+
+    {% else %}
+
+        <form
+            method="POST"
+            action="{{ url_for('public.newsletter_subscribe') }}"
+            class="newsletter-form"
+        >
+
+    {% endif %}
+
+        <div class="newsletter-honeypot" aria-hidden="true">
+
+            <input
+                type="text"
+                name="website"
+                tabindex="-1"
+                autocomplete="off"
+            >
+
+        </div>
+
+        <label for="newsletter-email">
+            Email address
+        </label>
+
+        <div class="newsletter-input-row">
+
+            <input
+                type="email"
+                id="newsletter-email"
+                name="email"
+                maxlength="255"
+                autocomplete="email"
+                placeholder="you@example.com"
+                required
+            >
+
+            <button type="submit">
+                Subscribe
+            </button>
+
+        </div>
+
+        <small>
+            No spam. Unsubscribe whenever you want.
+        </small>
+
+    </form>
+
 </section>
+
+<!-- ============================================================
+     BUY ME A COFFEE
+============================================================ -->
+
 <section class="support-section" id="support">
-  <span class="support-icon">☕</span>
-  <span class="eyebrow">SUPPORT THE CREATIVE JOURNEY</span>
-  <h2>Enjoying my content?</h2>
-  <p>If something I create resonates with you, you can show your appreciation with a contribution.</p>
-  {% if creator_account and creator_account.monetization_enabled %}
-  <a class="coffee-button" href="{{ url_for('fan_payments.creator_support',username=creator_account.username) }}">☕ Buy me a coffee <span aria-hidden="true">↗</span></a>
-  {% else %}
-  <span class="coffee-unavailable">Contributions are currently unavailable.</span>
-  {% endif %}
+
+    <span class="support-icon">
+        ☕
+    </span>
+
+    <span class="eyebrow">
+        SUPPORT THE CREATIVE JOURNEY
+    </span>
+
+    <h2>
+        Enjoying my content?
+    </h2>
+
+    <p>
+        If something I create resonates with you,
+        you can show your appreciation with a contribution.
+    </p>
+
+    {% if creator_account and creator_account.monetization_enabled %}
+
+        <a
+            class="coffee-button"
+            href="{{ url_for(
+                'fan_payments.creator_support',
+                username=creator_account.username
+            ) }}"
+        >
+            ☕ Buy me a coffee
+            <span aria-hidden="true">↗</span>
+        </a>
+
+    {% else %}
+
+        <span class="coffee-unavailable">
+            Contributions are currently unavailable.
+        </span>
+
+    {% endif %}
+
 </section>
+
 {% include "public/includes/branding_footer.html" %}
+
 </div>
+
+<!-- ============================================================
+     MEMBERSHIP AMOUNT SELECTION
+============================================================ -->
+
+<script>
+
+(function () {
+
+    "use strict";
+
+    const pricing = document.getElementById(
+        "membership-pricing"
+    );
+
+    if (!pricing) {
+        return;
+    }
+
+    const amountChoices = pricing.querySelectorAll(
+        'input[name="membership_amount_choice"]'
+    );
+
+    const customField = document.getElementById(
+        "membership-custom-field"
+    );
+
+    const customInput = document.getElementById(
+        "membership-custom-amount"
+    );
+
+    const displayAmount = document.getElementById(
+        "membership-display-amount"
+    );
+
+    const joinButton = document.getElementById(
+        "membership-join-button"
+    );
+
+    if (
+        !customField ||
+        !customInput ||
+        !displayAmount ||
+        !joinButton
+    ) {
+        return;
+    }
+
+    const minimumAmount = 30;
+
+    const maximumAmount = 100000;
+
+    function selectedChoice() {
+
+        const selected = pricing.querySelector(
+            'input[name="membership_amount_choice"]:checked'
+        );
+
+        return selected ? selected.value : "30";
+
+    }
+
+    function selectedAmount() {
+
+        const choice = selectedChoice();
+
+        if (choice === "custom") {
+
+            const amount = Number(
+                customInput.value
+            );
+
+            if (
+                !Number.isFinite(amount) ||
+                amount < minimumAmount ||
+                amount > maximumAmount
+            ) {
+                return null;
+            }
+
+            if (
+                !Number.isInteger(
+                    Math.round(amount * 100)
+                ) ||
+                Math.abs(
+                    amount * 100 -
+                    Math.round(amount * 100)
+                ) > 0.000001
+            ) {
+                return null;
+            }
+
+            return amount;
+
+        }
+
+        return Number(choice);
+
+    }
+
+    function formatAmount(amount) {
+
+        return "R" + amount.toLocaleString(
+            "en-ZA",
+            {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            }
+        );
+
+    }
+
+    function updateMembershipSelection() {
+
+        const choice = selectedChoice();
+
+        const isCustom = choice === "custom";
+
+        customField.classList.toggle(
+            "is-visible",
+            isCustom
+        );
+
+        customInput.required = isCustom;
+
+        const amount = selectedAmount();
+
+        if (amount === null) {
+
+            displayAmount.textContent = "R30+";
+
+            joinButton.setAttribute(
+                "aria-disabled",
+                "true"
+            );
+
+            joinButton.classList.add(
+                "is-disabled"
+            );
+
+            return;
+
+        }
+
+        displayAmount.textContent = formatAmount(
+            amount
+        );
+
+        joinButton.removeAttribute(
+            "aria-disabled"
+        );
+
+        joinButton.classList.remove(
+            "is-disabled"
+        );
+
+        const baseUrl = joinButton.dataset.baseUrl;
+
+        if (!baseUrl) {
+            return;
+        }
+
+        const url = new URL(
+            baseUrl,
+            window.location.origin
+        );
+
+        url.searchParams.set(
+            "amount",
+            amount.toFixed(2)
+        );
+
+        joinButton.href = url.toString();
+
+    }
+
+    amountChoices.forEach(function (choice) {
+
+        choice.addEventListener(
+            "change",
+            updateMembershipSelection
+        );
+
+    });
+
+    customInput.addEventListener(
+        "input",
+        updateMembershipSelection
+    );
+
+    joinButton.addEventListener(
+        "click",
+        function (event) {
+
+            const amount = selectedAmount();
+
+            if (amount === null) {
+
+                event.preventDefault();
+
+                customInput.focus();
+
+                customInput.reportValidity();
+
+            }
+
+        }
+    );
+
+    updateMembershipSelection();
+
+})();
+
+</script>
+
 {% endblock %}
