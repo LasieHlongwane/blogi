@@ -1,6 +1,4 @@
-"""Kalxa email-identified, creator-specific, manual-renewal memberships.
-Import this module before Flask-Migrate runs so tables are registered.
-"""
+"""Creator-scoped membership records and single-use email login tokens."""
 from datetime import datetime, timezone
 from extensions import db
 
@@ -60,7 +58,11 @@ class MembershipLoginToken(db.Model):
     __tablename__ = 'membership_login_tokens'
     id = db.Column(db.Integer, primary_key=True)
     subscriber_id = db.Column(db.Integer, db.ForeignKey('membership_subscribers.id', ondelete='CASCADE'), nullable=False, index=True)
+    creator_account_id = db.Column(db.Integer, db.ForeignKey('creator_accounts.id', ondelete='CASCADE'), nullable=False, index=True)
     token_hash = db.Column(db.String(64), nullable=False, unique=True, index=True)
     expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
     consumed_at = db.Column(db.DateTime(timezone=True))
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+    __table_args__ = (
+        db.Index('ix_membership_login_creator_subscriber_created', 'creator_account_id', 'subscriber_id', 'created_at'),
+    )
