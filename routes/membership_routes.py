@@ -1,27 +1,39 @@
-"""Creator memberships: manual Paystack checkout and verified activation.
+"""Manual Paystack memberships plus creator-scoped passwordless email sign-in.
 
-Access to exclusive media and magic-link sign-in are NOT implemented here.
-Do not expose exclusive media until those controls are implemented.
+Important: exclusive Cloudinary media needs authenticated/signed delivery too.
 """
 import json
 import re
+import secrets
+import time
 import uuid
-from flask import Blueprint, abort, current_app, flash, redirect, render_template, request, url_for
+from flask import (
+    Blueprint, abort, current_app, flash, redirect, render_template,
+    request, session, url_for,
+)
 from extensions import db
 from models import CreatorAccount, CreatorProfile, CreatorPayoutAccount
-from membership_models import MembershipPayment
+from membership_models import MembershipPayment, MembershipSubscriber, CreatorMembership
 from services.creator_monetization import can_use_feature
-from services.membership_service import new_pending_payment, parse_amount, activate_verified_payment
+from services.membership_service import (
+    new_pending_payment, parse_amount, activate_verified_payment,
+    active_membership, member_has_access, create_magic_link_token,
+    consume_magic_link_token,
+)
 from services.membership_paystack import (
     REFERENCE_RE, initialize_membership_payment, verify_membership_transaction,
 )
+from services.membership_email import send_membership_login_email
 from services.paystack_service import PaystackError, verify_paystack_webhook
 
 membership_bp = Blueprint('membership', __name__, url_prefix='/memberships')
 EMAIL_RE = re.compile(r'[^@\s]+@[^@\s]+\.[^@\s]+\Z')
+LOGIN_REQUEST_COOLDOWN = 30  # additional browser-session throttle
 
 
 def creator_or_404(username):
+    if not username or len(username) > 100:
+        abort(404)
     return CreatorAccount.query.filter(
         db.func.lower(CreatorAccount.username) == username.strip().lower(),
         CreatorAccount.account_status == 'active',
@@ -29,9 +41,14 @@ def creator_or_404(username):
 
 
 def can_offer_memberships(creator):
-    return bool(creator.plan in ('standard', 'premium') and
-                creator.monetization_enabled and
-                can_use_feature(creator, 'exclusive_content'))
+    # Eligibility does not depend on a potentially stale feature-key mapping.
+    return bool(
+        creator and (creator.plan or '').lower() in ('standard', 'premium')
+        and creator.account_status == 'active'
+        and creator.payment_status == 'paid'
+        and creator.registration_paid_at is not None
+        and creator.monetization_enabled
+    )
 
 
 def payout_for(creator):
@@ -109,7 +126,9 @@ def confirm_membership_payment(reference, *, source):
             return False, 'duplicate_transaction'
         activate_verified_payment(payment, transaction_id)
         db.session.commit()
-        current_app.logger.info('Membership payment confirmed payment_id=%s source=%s', payment.id, source)
+        current_app.logger.info(
+            'Membership payment confirmed payment_id=%s source=%s', payment.id, source
+        )
         return True, 'confirmed'
     except PaystackError:
         db.session.rollback()
@@ -128,8 +147,15 @@ def landing(username):
         abort(404)
     payout = payout_for(creator)
     profile = CreatorProfile.query.filter_by(creator_account_id=creator.id).first()
-    return render_template('public/membership_join.html', creator_account=creator,
-                           creator=profile, payout_ready=bool(payout and payout.provider_subaccount_code))
+    return render_template(
+        'public/membership_join.html', creator_account=creator,
+        creator=profile, payout_ready=bool(payout and payout.provider_subaccount_code),
+        selected_amount=request.args.get('amount', '30'),
+        member_has_access=bool(
+            session.get('membership_email_verified') is True and
+            member_has_access(session.get('membership_subscriber_id'), creator.id)
+        ),
+    )
 
 
 @membership_bp.post('/<username>/pay')
@@ -184,18 +210,90 @@ def payment_return():
     payment = MembershipPayment.query.filter_by(provider_reference=reference).first_or_404()
     success, reason = confirm_membership_payment(reference, source='browser_return')
     if success:
-        return ('Payment confirmed. Your membership is active. '
-                'Email sign-in is being implemented; exclusive access is not yet enabled.', 200)
+        creator = db.session.get(CreatorAccount, payment.creator_account_id)
+        if creator is None:
+            abort(404)
+        flash('Payment confirmed. Sign in using the email you paid with to unlock content.', 'success')
+        return redirect(url_for('membership.sign_in', username=creator.username))
     return ('Your payment could not be confirmed yet. Please contact support if you were charged.', 202)
+
+
+@membership_bp.route('/<username>/sign-in', methods=['GET', 'POST'])
+def sign_in(username):
+    creator = creator_or_404(username)
+    if not can_offer_memberships(creator):
+        abort(404)
+    if request.method == 'GET':
+        # Inline form avoids assumptions about existing template layout.
+        return render_template('public/membership_sign_in.html', creator_account=creator)
+
+    # Session-based throttle is only a first layer; add proxy/Redis IP limits.
+    now = time.time()
+    last = session.get('membership_login_request_at', 0)
+    if isinstance(last, (int, float)) and now - last < LOGIN_REQUEST_COOLDOWN:
+        flash('If your membership is active, check your inbox for a sign-in link.', 'info')
+        return redirect(url_for('membership.sign_in', username=creator.username))
+    session['membership_login_request_at'] = now
+    email = str(request.form.get('email') or '').strip().lower()
+    if len(email) <= 255 and EMAIL_RE.fullmatch(email):
+        subscriber = MembershipSubscriber.query.filter_by(email=email).first()
+        if subscriber and member_has_access(subscriber.id, creator.id):
+            token = create_magic_link_token(subscriber.id, creator.id)
+            if token:
+                link = url_for(
+                    'membership.verify_login', username=creator.username,
+                    token=token, _external=True,
+                )
+                profile = CreatorProfile.query.filter_by(creator_account_id=creator.id).first()
+                name = (profile.display_name if profile else creator.username)
+                try:
+                    send_membership_login_email(email, name, link)
+                except Exception:
+                    current_app.logger.exception('Unable to deliver membership login email')
+    flash('If your membership is active, check your inbox for a sign-in link.', 'info')
+    return redirect(url_for('membership.sign_in', username=creator.username))
+
+
+@membership_bp.route('/<username>/verify/<token>', methods=['GET', 'POST'])
+def verify_login(username, token):
+    creator = creator_or_404(username)
+    if request.method == 'GET':
+        # Email security scanners often prefetch GET links; don't consume on GET.
+        nonce = secrets.token_urlsafe(24)
+        session['membership_confirm_nonce'] = nonce
+        return render_template(
+            'public/membership_verify.html', creator_account=creator,
+            token=token, confirm_nonce=nonce,
+        )
+    nonce = session.pop('membership_confirm_nonce', None)
+    submitted = request.form.get('confirm_nonce')
+    if not nonce or not submitted or not secrets.compare_digest(nonce, submitted):
+        abort(400)
+    subscriber_id = consume_magic_link_token(token, creator.id)
+    if subscriber_id is None:
+        flash('This sign-in link is invalid or expired. Request another link.', 'warning')
+        return redirect(url_for('membership.sign_in', username=creator.username))
+    # Rotate all existing session state, preventing fixation/stale identities.
+    session.clear()
+    session['membership_subscriber_id'] = subscriber_id
+    session['membership_email_verified'] = True
+    session.permanent = True
+    flash('You are signed in. Your exclusive membership is active.', 'success')
+    return redirect(url_for('public.creator_home', username=creator.username))
+
+
+@membership_bp.post('/<username>/sign-out')
+def sign_out(username):
+    creator = creator_or_404(username)
+    session.pop('membership_subscriber_id', None)
+    session.pop('membership_email_verified', None)
+    flash('You have signed out of your membership.', 'info')
+    return redirect(url_for('public.creator_home', username=creator.username))
 
 
 @membership_bp.post('/paystack/webhook')
 def webhook():
-    """Only works if this exact URL is configured in Paystack.
-
-    If Paystack is configured to POST to /support/paystack/webhook instead,
-    dispatch membership references there (see README).
-    """
+    """Configure this exact endpoint in Paystack or dispatch from shared webhook."""
     try:
         verified = verify_paystack_webhook(
             request.get_data(cache=True, as_text=False),
