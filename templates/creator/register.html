@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -15,6 +16,11 @@
         content="#111318"
     >
 
+    <meta
+        name="description"
+        content="Join Kalxa Creator. Publish stories, reels and vlogs, grow your audience and receive support from fans. Start free or activate a paid creator plan once-off."
+    >
+
     <title>
         Become a Creator | Kalxa
     </title>
@@ -25,6 +31,10 @@
     >
 
     <style>
+
+        /* =====================================================
+           GLOBAL
+        ===================================================== */
 
         * {
             box-sizing: border-box;
@@ -44,14 +54,18 @@
         }
 
         .creator-register-intro p {
-            max-width: 620px;
-            line-height: 1.6;
+            max-width: 650px;
+            line-height: 1.65;
         }
 
         .creator-register-form {
             display: grid;
             gap: 24px;
         }
+
+        /* =====================================================
+           FORM FIELDS
+        ===================================================== */
 
         .creator-fields-grid {
             display: grid;
@@ -88,11 +102,12 @@
             font-size: 12px;
             color: #737881;
             font-weight: 400;
+            line-height: 1.5;
         }
 
-        /* ================================================
+        /* =====================================================
            PLAN SECTION
-        ================================================= */
+        ===================================================== */
 
         .creator-plan-section {
             margin: 8px 0;
@@ -128,6 +143,10 @@
             gap: 14px;
         }
 
+        /* =====================================================
+           PLAN OPTIONS
+        ===================================================== */
+
         .creator-plan-option {
             position: relative;
             display: block;
@@ -144,6 +163,8 @@
 
         .creator-plan-card {
             position: relative;
+            display: flex;
+            flex-direction: column;
             height: 100%;
             padding: 20px;
             border: 2px solid #d9dce0;
@@ -171,6 +192,7 @@
 
         .creator-plan-badge {
             display: inline-block;
+            align-self: flex-start;
             margin-bottom: 16px;
             padding: 6px 10px;
             border-radius: 999px;
@@ -202,12 +224,16 @@
         }
 
         .creator-plan-positioning {
-            min-height: 42px;
+            min-height: 62px;
             margin: 12px 0 18px;
             font-size: 13px;
-            line-height: 1.5;
+            line-height: 1.55;
             opacity: 0.8;
         }
+
+        /* =====================================================
+           PLAN FEATURES
+        ===================================================== */
 
         .creator-plan-features {
             display: grid;
@@ -231,24 +257,39 @@
             opacity: 0.48;
         }
 
+        /* =====================================================
+           COMMISSION
+        ===================================================== */
+
         .creator-plan-commission {
-            margin-top: 18px;
+            margin-top: auto;
             padding: 12px;
             border-radius: 10px;
             background: #f1f2f4;
             font-size: 12px;
-            line-height: 1.5;
+            line-height: 1.55;
         }
 
         .creator-plan-commission strong {
             display: block;
-            margin-bottom: 3px;
-            font-size: 15px;
+            margin-bottom: 4px;
+            font-size: 16px;
         }
 
-        /* ================================================
+        .creator-plan-commission small {
+            display: block;
+            margin-top: 5px;
+            font-size: 11px;
+            opacity: 0.75;
+        }
+
+        .creator-plan-commission-wrap {
+            margin-top: 20px;
+        }
+
+        /* =====================================================
            STANDARD
-        ================================================= */
+        ===================================================== */
 
         .standard-plan-card {
             border-color: #aeb4bc;
@@ -259,12 +300,16 @@
             color: #ffffff;
         }
 
-        /* ================================================
+        /* =====================================================
            PREMIUM
-        ================================================= */
+        ===================================================== */
 
         .premium-plan-card {
-            background: linear-gradient(145deg, #111318, #292d34);
+            background: linear-gradient(
+                145deg,
+                #111318,
+                #292d34
+            );
             border-color: #111318;
             color: #ffffff;
         }
@@ -282,28 +327,76 @@
             box-shadow: 0 0 0 3px rgba(17, 19, 24, 0.22);
         }
 
-        /* ================================================
+        /* =====================================================
+           PLAN SELECTION INDICATOR
+        ===================================================== */
+
+        .creator-plan-selected {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            display: grid;
+            place-items: center;
+            width: 24px;
+            height: 24px;
+            border: 2px solid #cbd0d5;
+            border-radius: 50%;
+            font-size: 13px;
+            font-weight: 800;
+            color: transparent;
+            background: transparent;
+        }
+
+        .creator-plan-option input:checked
+        + .creator-plan-card
+        .creator-plan-selected {
+            background: #111318;
+            border-color: #111318;
+            color: #ffffff;
+        }
+
+        .creator-plan-option input:checked
+        + .premium-plan-card
+        .creator-plan-selected {
+            background: #ffffff;
+            border-color: #ffffff;
+            color: #111318;
+        }
+
+        /* =====================================================
            PAYMENT EXPLANATION
-        ================================================= */
+        ===================================================== */
 
         .creator-pricing-note {
             margin-top: 18px;
-            padding: 15px 17px;
+            padding: 16px 18px;
             border: 1px solid #e0e3e6;
             border-radius: 12px;
             background: #f7f8f9;
             color: #535962;
             font-size: 13px;
-            line-height: 1.65;
+            line-height: 1.7;
         }
 
         .creator-pricing-note strong {
             color: #111318;
         }
 
-        /* ================================================
+        .creator-pricing-note p {
+            margin: 7px 0 0;
+        }
+
+        .creator-upgrade-note {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 9px;
+            background: #ffffff;
+            color: #30343a;
+        }
+
+        /* =====================================================
            SUBMIT
-        ================================================= */
+        ===================================================== */
 
         .creator-register-submit {
             width: 100%;
@@ -316,10 +409,21 @@
             font-size: 15px;
             font-weight: 800;
             cursor: pointer;
+            transition: background 0.2s ease;
         }
 
         .creator-register-submit:hover {
             background: #292d34;
+        }
+
+        .creator-register-submit:focus-visible {
+            outline: 3px solid #587bb6;
+            outline-offset: 3px;
+        }
+
+        .creator-register-submit:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
         }
 
         .creator-register-footer {
@@ -333,6 +437,10 @@
             font-weight: 700;
         }
 
+        /* =====================================================
+           RESPONSIVE
+        ===================================================== */
+
         @media (max-width: 850px) {
 
             .creator-plan-grid {
@@ -341,6 +449,10 @@
 
             .creator-plan-positioning {
                 min-height: 0;
+            }
+
+            .creator-plan-card {
+                padding: 22px;
             }
 
         }
@@ -359,6 +471,23 @@
                 font-size: 22px;
             }
 
+            .creator-plan-price {
+                font-size: 28px;
+            }
+
+            .creator-register-intro h1 {
+                font-size: 29px;
+            }
+
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+
+            .creator-plan-card,
+            .creator-register-submit {
+                transition: none;
+            }
+
         }
 
     </style>
@@ -369,9 +498,9 @@
 
 <div class="login-card creator-register-card">
 
-    <!-- ================================================
+    <!-- =====================================================
          HEADER
-    ================================================= -->
+    ===================================================== -->
 
     <div class="login-heading creator-register-intro">
 
@@ -391,9 +520,9 @@
 
     </div>
 
-    <!-- ================================================
+    <!-- =====================================================
          FLASH MESSAGES
-    ================================================= -->
+    ===================================================== -->
 
     {% with messages = get_flashed_messages(with_categories=true) %}
 
@@ -415,11 +544,14 @@
 
     {% endwith %}
 
-    <!-- ================================================
+    <!-- =====================================================
          SELECTED PLAN
-    ================================================= -->
+    ===================================================== -->
 
-    {% set current_plan = request.form.get('plan', selected_plan|default('free', true)) %}
+    {% set current_plan = request.form.get(
+        'plan',
+        selected_plan|default('free', true)
+    ) %}
 
     <form
         method="POST"
@@ -427,11 +559,11 @@
         class="creator-register-form"
     >
 
-        {# Include your application's CSRF field here if enabled. #}
+        {# Add your Flask-WTF CSRF token here if enabled. #}
 
-        <!-- ============================================
+        <!-- =================================================
              PERSONAL DETAILS
-        ============================================= -->
+        ================================================= -->
 
         <div class="creator-fields-grid">
 
@@ -492,11 +624,14 @@
 
         </label>
 
-        <!-- ================================================
+        <!-- =================================================
              CREATOR PLANS
         ================================================= -->
 
-        <section class="creator-plan-section">
+        <section
+            class="creator-plan-section"
+            aria-labelledby="creator-plan-title"
+        >
 
             <div class="creator-plan-heading">
 
@@ -504,22 +639,23 @@
                     CHOOSE YOUR PLAN
                 </span>
 
-                <h2>
+                <h2 id="creator-plan-title">
                     Your space. Your choice.
                 </h2>
 
                 <p>
-                    One-time activation for paid plans.
-                    No monthly subscription fees.
+                    Start for free or unlock more tools with
+                    a once-off activation payment.
+                    No monthly Kalxa platform subscription fee.
                 </p>
 
             </div>
 
             <div class="creator-plan-grid">
 
-                <!-- ========================================
-                     FREE
-                ========================================= -->
+                <!-- =========================================
+                     FREE PLAN
+                ========================================== -->
 
                 <label class="creator-plan-option">
 
@@ -533,6 +669,13 @@
                     >
 
                     <div class="creator-plan-card">
+
+                        <span
+                            class="creator-plan-selected"
+                            aria-hidden="true"
+                        >
+                            ✓
+                        </span>
 
                         <span class="creator-plan-badge">
                             START HERE
@@ -550,7 +693,8 @@
                         </p>
 
                         <p class="creator-plan-positioning">
-                            Everything you need to start sharing your work.
+                            Everything you need to start sharing
+                            your work and building your audience.
                         </p>
 
                         <div class="creator-plan-features">
@@ -592,14 +736,22 @@
 
                         </div>
 
-                        <div class="creator-plan-commission">
+                        <div class="creator-plan-commission-wrap">
 
-                            <strong>
-                                23% Kalxa commission
-                            </strong>
+                            <div class="creator-plan-commission">
 
-                            On fan contributions.
-                            Payment processing fees may also apply.
+                                <strong>
+                                    25% Kalxa commission
+                                </strong>
+
+                                On eligible fan contributions.
+
+                                <small>
+                                    Payment processing fees may
+                                    also apply.
+                                </small>
+
+                            </div>
 
                         </div>
 
@@ -607,9 +759,9 @@
 
                 </label>
 
-                <!-- ========================================
-                     STANDARD
-                ========================================= -->
+                <!-- =========================================
+                     STANDARD PLAN
+                ========================================== -->
 
                 <label class="creator-plan-option">
 
@@ -624,6 +776,13 @@
 
                     <div class="creator-plan-card standard-plan-card">
 
+                        <span
+                            class="creator-plan-selected"
+                            aria-hidden="true"
+                        >
+                            ✓
+                        </span>
+
                         <span class="creator-plan-badge">
                             GROW YOUR INCOME
                         </span>
@@ -633,15 +792,16 @@
                         </h3>
 
                         <p class="creator-plan-price">
-                            R100
+                            R300
                             <span>
                                 / once-off
                             </span>
                         </p>
 
                         <p class="creator-plan-positioning">
-                            Unlock monetization tools and keep more
-                            of your fan contributions.
+                            Unlock more monetization tools
+                            and keep a larger share of
+                            your fan contributions.
                         </p>
 
                         <div class="creator-plan-features">
@@ -668,7 +828,7 @@
 
                             <div class="creator-plan-feature">
                                 <span class="check">✓</span>
-                                No recurring platform fee
+                                No recurring Kalxa platform fee
                             </div>
 
                             <div class="creator-plan-feature locked">
@@ -683,14 +843,22 @@
 
                         </div>
 
-                        <div class="creator-plan-commission">
+                        <div class="creator-plan-commission-wrap">
 
-                            <strong>
-                                3% Kalxa commission
-                            </strong>
+                            <div class="creator-plan-commission">
 
-                            On fan contributions.
-                            Payment processing fees may also apply.
+                                <strong>
+                                    8% Kalxa commission
+                                </strong>
+
+                                On eligible fan payments.
+
+                                <small>
+                                    Payment processing fees may
+                                    also apply.
+                                </small>
+
+                            </div>
 
                         </div>
 
@@ -698,9 +866,9 @@
 
                 </label>
 
-                <!-- ========================================
-                     PREMIUM
-                ========================================= -->
+                <!-- =========================================
+                     PREMIUM PLAN
+                ========================================== -->
 
                 <label class="creator-plan-option">
 
@@ -715,6 +883,13 @@
 
                     <div class="creator-plan-card premium-plan-card">
 
+                        <span
+                            class="creator-plan-selected"
+                            aria-hidden="true"
+                        >
+                            ✓
+                        </span>
+
                         <span class="creator-plan-badge">
                             FULL CREATOR EXPERIENCE
                         </span>
@@ -724,15 +899,16 @@
                         </h3>
 
                         <p class="creator-plan-price">
-                            R150
+                            R500
                             <span>
                                 / once-off
                             </span>
                         </p>
 
                         <p class="creator-plan-positioning">
-                            More ways to earn, grow and build
-                            your own creator brand.
+                            Build your creator brand with
+                            more ways to earn, engage your
+                            audience and grow your platform.
                         </p>
 
                         <div class="creator-plan-features">
@@ -769,14 +945,22 @@
 
                         </div>
 
-                        <div class="creator-plan-commission">
+                        <div class="creator-plan-commission-wrap">
 
-                            <strong>
-                                3% Kalxa commission
-                            </strong>
+                            <div class="creator-plan-commission">
 
-                            On applicable fan payments.
-                            Payment processing fees may also apply.
+                                <strong>
+                                    5% Kalxa commission
+                                </strong>
+
+                                On eligible fan payments.
+
+                                <small>
+                                    Payment processing fees may
+                                    also apply.
+                                </small>
+
+                            </div>
 
                         </div>
 
@@ -786,25 +970,57 @@
 
             </div>
 
+            <!-- =============================================
+                 ACTIVATION EXPLANATION
+            ============================================== -->
+
             <div class="creator-pricing-note">
 
                 <strong>
-                    How activation works:
+                    How activation works
                 </strong>
 
-                Your account starts with Free access.
-                If you select Standard or Premium, you'll
-                complete a secure one-time payment through
-                Yoco before the paid features are activated.
+                <p>
+                    Every creator can start on the Free plan.
+                    If you choose Standard or Premium during
+                    registration, your paid features will
+                    only become available after your
+                    once-off Yoco payment has been
+                    securely verified.
+                </p>
 
-                You can upgrade from Standard to Premium
-                later for R50 once-off.
+                <p>
+                    Standard costs R300 once-off.
+                    Premium costs R500 once-off.
+                    There are no monthly Kalxa platform
+                    subscription fees for these plans.
+                </p>
+
+                <div class="creator-upgrade-note">
+
+                    <strong>
+                        Already on Standard?
+                    </strong>
+
+                    You can upgrade to Premium for
+                    <strong>R200 once-off</strong>,
+                    provided your previous Standard
+                    activation payment has been verified.
+
+                </div>
+
+                <p>
+                    Kalxa commission applies to eligible
+                    fan payments according to your active
+                    plan. Payment provider processing
+                    fees may be charged separately.
+                </p>
 
             </div>
 
         </section>
 
-        <!-- ================================================
+        <!-- =================================================
              PASSWORD
         ================================================= -->
 
@@ -842,7 +1058,7 @@
 
         </div>
 
-        <!-- ================================================
+        <!-- =================================================
              SUBMIT
         ================================================= -->
 
@@ -854,6 +1070,10 @@
         </button>
 
     </form>
+
+    <!-- =====================================================
+         FOOTER
+    ===================================================== -->
 
     <div class="creator-register-footer">
 
@@ -868,5 +1088,4 @@
 </div>
 
 </body>
-
 </html>
