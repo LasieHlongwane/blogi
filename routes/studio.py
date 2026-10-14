@@ -866,6 +866,10 @@ def process_campaign_cover_image(
 # POST COVER IMAGE
 # ============================================================
 
+# ============================================================
+# POST COVER IMAGE
+# ============================================================
+
 def process_cover_image(
     creator,
     post,
@@ -876,28 +880,28 @@ def process_cover_image(
         not file
         or not file.filename
     ):
-
         return True, None
 
-    valid, error = validate_image(
-        file
-    )
+    valid, error = validate_image(file)
 
     if not valid:
-
         return False, error
+
+    # Cover images remain public previews.
+    #
+    # Exclusive post bodies and media are protected,
+    # but a public cover can appear in post listings.
 
     try:
 
         result = upload_image(
             file,
-            folder=(
-                post_cloudinary_folder(
-                    creator,
-                    post,
-                    "covers",
-                )
+            folder=post_cloudinary_folder(
+                creator,
+                post,
+                "covers",
             ),
+            private=False,
         )
 
     except Exception:
@@ -924,29 +928,13 @@ def process_cover_image(
 
     if existing:
 
-        old_public_id = (
-            existing.public_id
-        )
+        old_public_id = existing.public_id
 
-        existing.media_url = (
-            result["url"]
-        )
-
-        existing.public_id = (
-            result["public_id"]
-        )
-
-        existing.resource_type = (
-            "image"
-        )
-
-        existing.width = (
-            result.get("width")
-        )
-
-        existing.height = (
-            result.get("height")
-        )
+        existing.media_url = result["url"]
+        existing.public_id = result["public_id"]
+        existing.resource_type = "image"
+        existing.width = result.get("width")
+        existing.height = result.get("height")
 
     else:
 
@@ -961,13 +949,9 @@ def process_cover_image(
             media_order=0,
         )
 
-        db.session.add(
-            existing
-        )
+        db.session.add(existing)
 
-    post.cover_image_url = (
-        result["url"]
-    )
+    post.cover_image_url = result["url"]
 
     if old_public_id:
 
@@ -981,17 +965,17 @@ def process_cover_image(
         except Exception:
 
             current_app.logger.exception(
-                (
-                    "Old creator cover "
-                    "deletion failed."
-                )
+                "Old creator cover deletion failed."
             )
 
     return True, None
 
-
 # ============================================================
 # VIDEO
+# ============================================================
+
+# ============================================================
+# POST VIDEO
 # ============================================================
 
 def process_post_video(
@@ -1004,28 +988,31 @@ def process_post_video(
         not file
         or not file.filename
     ):
-
         return True, None
 
-    valid, error = validate_video(
-        file
-    )
+    valid, error = validate_video(file)
 
     if not valid:
-
         return False, error
+
+    # --------------------------------------------------------
+    # EXCLUSIVE MEDIA
+    # --------------------------------------------------------
+
+    is_private = (
+        post.access_level == "subscriber"
+    )
 
     try:
 
         result = upload_video(
             file,
-            folder=(
-                post_cloudinary_folder(
-                    creator,
-                    post,
-                    "video",
-                )
+            folder=post_cloudinary_folder(
+                creator,
+                post,
+                "video",
             ),
+            private=is_private,
         )
 
     except Exception:
@@ -1052,40 +1039,28 @@ def process_post_video(
 
     if existing:
 
-        old_public_id = (
-            existing.public_id
+        old_public_id = existing.public_id
+
+        existing.media_url = result["url"]
+
+        existing.public_id = result["public_id"]
+
+        existing.resource_type = "video"
+
+        existing.thumbnail_url = result.get(
+            "thumbnail_url"
         )
 
-        existing.media_url = (
-            result["url"]
+        existing.duration_seconds = result.get(
+            "duration"
         )
 
-        existing.public_id = (
-            result["public_id"]
+        existing.width = result.get(
+            "width"
         )
 
-        existing.resource_type = (
-            "video"
-        )
-
-        existing.thumbnail_url = (
-            result.get(
-                "thumbnail_url"
-            )
-        )
-
-        existing.duration_seconds = (
-            result.get(
-                "duration"
-            )
-        )
-
-        existing.width = (
-            result.get("width")
-        )
-
-        existing.height = (
-            result.get("height")
+        existing.height = result.get(
+            "height"
         )
 
     else:
@@ -1107,30 +1082,31 @@ def process_post_video(
             media_order=0,
         )
 
-        db.session.add(
-            existing
-        )
+        db.session.add(existing)
+
+    # --------------------------------------------------------
+    # DELETE PREVIOUS MEDIA
+    # --------------------------------------------------------
+    #
+    # Legacy uploads may be public or authenticated.
+    # Their actual delivery type must be known before
+    # deleting them.
+    #
+    # --------------------------------------------------------
 
     if old_public_id:
 
-        try:
-
-            delete_media(
-                old_public_id,
-                resource_type="video",
-            )
-
-        except Exception:
-
-            current_app.logger.exception(
-                (
-                    "Old creator video "
-                    "deletion failed."
-                )
-            )
+        current_app.logger.info(
+            "Previous video requires Cloudinary cleanup: "
+            "post_id=%s public_id=%s",
+            post.id,
+            old_public_id,
+        )
 
     return True, None
-
+# ============================================================
+# STORY GALLERY
+# ============================================================
 
 # ============================================================
 # STORY GALLERY
@@ -1145,35 +1121,34 @@ def process_story_gallery(
     files = [
         file
         for file in files
-        if file
-        and file.filename
+        if file and file.filename
     ]
 
     if not files:
-
         return True, None
 
     if len(files) > 10:
 
         return (
             False,
-            (
-                "You can upload up to 10 "
-                "gallery images at a time."
-            ),
+            "You can upload up to 10 "
+            "gallery images at a time.",
         )
 
     for file in files:
 
-        valid, error = (
-            validate_image(
-                file
-            )
-        )
+        valid, error = validate_image(file)
 
         if not valid:
-
             return False, error
+
+    # --------------------------------------------------------
+    # EXCLUSIVE MEDIA
+    # --------------------------------------------------------
+
+    is_private = (
+        post.access_level == "subscriber"
+    )
 
     latest = (
         ContentMedia.query
@@ -1201,31 +1176,28 @@ def process_story_gallery(
 
             result = upload_image(
                 file,
-                folder=(
-                    post_cloudinary_folder(
-                        creator,
-                        post,
-                        "gallery",
-                    )
+                folder=post_cloudinary_folder(
+                    creator,
+                    post,
+                    "gallery",
                 ),
+                private=is_private,
             )
 
-            uploaded.append(
-                result
+            uploaded.append(result)
+
+            media = ContentMedia(
+                post_id=post.id,
+                media_type="gallery_image",
+                media_url=result["url"],
+                public_id=result["public_id"],
+                resource_type="image",
+                width=result.get("width"),
+                height=result.get("height"),
+                media_order=next_order,
             )
 
-            db.session.add(
-                ContentMedia(
-                    post_id=post.id,
-                    media_type="gallery_image",
-                    media_url=result["url"],
-                    public_id=result["public_id"],
-                    resource_type="image",
-                    width=result.get("width"),
-                    height=result.get("height"),
-                    media_order=next_order,
-                )
-            )
+            db.session.add(media)
 
             next_order += 1
 
@@ -1236,15 +1208,19 @@ def process_story_gallery(
             try:
 
                 delete_media(
-                    result.get(
-                        "public_id"
-                    ),
+                    result.get("public_id"),
                     resource_type="image",
+                    delivery_type=result.get(
+                        "delivery_type",
+                        "upload",
+                    ),
                 )
 
             except Exception:
 
-                pass
+                current_app.logger.exception(
+                    "Gallery cleanup failed."
+                )
 
         db.session.rollback()
 
@@ -1254,8 +1230,6 @@ def process_story_gallery(
         )
 
     return True, None
-
-
 # ============================================================
 # CAMPAIGN PAYMENT STATISTICS
 # ============================================================
@@ -4616,10 +4590,55 @@ def content_edit(
         post.content_type = (
             content_type
         )
+        
+        
+        
+        
+    # ========================================================
+    # PREVENT UNSAFE PUBLIC -> EXCLUSIVE CONVERSION
+    # ========================================================
+
+    if (
+        post.access_level == "public"
+        and access_level == "subscriber"
+    ):
+
+        existing_media = (
+            ContentMedia.query
+            .filter(
+                ContentMedia.post_id == post.id,
+                ContentMedia.media_type.in_(
+                    [
+                        "video",
+                        "gallery_image",
+                    ]
+                ),
+            )
+            .first()
+        )
+
+        if existing_media:
+
+            flash(
+                "This post already contains public media. "
+                "Remove its video and gallery images before "
+                "switching to exclusive access.",
+                "warning",
+            )
+
+            return redirect(
+                url_for(
+                    "studio.content_edit",
+                    post_id=post.id,
+                )
+            )        
 
         post.access_level = (
             access_level
         )
+        
+        
+        
 
         post.status = status
 
