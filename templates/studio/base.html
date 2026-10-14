@@ -340,15 +340,27 @@
          SAFE SHARED CREATOR CONTEXT
     ===================================================== -->
 
-    {% set studio_account = creator_account|default(none, true) %}
+    {% set studio_account =
+        creator_account|default(none, true)
+    %}
 
     {% if studio_account is none %}
-        {% set studio_account = g.get('creator_account', none) %}
+
+        {% set studio_account =
+            g.get('creator_account', none)
+        %}
+
     {% endif %}
 
-    {% set account_plan = studio_account.plan|default('free', true)|lower if studio_account else 'free' %}
+    {% set account_plan =
+        studio_account.plan|default('free', true)|lower
+        if studio_account else 'free'
+    %}
 
-    {% set account_status = studio_account.account_status|default('unknown', true) if studio_account else 'unknown' %}
+    {% set account_status =
+        studio_account.account_status|default('unknown', true)
+        if studio_account else 'unknown'
+    %}
 
     {% set paid_plan_verified = (
         studio_account is not none
@@ -357,8 +369,14 @@
     ) %}
 
     {#
-        Never unlock paid UI based only on the plan name.
-        A plan must be activated and verified.
+        Do not unlock paid features based only
+        on the stored plan name.
+
+        The account must be active and the
+        paid activation must be recorded.
+
+        Server-side authorization remains
+        mandatory for every restricted route.
     #}
 
     {% set active_paid_plan = (
@@ -387,6 +405,21 @@
         active_paid_plan
         and effective_plan == 'premium'
     ) %}
+
+    {#
+        This optional variable should be supplied
+        by the Studio route/context processor.
+
+        It must come from a verified successful
+        Standard payment in the database.
+
+        Never infer eligibility from the
+        plan name alone.
+    #}
+
+    {% set has_verified_standard_payment =
+        has_verified_standard_payment|default(false)
+    %}
 
     <!-- =====================================================
          STUDIO LAYOUT
@@ -438,19 +471,25 @@
                     {% if has_premium %}
 
                         <small class="studio-plan-price">
-                            R150 once-off activation
+                            Premium activated · Once-off plan
                         </small>
 
                     {% elif has_standard %}
 
                         <small class="studio-plan-price">
-                            R100 once-off activation
+                            Standard activated · Once-off plan
+                        </small>
+
+                    {% elif active_free_plan %}
+
+                        <small class="studio-plan-price">
+                            R0 activation · Free plan
                         </small>
 
                     {% else %}
 
                         <small class="studio-plan-price">
-                            R0 forever
+                            Account activation pending
                         </small>
 
                     {% endif %}
@@ -461,23 +500,30 @@
 
                     <div class="studio-plan-commission">
 
-                        {% if has_standard %}
+                        {% if has_premium %}
 
                             <strong>
-                                3% Kalxa commission
+                                5% Kalxa commission
+                            </strong>
+
+                        {% elif has_standard %}
+
+                            <strong>
+                                8% Kalxa commission
                             </strong>
 
                         {% else %}
 
                             <strong>
-                                23% Kalxa commission
+                                25% Kalxa commission
                             </strong>
 
                         {% endif %}
 
                         <span>
-                            On applicable fan payments.
-                            Provider processing fees may apply.
+                            On eligible fan payments.
+                            Payment provider processing
+                            fees may also apply.
                         </span>
 
                     </div>
@@ -524,7 +570,7 @@
 
                     {% if account_status == 'active' %}
 
-                        {% if effective_plan == 'free' %}
+                        {% if active_free_plan %}
 
                             <div class="studio-upgrade-section">
 
@@ -533,6 +579,8 @@
                                     action="{{ url_for('payments.creator_checkout') }}"
                                     class="studio-upgrade-form"
                                 >
+
+                                    {# Add CSRF field if enabled. #}
 
                                     <input
                                         type="hidden"
@@ -544,7 +592,7 @@
                                         type="submit"
                                         class="studio-upgrade-button"
                                     >
-                                        Standard · R100 once-off
+                                        Standard · R300 once-off
                                     </button>
 
                                 </form>
@@ -554,6 +602,8 @@
                                     action="{{ url_for('payments.creator_checkout') }}"
                                     class="studio-upgrade-form"
                                 >
+
+                                    {# Add CSRF field if enabled. #}
 
                                     <input
                                         type="hidden"
@@ -565,47 +615,71 @@
                                         type="submit"
                                         class="studio-upgrade-button secondary"
                                     >
-                                        Premium · R150 once-off
+                                        Premium · R500 once-off
                                     </button>
 
                                 </form>
 
                                 <p class="studio-upgrade-note">
-                                    Upgrade once. No monthly Kalxa
-                                    subscription fee.
+                                    Activate once. No monthly Kalxa
+                                    platform subscription fee.
                                 </p>
 
                             </div>
 
-                        {% elif effective_plan == 'standard' %}
+                        {% elif has_standard and not has_premium %}
 
                             <div class="studio-upgrade-section">
 
-                                <form
-                                    method="POST"
-                                    action="{{ url_for('payments.creator_checkout') }}"
-                                    class="studio-upgrade-form"
-                                >
+                                {% if has_verified_standard_payment %}
 
-                                    <input
-                                        type="hidden"
-                                        name="plan"
-                                        value="premium"
+                                    <form
+                                        method="POST"
+                                        action="{{ url_for('payments.creator_checkout') }}"
+                                        class="studio-upgrade-form"
                                     >
 
-                                    <button
-                                        type="submit"
-                                        class="studio-upgrade-button"
+                                        {# Add CSRF field if enabled. #}
+
+                                        <input
+                                            type="hidden"
+                                            name="plan"
+                                            value="premium"
+                                        >
+
+                                        <button
+                                            type="submit"
+                                            class="studio-upgrade-button"
+                                        >
+                                            Upgrade to Premium · R200
+                                        </button>
+
+                                    </form>
+
+                                    <p class="studio-upgrade-note">
+                                        One-time upgrade.
+                                        Your existing creator
+                                        content is retained.
+                                    </p>
+
+                                {% else %}
+
+                                    <p class="studio-upgrade-note">
+                                        Premium upgrade pricing
+                                        requires verification of
+                                        your previous Standard
+                                        activation payment.
+                                    </p>
+
+                                    <a
+                                        href="{{ url_for('creator_auth.pending') }}"
+                                        class="studio-upgrade-button secondary"
+                                        style="text-decoration: none;"
                                     >
-                                        Upgrade to Premium · R50
-                                    </button>
+                                        Check plan status
+                                    </a>
 
-                                </form>
-
-                                <p class="studio-upgrade-note">
-                                    One-time upgrade. Keep your
-                                    existing creator content.
-                                </p>
+                                {% endif %}
 
                             </div>
 
@@ -802,6 +876,8 @@
                     action="{{ url_for('creator_auth.logout') }}"
                 >
 
+                    {# Add CSRF field if enabled. #}
+
                     <button type="submit">
                         Sign out
                     </button>
@@ -851,7 +927,9 @@
                      FLASH MESSAGES
                 ========================================== -->
 
-                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% with messages = get_flashed_messages(
+                    with_categories=true
+                ) %}
 
                     {% if messages %}
 
@@ -896,9 +974,10 @@
 
                             <p>
                                 You're using Kalxa Creator Free.
-                                Upgrade to Standard for R100 once-off
-                                to reduce Kalxa's commission from
-                                23% to 3% and unlock exclusive content.
+                                Activate Standard for R300 once-off
+                                to reduce Kalxa's commission
+                                from 25% to 8% and unlock
+                                additional creator features.
                             </p>
 
                         </div>
@@ -908,6 +987,8 @@
                             action="{{ url_for('payments.creator_checkout') }}"
                             class="studio-upgrade-banner-action"
                         >
+
+                            {# Add CSRF field if enabled. #}
 
                             <input
                                 type="hidden"
@@ -919,7 +1000,7 @@
                                 type="submit"
                                 class="studio-upgrade-banner-button"
                             >
-                                Upgrade · R100 →
+                                Upgrade · R300 →
                             </button>
 
                         </form>
