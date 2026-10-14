@@ -7,7 +7,7 @@ import secrets
 import time
 from datetime import datetime, timezone
 
-from flask import (Blueprint, abort, current_app, flash, g, redirect,
+from flask import (Blueprint, abort, current_app, flash, g, make_response, redirect,
                    render_template, request, session, url_for)
 from extensions import db
 from models import (CreatorAccount, CreatorProfile, CreatorBranding, ContentCategory,
@@ -127,46 +127,37 @@ def creator_has_memberships(account):
 
 
 def membership_join_url(account):
-    """Use only a registered membership endpoint; don't invent one."""
-    candidates = ('membership.membership_join', 'membership.join',
-                  'membership.creator_membership', 'membership_bp.membership_join')
-    for endpoint in candidates:
-        if endpoint in current_app.view_functions:
-            try:
-                return url_for(endpoint, username=account.username)
-            except Exception:
-                continue
-    return None
+    """The membership blueprint registers the landing endpoint as membership.landing."""
+    if account is None:
+        return None
+    return url_for('membership.landing', username=account.username)
+
+
+def membership_sign_in_url(account):
+    if account is None:
+        return None
+    return url_for('membership.sign_in', username=account.username)
 
 
 def has_active_membership(creator_account_id):
-    """Fail closed unless email magic-link authentication is established.
-
-    The magic-link handler must set BOTH session keys after validating a
-    single-use token sent to the subscriber's email address. Merely typing
-    an email in a form must never set these values.
-    """
+    """Check email-verified session against creator-scoped, unexpired DB access."""
     subscriber_id = session.get('membership_subscriber_id')
-    if type(subscriber_id) is not int or not session.get('membership_email_verified'):
+    if type(subscriber_id) is not int or session.get('membership_email_verified') is not True:
         return False
-    try:
-        from membership_models import CreatorMembership, MembershipSubscriber
-    except ImportError:
-        current_app.logger.error('Membership models are not installed; exclusive access denied')
-        return False
-    subscriber = db.session.get(MembershipSubscriber, subscriber_id)
-    if subscriber is None:
-        return False
-    membership = CreatorMembership.query.filter_by(
-        subscriber_id=subscriber.id, creator_account_id=creator_account_id,
-        status='active',
-    ).first()
-    if membership is None or membership.current_period_end is None:
-        return False
-    expires = membership.current_period_end
-    if expires.tzinfo is None:
-        expires = expires.replace(tzinfo=timezone.utc)
-    return expires.astimezone(timezone.utc) > datetime.now(timezone.utc)
+    from services.membership_service import member_has_access
+    return member_has_access(subscriber_id, creator_account_id)
+
+
+def exclusive_access_redirect(post):
+    """Direct unauthenticated visitors to sign-in or checkout, without post data."""
+    account = db.session.get(CreatorAccount, post.creator_account_id)
+    if account is None or not creator_has_memberships(account):
+        abort(403, description='Exclusive content is currently unavailable.')
+    if not session.get('membership_email_verified'):
+        flash('Sign in using the email linked to your membership, or join to unlock this content.', 'info')
+    else:
+        flash('Your membership is inactive or has expired. Renew to unlock this content.', 'warning')
+    return redirect(membership_sign_in_url(account), code=303)
 
 
 def is_exclusive(post):
@@ -213,11 +204,13 @@ def render_creator_home(creator, creator_account_id, public_username=None):
     posts = ContentPost.query.filter_by(
         creator_account_id=creator_account_id, status='published',
     ).order_by(ContentPost.published_at.desc(), ContentPost.created_at.desc()).limit(12).all()
+    # Templates must not render cover_image_url for exclusive posts to nonmembers.
     return render_template(
         'public/home.html', creator=creator, categories=categories,
         posts=posts, public_username=public_username,
         membership_enabled=creator_has_memberships(account),
         membership_join_url=membership_join_url(account) if creator_has_memberships(account) else None,
+        membership_sign_in_url=membership_sign_in_url(account) if creator_has_memberships(account) else None,
         member_has_access=has_active_membership(creator_account_id),
         **public_branding_context(creator, creator_account_id),
     )
@@ -226,7 +219,8 @@ def render_creator_home(creator, creator_account_id, public_username=None):
 def render_content_detail(creator, post, public_username=None):
     if creator is None or post is None or creator.creator_account_id != post.creator_account_id:
         abort(404)
-    require_post_access(post)
+    if not can_view_post(post):
+        return exclusive_access_redirect(post)
     gallery_images = ContentMedia.query.filter_by(
         post_id=post.id, media_type='gallery_image',
     ).order_by(ContentMedia.media_order.asc()).all()
@@ -235,13 +229,20 @@ def render_content_detail(creator, post, public_username=None):
         post_id=post.id, parent_id=None, status='approved',
     ).order_by(Comment.created_at.desc()).all()
     comment_count = Comment.query.filter_by(post_id=post.id, status='approved').count()
-    return render_template(
+    response = make_response(render_template(
         'public/content_detail.html', creator=creator, post=post,
         gallery_images=gallery_images, video=video, comments=comments,
         comment_count=comment_count, public_username=public_username,
         member_has_access=has_active_membership(post.creator_account_id),
+        membership_sign_in_url=membership_sign_in_url(db.session.get(CreatorAccount, post.creator_account_id)),
+        membership_join_url=membership_join_url(db.session.get(CreatorAccount, post.creator_account_id)),
+        post_is_exclusive=is_exclusive(post),
         **public_branding_context(creator, post.creator_account_id),
-    )
+    ))
+    if is_exclusive(post):
+        response.headers['Cache-Control'] = 'private, no-store, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+    return response
 
 
 @public_bp.route('/')
