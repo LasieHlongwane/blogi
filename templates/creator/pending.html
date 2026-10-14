@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 
@@ -13,6 +14,11 @@
     <meta
         name="theme-color"
         content="#111318"
+    >
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
     >
 
     <title>
@@ -31,8 +37,8 @@
         }
 
         .account-status-card {
-            width: min(100%, 580px);
-            max-width: 580px;
+            width: min(100%, 620px);
+            max-width: 620px;
         }
 
         .account-status-heading {
@@ -47,10 +53,6 @@
             color: #6b7078;
             line-height: 1.6;
         }
-
-        /* ================================================
-           PLAN CARD
-        ================================================= */
 
         .pending-plan-card {
             margin: 24px 0;
@@ -86,10 +88,6 @@
             line-height: 1.6;
         }
 
-        /* ================================================
-           BADGES
-        ================================================= */
-
         .account-status-badge {
             display: inline-block;
             margin-bottom: 14px;
@@ -123,10 +121,6 @@
             color: #a43228;
         }
 
-        /* ================================================
-           STATUS NOTES
-        ================================================= */
-
         .status-note {
             margin-top: 20px;
             padding: 16px;
@@ -151,10 +145,6 @@
             background: #fff1ef;
             color: #7d3029;
         }
-
-        /* ================================================
-           PAYMENT
-        ================================================= */
 
         .payment-section {
             margin-top: 26px;
@@ -228,16 +218,18 @@
             background: #292d34;
         }
 
+        .yoco-checkout-button:focus-visible,
+        .studio-button:focus-visible {
+            outline: 3px solid #587bb6;
+            outline-offset: 3px;
+        }
+
         .payment-note {
             margin-top: 13px !important;
             color: #737881;
             font-size: 12px;
             line-height: 1.6;
         }
-
-        /* ================================================
-           CONTENT SAFETY
-        ================================================= */
 
         .content-safe-box {
             margin-top: 20px;
@@ -258,10 +250,6 @@
             font-size: 13px;
             line-height: 1.6;
         }
-
-        /* ================================================
-           PUBLIC PAGE
-        ================================================= */
 
         .public-page-link {
             display: block;
@@ -288,6 +276,51 @@
             width: 100%;
         }
 
+        .plan-summary {
+            display: grid;
+            gap: 6px;
+            margin-top: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .plan-summary span {
+            opacity: 0.8;
+        }
+
+        .payment-choice {
+            margin-top: 20px;
+        }
+
+        .payment-choice + .payment-choice {
+            padding-top: 18px;
+            border-top: 1px solid #e1e3e6;
+        }
+
+        .payment-choice h4 {
+            margin: 0 0 8px;
+            font-size: 16px;
+        }
+
+        .payment-choice p {
+            margin: 0 0 12px;
+            color: #606670;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        @media (max-width: 600px) {
+
+            .pending-plan-card {
+                padding: 18px;
+            }
+
+            .account-status-heading h1 {
+                font-size: 28px;
+            }
+
+        }
+
     </style>
 
 </head>
@@ -296,28 +329,49 @@
 
 <div class="login-card account-status-card">
 
-    <!-- ================================================
+    <!-- =====================================================
          ACCOUNT VARIABLES
-    ================================================= -->
+    ===================================================== -->
 
-    {% set account_status = creator_account.account_status|default('pending_payment', true) %}
+    {% set account_status =
+        creator_account.account_status|default('unknown', true)
+    %}
 
-    {% set selected_plan = selected_plan|default(creator_account.plan|default('free', true), true) %}
+    {% set current_plan =
+        creator_account.plan|default('free', true)|lower
+    %}
 
-    {% set is_paid_plan = selected_plan in ['standard', 'premium'] %}
+    {% set requested_plan =
+        selected_plan|default(current_plan, true)|lower
+    %}
 
-    {% set payment_confirmed = creator_account.payment_status == 'paid' %}
+    {% set payment_confirmed =
+        creator_account.payment_status == 'paid'
+        and creator_account.registration_paid_at is not none
+    %}
 
-    {% set selected_plan_price = selected_plan_price|default(
-        150 if selected_plan == 'premium' else 100 if selected_plan == 'standard' else 0,
-        true
-    ) %}
+    {% set paid_plan_active =
+        account_status == 'active'
+        and current_plan in ['standard', 'premium']
+        and payment_confirmed
+    %}
 
-    <!-- ================================================
+    {% set has_verified_standard_payment =
+        has_verified_standard_payment|default(false)
+    %}
+
+    {% set pending_paid_selection =
+        requested_plan in ['standard', 'premium']
+        and not paid_plan_active
+    %}
+
+    <!-- =====================================================
          FLASH MESSAGES
-    ================================================= -->
+    ===================================================== -->
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% with messages = get_flashed_messages(
+        with_categories=true
+    ) %}
 
         {% if messages %}
 
@@ -337,9 +391,9 @@
 
     {% endwith %}
 
-    <!-- ================================================
+    <!-- =====================================================
          HEADER
-    ================================================= -->
+    ===================================================== -->
 
     <div class="login-heading account-status-heading">
 
@@ -355,8 +409,8 @@
 
             <p>
                 Your creator account has been created.
-                Complete your one-time payment to activate
-                your selected paid plan.
+                Complete your secure once-off payment
+                to activate your selected paid plan.
             </p>
 
         {% elif account_status == 'pending_approval' %}
@@ -376,7 +430,8 @@
             </h1>
 
             <p>
-                Manage your creator space and plan.
+                Manage your creator space,
+                plan and monetization options.
             </p>
 
         {% elif account_status == 'suspended' %}
@@ -385,11 +440,19 @@
                 Account suspended.
             </h1>
 
+            <p>
+                Your Creator Studio access is restricted.
+            </p>
+
         {% elif account_status == 'rejected' %}
 
             <h1>
                 Account unavailable.
             </h1>
+
+            <p>
+                This creator account is currently unavailable.
+            </p>
 
         {% else %}
 
@@ -397,49 +460,90 @@
                 Account status.
             </h1>
 
+            <p>
+                Review your account information below.
+            </p>
+
         {% endif %}
 
     </div>
 
-    <!-- ================================================
+    <!-- =====================================================
          CURRENT PLAN
-    ================================================= -->
+    ===================================================== -->
 
-    <div class="pending-plan-card {% if selected_plan == 'premium' %}premium{% endif %}">
+    <div class="pending-plan-card {% if current_plan == 'premium' and payment_confirmed %}premium{% endif %}">
 
         <span>
-            SELECTED PLAN
+            CURRENT ACCOUNT PLAN
         </span>
 
         <strong>
-            {{ selected_plan|title }}
+            {{ current_plan|title }}
         </strong>
 
-        {% if selected_plan == 'free' %}
+        {% if current_plan == 'free' %}
 
             <p>
-                R0 forever · 23% commission on fan support
+                R0 activation · 25% Kalxa commission
+                on eligible fan contributions
             </p>
 
-        {% elif selected_plan == 'standard' %}
+        {% elif current_plan == 'standard' %}
 
             <p>
-                R100 once-off · 3% commission on fan support
+                Standard · 8% Kalxa commission
+                on eligible fan payments
             </p>
 
-        {% elif selected_plan == 'premium' %}
+        {% elif current_plan == 'premium' %}
 
             <p>
-                R150 once-off · 3% commission on applicable fan payments
+                Premium · 5% Kalxa commission
+                on eligible fan payments
+            </p>
+
+        {% else %}
+
+            <p>
+                Contact support to confirm your plan.
             </p>
 
         {% endif %}
 
+        <div class="plan-summary">
+
+            <span>
+                Account status:
+                {{ account_status|replace('_', ' ')|title }}
+            </span>
+
+            {% if current_plan in ['standard', 'premium'] %}
+
+                <span>
+                    Payment:
+                    {% if payment_confirmed %}
+                        Confirmed
+                    {% else %}
+                        Not yet confirmed
+                    {% endif %}
+                </span>
+
+            {% else %}
+
+                <span>
+                    Free plan · No activation payment required
+                </span>
+
+            {% endif %}
+
+        </div>
+
     </div>
 
-    <!-- ================================================
+    <!-- =====================================================
          SUSPENDED
-    ================================================= -->
+    ===================================================== -->
 
     {% if account_status == 'suspended' %}
 
@@ -460,20 +564,21 @@
         <div class="content-safe-box">
 
             <strong>
-                Your content has not been deleted.
+                Your existing content
             </strong>
 
             <p>
-                Your existing posts, media, subscribers
-                and creator information remain stored
-                unless separately removed under platform policy.
+                A suspension does not automatically
+                delete your posts, media or subscribers.
+                Content remains subject to platform
+                retention and moderation policies.
             </p>
 
         </div>
 
-    <!-- ================================================
+    <!-- =====================================================
          REJECTED
-    ================================================= -->
+    ===================================================== -->
 
     {% elif account_status == 'rejected' %}
 
@@ -490,9 +595,9 @@
             approved for Creator Studio access.
         </p>
 
-    <!-- ================================================
+    <!-- =====================================================
          PENDING APPROVAL
-    ================================================= -->
+    ===================================================== -->
 
     {% elif account_status == 'pending_approval' %}
 
@@ -508,9 +613,8 @@
 
             <div class="status-note success">
 
-                Your payment has been confirmed.
-                Your {{ selected_plan|title }} activation
-                is awaiting the remaining account
+                Your paid activation has been recorded.
+                Your account is awaiting the remaining
                 approval steps.
 
             </div>
@@ -519,11 +623,9 @@
 
             <div class="status-note warning">
 
-                Your creator account is awaiting
-                platform approval.
-
-                No paid features will be granted
-                until any required payment is
+                Your account is awaiting approval.
+                Paid features will only become available
+                after the required payment has been
                 independently confirmed.
 
             </div>
@@ -533,36 +635,53 @@
         <div class="content-safe-box">
 
             <strong>
-                Your creator information is saved.
+                Your creator information is saved
             </strong>
 
             <p>
-                Your account details remain stored
-                while the review is pending.
+                Your registration details remain stored
+                while your account is under review.
             </p>
 
         </div>
 
-    <!-- ================================================
+    <!-- =====================================================
          PENDING PAYMENT
-    ================================================= -->
+    ===================================================== -->
 
     {% elif account_status == 'pending_payment' %}
 
-        {% if is_paid_plan and not payment_confirmed %}
+        {% if payment_confirmed %}
+
+            <span class="account-status-badge success">
+                Payment recorded
+            </span>
+
+            <h2>
+                Your payment is confirmed
+            </h2>
+
+            <div class="status-note success">
+
+                Your payment has been recorded.
+                Your account is awaiting its final
+                activation status update.
+
+            </div>
+
+        {% elif pending_paid_selection %}
 
             <span class="account-status-badge payment">
                 One-time payment required
             </span>
 
             <h2>
-                Activate {{ selected_plan|title }}
+                Activate {{ requested_plan|title }}
             </h2>
 
             <p>
-                Complete your one-time activation payment
-                through Yoco to unlock the paid features
-                of your selected plan.
+                Complete your once-off payment through
+                Yoco to activate your selected paid plan.
             </p>
 
             <div class="payment-section">
@@ -578,11 +697,16 @@
                     </span>
 
                     <strong>
-                        R{{ selected_plan_price }}
+                        {% if requested_plan == 'premium' %}
+                            R500
+                        {% else %}
+                            R300
+                        {% endif %}
                     </strong>
 
                     <small>
-                        Once-off payment · No monthly renewal
+                        Once-off payment · No monthly
+                        Kalxa platform subscription
                     </small>
 
                 </div>
@@ -593,48 +717,36 @@
                     action="{{ url_for('payments.creator_checkout') }}"
                 >
 
-                    {# Include your CSRF token if required. #}
+                    {# Insert your CSRF field if enabled. #}
 
                     <input
                         type="hidden"
                         name="plan"
-                        value="{{ selected_plan }}"
+                        value="{{ requested_plan }}"
                     >
 
                     <button
                         type="submit"
                         class="yoco-checkout-button"
                     >
-                        Pay R{{ selected_plan_price }} with Yoco
+
+                        {% if requested_plan == 'premium' %}
+                            Pay R500 with Yoco
+                        {% else %}
+                            Pay R300 with Yoco
+                        {% endif %}
+
                     </button>
 
                 </form>
 
                 <p class="payment-note">
 
-                    You will be redirected to Yoco.
-                    Your paid plan will only be activated
-                    after the payment is verified by Kalxa.
+                    Yoco processes the checkout securely.
+                    Your plan will only be activated after
+                    Kalxa verifies the payment.
 
                 </p>
-
-            </div>
-
-        {% elif payment_confirmed %}
-
-            <span class="account-status-badge success">
-                Payment confirmed
-            </span>
-
-            <h2>
-                Payment received
-            </h2>
-
-            <div class="status-note success">
-
-                Your payment has been confirmed.
-                Your account is awaiting its final
-                activation status update.
 
             </div>
 
@@ -656,9 +768,9 @@
 
         {% endif %}
 
-    <!-- ================================================
+    <!-- =====================================================
          ACTIVE
-    ================================================= -->
+    ===================================================== -->
 
     {% elif account_status == 'active' %}
 
@@ -671,26 +783,31 @@
         </h2>
 
         <p>
-            Your account is active.
-            You can manage your creator content,
-            audience and available monetization tools.
+            Manage your content, audience and
+            available monetization tools.
         </p>
 
         <div class="status-note success">
 
-            {% if selected_plan == 'free' %}
+            {% if current_plan == 'free' %}
 
                 You are on the Free plan.
-                You can publish content and use
-                Buy Me a Coffee with a 23%
-                Kalxa commission.
+                You can publish content and receive
+                Buy Me a Coffee contributions,
+                subject to a 25% Kalxa commission.
+
+            {% elif paid_plan_active %}
+
+                Your {{ current_plan|title }} plan
+                has been activated.
+                There is no monthly Kalxa
+                platform subscription renewal.
 
             {% else %}
 
-                Your {{ selected_plan|title }} plan
-                is a one-time activation.
-                There is no monthly Kalxa
-                subscription renewal.
+                Your account is active, but your
+                paid-plan activation requires
+                payment verification.
 
             {% endif %}
 
@@ -704,7 +821,11 @@
             Open Creator Studio →
         </a>
 
-        {% if selected_plan == 'free' %}
+        <!-- =============================================
+             FREE CREATOR UPGRADES
+        ============================================== -->
+
+        {% if current_plan == 'free' %}
 
             <div class="payment-section">
 
@@ -713,91 +834,129 @@
                 </h3>
 
                 <p>
-                    Upgrade to Standard or Premium
-                    to unlock additional creator features.
+                    Activate Standard or Premium once-off
+                    and unlock additional creator features.
                 </p>
 
-                <div class="payment-price">
+                <div class="payment-choice">
 
-                    <span>
-                        Standard activation
-                    </span>
+                    <h4>
+                        Standard
+                    </h4>
 
-                    <strong>
-                        R100
-                    </strong>
+                    <p>
+                        More monetization tools and
+                        an 8% Kalxa commission.
+                    </p>
 
-                    <small>
-                        Once-off · 3% Kalxa commission
-                    </small>
+                    <div class="payment-price">
+
+                        <span>
+                            Standard activation
+                        </span>
+
+                        <strong>
+                            R300
+                        </strong>
+
+                        <small>
+                            Once-off · No monthly renewal
+                        </small>
+
+                    </div>
+
+                    <form
+                        method="POST"
+                        action="{{ url_for('payments.creator_checkout') }}"
+                        class="yoco-checkout-form"
+                    >
+
+                        {# Insert your CSRF field if enabled. #}
+
+                        <input
+                            type="hidden"
+                            name="plan"
+                            value="standard"
+                        >
+
+                        <button
+                            type="submit"
+                            class="yoco-checkout-button"
+                        >
+                            Activate Standard · R300
+                        </button>
+
+                    </form>
 
                 </div>
 
-                <form
-                    method="POST"
-                    action="{{ url_for('payments.creator_checkout') }}"
-                    class="yoco-checkout-form"
-                >
+                <div class="payment-choice">
 
-                    {# Include your CSRF token if required. #}
+                    <h4>
+                        Premium
+                    </h4>
 
-                    <input
-                        type="hidden"
-                        name="plan"
-                        value="standard"
+                    <p>
+                        Advanced creator tools and
+                        a 5% Kalxa commission.
+                    </p>
+
+                    <div class="payment-price">
+
+                        <span>
+                            Premium activation
+                        </span>
+
+                        <strong>
+                            R500
+                        </strong>
+
+                        <small>
+                            Once-off · No monthly renewal
+                        </small>
+
+                    </div>
+
+                    <form
+                        method="POST"
+                        action="{{ url_for('payments.creator_checkout') }}"
+                        class="yoco-checkout-form"
                     >
 
-                    <button
-                        type="submit"
-                        class="yoco-checkout-button"
-                    >
-                        Upgrade to Standard · R100
-                    </button>
+                        {# Insert your CSRF field if enabled. #}
 
-                </form>
+                        <input
+                            type="hidden"
+                            name="plan"
+                            value="premium"
+                        >
 
-                <div class="payment-price">
+                        <button
+                            type="submit"
+                            class="yoco-checkout-button"
+                        >
+                            Activate Premium · R500
+                        </button>
 
-                    <span>
-                        Premium activation
-                    </span>
-
-                    <strong>
-                        R150
-                    </strong>
-
-                    <small>
-                        Once-off · Advanced creator tools
-                    </small>
+                    </form>
 
                 </div>
 
-                <form
-                    method="POST"
-                    action="{{ url_for('payments.creator_checkout') }}"
-                    class="yoco-checkout-form"
-                >
+                <p class="payment-note">
 
-                    {# Include your CSRF token if required. #}
+                    All prices are calculated by Kalxa
+                    on the server. Your selected plan
+                    activates only after payment verification.
 
-                    <input
-                        type="hidden"
-                        name="plan"
-                        value="premium"
-                    >
-
-                    <button
-                        type="submit"
-                        class="yoco-checkout-button"
-                    >
-                        Upgrade to Premium · R150
-                    </button>
-
-                </form>
+                </p>
 
             </div>
 
-        {% elif selected_plan == 'standard' %}
+        <!-- =============================================
+             STANDARD TO PREMIUM
+        ============================================== -->
+
+        {% elif current_plan == 'standard' and paid_plan_active %}
 
             <div class="payment-section">
 
@@ -806,57 +965,94 @@
                 </h3>
 
                 <p>
-                    Upgrade from Standard to Premium
-                    to access fundraising, advanced
-                    analytics and custom domains.
+                    Upgrade to Premium for fundraising,
+                    advanced analytics, custom domains
+                    and advanced branding.
                 </p>
 
-                <div class="payment-price">
+                {% if has_verified_standard_payment %}
 
-                    <span>
-                        Upgrade amount
-                    </span>
+                    <div class="payment-price">
 
-                    <strong>
-                        R50
-                    </strong>
+                        <span>
+                            Standard → Premium upgrade
+                        </span>
 
-                    <small>
-                        Once-off · No recurring subscription
-                    </small>
+                        <strong>
+                            R200
+                        </strong>
 
-                </div>
+                        <small>
+                            Once-off · 5% Kalxa commission
+                            after activation
+                        </small>
 
-                <form
-                    method="POST"
-                    action="{{ url_for('payments.creator_checkout') }}"
-                    class="yoco-checkout-form"
-                >
+                    </div>
 
-                    {# Include your CSRF token if required. #}
-
-                    <input
-                        type="hidden"
-                        name="plan"
-                        value="premium"
+                    <form
+                        method="POST"
+                        action="{{ url_for('payments.creator_checkout') }}"
+                        class="yoco-checkout-form"
                     >
 
-                    <button
-                        type="submit"
-                        class="yoco-checkout-button"
-                    >
-                        Upgrade to Premium · R50
-                    </button>
+                        {# Insert your CSRF field if enabled. #}
 
-                </form>
+                        <input
+                            type="hidden"
+                            name="plan"
+                            value="premium"
+                        >
+
+                        <button
+                            type="submit"
+                            class="yoco-checkout-button"
+                        >
+                            Upgrade to Premium · R200
+                        </button>
+
+                    </form>
+
+                {% else %}
+
+                    <div class="status-note warning">
+
+                        We need to verify your previous
+                        Standard activation before
+                        offering the R200 upgrade price.
+
+                        Please contact Kalxa support
+                        if you have already paid.
+
+                    </div>
+
+                {% endif %}
+
+                <p class="payment-note">
+
+                    The upgrade discount is only available
+                    when a successful Standard payment
+                    is recorded in Kalxa's payment ledger.
+
+                </p>
+
+            </div>
+
+        {% elif current_plan in ['standard', 'premium']
+            and not paid_plan_active %}
+
+            <div class="status-note warning">
+
+                Your paid-plan status needs verification.
+                Please contact Kalxa support if you have
+                already completed payment.
 
             </div>
 
         {% endif %}
 
-    <!-- ================================================
+    <!-- =====================================================
          UNKNOWN STATUS
-    ================================================= -->
+    ===================================================== -->
 
     {% else %}
 
@@ -870,17 +1066,15 @@
 
         <p>
             We could not determine your account's
-            activation status.
-
-            Please contact Kalxa support if
-            this continues.
+            activation status. Please contact
+            Kalxa support if this continues.
         </p>
 
     {% endif %}
 
-    <!-- ================================================
+    <!-- =====================================================
          PUBLIC CREATOR PAGE
-    ================================================= -->
+    ===================================================== -->
 
     {% if public_creator_url %}
 
@@ -895,9 +1089,9 @@
 
     {% endif %}
 
-    <!-- ================================================
+    <!-- =====================================================
          SIGN OUT
-    ================================================= -->
+    ===================================================== -->
 
     <form
         class="signout-form"
@@ -905,7 +1099,7 @@
         action="{{ url_for('creator_auth.logout') }}"
     >
 
-        {# Include your CSRF token if required. #}
+        {# Insert your CSRF field if enabled. #}
 
         <button type="submit">
             Sign out
@@ -916,5 +1110,4 @@
 </div>
 
 </body>
-
 </html>
