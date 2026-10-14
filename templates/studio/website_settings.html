@@ -1,0 +1,281 @@
+{% extends 'studio/base.html' %}
+
+{% block title %}Website Settings | Kalxa Creator Studio{% endblock %}
+
+{% block extra_head %}
+<style>
+    .website-settings { max-width: 1100px; margin: 0 auto; color: #17191d; }
+    .website-settings *, .website-settings *::before, .website-settings *::after { box-sizing: border-box; }
+    .website-settings-header { margin-bottom: 25px; }
+    .website-settings-header .eyebrow { display: block; font-size: 11px; font-weight: 800; letter-spacing: .12em; color: #707680; margin-bottom: 7px; }
+    .website-settings-header h1 { margin: 0 0 8px; font-size: clamp(25px, 4vw, 34px); }
+    .website-settings-header p { margin: 0; color: #646b75; line-height: 1.6; }
+    .website-settings-grid { display: grid; gap: 22px; }
+    .website-settings-panel { padding: clamp(18px, 3vw, 28px); border: 1px solid #e0e3e7; border-radius: 16px; background: #fff; }
+    .website-settings-panel h2 { margin: 0 0 7px; font-size: 21px; }
+    .website-settings-panel .panel-description { margin: 0 0 22px; color: #68707a; font-size: 13px; line-height: 1.65; }
+    .website-settings-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .website-settings-field { display: flex; flex-direction: column; gap: 7px; min-width: 0; font-size: 13px; font-weight: 700; }
+    .website-settings-field.full { grid-column: 1 / -1; }
+    .website-settings-field input:not([type='color']), .website-settings-field select, .website-settings-field textarea { width: 100%; padding: 12px 13px; border: 1px solid #cfd4db; border-radius: 9px; font: inherit; font-weight: 400; color: #17191d; background: #fff; }
+    .website-settings-field input[type='color'] { width: 100%; height: 45px; padding: 4px; border: 1px solid #cfd4db; border-radius: 9px; background: #fff; cursor: pointer; }
+    .website-settings-field textarea { resize: vertical; min-height: 84px; }
+    .website-settings-field small { color: #737983; font-weight: 400; line-height: 1.5; }
+    .website-settings-actions { margin-top: 22px; }
+    .website-settings-button { display: inline-block; max-width: 100%; padding: 12px 18px; border: 1px solid #111318; border-radius: 10px; background: #111318; color: #fff; font: inherit; font-size: 13px; font-weight: 800; text-decoration: none; text-align: center; cursor: pointer; }
+    .website-settings-button:hover { background: #2d3239; }
+    .website-settings-button.secondary { background: #fff; color: #111318; }
+    .website-settings-button.secondary:hover { background: #f2f3f5; }
+    .website-settings-button.danger { background: #fff; color: #a3312b; border-color: #e1aaa5; }
+    .website-settings-button.danger:hover { background: #fff2f0; }
+    .website-settings-button:focus-visible, .website-settings-field input:focus-visible, .website-settings-field select:focus-visible, .website-settings-field textarea:focus-visible { outline: 3px solid #7296cc; outline-offset: 2px; }
+    .website-settings-note { padding: 14px 16px; border-radius: 11px; background: #f4f6f8; color: #525963; font-size: 13px; line-height: 1.7; }
+    .website-settings-note + .website-settings-note { margin-top: 12px; }
+    .website-settings-note.warning { background: #fff5e7; color: #7b531d; }
+    .website-settings-note strong { color: inherit; }
+    .website-settings-media-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+    .website-settings-media { padding: 16px; border: 1px solid #e1e4e8; border-radius: 12px; min-width: 0; }
+    .website-settings-media h3 { margin: 0 0 12px; font-size: 15px; }
+    .website-settings-preview { display: flex; align-items: center; justify-content: center; min-height: 125px; padding: 12px; border-radius: 10px; background: #f1f3f5; margin-bottom: 13px; overflow: hidden; }
+    .website-settings-preview img { display: block; max-width: 100%; max-height: 155px; object-fit: contain; }
+    .website-settings-placeholder { color: #818791; font-size: 12px; text-align: center; }
+    .website-settings-media input[type='file'] { width: 100%; max-width: 100%; font-size: 12px; margin-bottom: 12px; }
+    .website-settings-media .website-settings-button { width: 100%; }
+    .website-settings-media .remove-form { margin-top: 9px; }
+    .website-settings-domain { padding: 16px; border: 1px solid #e1e4e8; border-radius: 12px; margin-top: 15px; overflow-wrap: anywhere; }
+    .website-settings-domain-header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 10px; }
+    .website-settings-domain h3 { margin: 0; font-size: 15px; }
+    .website-settings-domain p { margin: 10px 0 0; color: #656c75; font-size: 12px; line-height: 1.6; }
+    .website-settings-pill { display: inline-block; padding: 5px 9px; border-radius: 99px; background: #eef0f3; color: #505963; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+    .website-settings-pill.good { background: #e5f5e9; color: #266b3e; }
+    .website-settings-pill.pending { background: #fff2df; color: #805618; }
+    .website-settings-dns { display: grid; gap: 9px; margin: 13px 0; padding: 13px; border-radius: 9px; background: #f5f6f8; font-size: 12px; }
+    .website-settings-dns code { display: block; margin-top: 4px; overflow-wrap: anywhere; white-space: normal; color: #111318; }
+    .website-settings-domain-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 15px; }
+    .website-settings-domain-actions form { margin: 0; }
+    .website-settings-muted { color: #747b85; font-size: 12px; line-height: 1.6; }
+    .website-settings-divider { border: 0; border-top: 1px solid #e7e9ec; margin: 24px 0; }
+    @media (max-width: 850px) { .website-settings-media-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 650px) { .website-settings-fields { grid-template-columns: 1fr; } .website-settings-field.full { grid-column: auto; } .website-settings-domain-actions { flex-direction: column; } .website-settings-domain-actions form, .website-settings-domain-actions .website-settings-button { width: 100%; } }
+</style>
+{% endblock %}
+
+{% block content %}
+{% set can_brand = can_use_branding|default(false) %}
+{% set can_advanced = can_use_advanced_branding|default(false) %}
+{% set can_domain = can_use_custom_domain|default(false) %}
+{% set site_branding = branding|default(none) %}
+{% set account_domains = domains|default([]) %}
+
+<div class="website-settings">
+    <header class="website-settings-header">
+        <span class="eyebrow">YOUR CREATOR WEBSITE</span>
+        <h1>Website Settings</h1>
+        <p>Personalise your creator website, manage your images and connect your domain.</p>
+    </header>
+
+    {% if not can_brand %}
+        <div class="website-settings-note warning">
+            Website branding is not available on your current plan. Your plan must have the relevant feature enabled before these settings can be changed.
+        </div>
+    {% else %}
+        <div class="website-settings-grid">
+            <section class="website-settings-panel" aria-labelledby="branding-heading">
+                <h2 id="branding-heading">Website branding</h2>
+                <p class="panel-description">Choose your website title, introduction and brand colours.</p>
+
+                <form method="POST" action="{{ url_for('studio.website_branding_save') }}">
+                    {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                    <div class="website-settings-fields">
+                        <label class="website-settings-field full">
+                            Website title
+                            <input type="text" name="site_title" maxlength="120" value="{{ site_branding.site_title|default('', true) if site_branding else '' }}" placeholder="Your creator website title">
+                            <small>Displayed as your website's main identity.</small>
+                        </label>
+                        <label class="website-settings-field full">
+                            Tagline
+                            <textarea name="site_tagline" maxlength="255" rows="2" placeholder="A short introduction to your work">{{ site_branding.site_tagline|default('', true) if site_branding else '' }}</textarea>
+                        </label>
+                        <label class="website-settings-field">
+                            Primary colour
+                            <input type="color" name="primary_color" value="{{ site_branding.primary_color|default('#111318', true) if site_branding else '#111318' }}" required>
+                        </label>
+                        <label class="website-settings-field">
+                            Accent colour
+                            <input type="color" name="accent_color" value="{{ site_branding.accent_color|default('#587BB6', true) if site_branding else '#587BB6' }}" required>
+                        </label>
+                    </div>
+
+                    {% if can_advanced %}
+                        <hr class="website-settings-divider">
+                        <h2>Advanced branding</h2>
+                        <p class="panel-description">Fine-tune your colours, typography and footer.</p>
+                        <div class="website-settings-fields">
+                            <label class="website-settings-field">
+                                Background colour
+                                <input type="color" name="background_color" value="{{ site_branding.background_color|default('#FFFFFF', true) if site_branding else '#FFFFFF' }}" required>
+                            </label>
+                            <label class="website-settings-field">
+                                Text colour
+                                <input type="color" name="text_color" value="{{ site_branding.text_color|default('#111318', true) if site_branding else '#111318' }}" required>
+                            </label>
+                            <label class="website-settings-field">
+                                Theme
+                                {% set current_theme = site_branding.theme|default('light', true) if site_branding else 'light' %}
+                                <select name="theme">
+                                    <option value="light" {% if current_theme == 'light' %}selected{% endif %}>Light</option>
+                                    <option value="dark" {% if current_theme == 'dark' %}selected{% endif %}>Dark</option>
+                                </select>
+                            </label>
+                            <label class="website-settings-field">
+                                Font family
+                                {% set current_font = site_branding.font_family|default('system', true) if site_branding else 'system' %}
+                                <select name="font_family">
+                                    <option value="system" {% if current_font == 'system' %}selected{% endif %}>System default</option>
+                                    <option value="sans" {% if current_font == 'sans' %}selected{% endif %}>Sans serif</option>
+                                    <option value="serif" {% if current_font == 'serif' %}selected{% endif %}>Serif</option>
+                                    <option value="mono" {% if current_font == 'mono' %}selected{% endif %}>Monospace</option>
+                                </select>
+                            </label>
+                            <label class="website-settings-field full">
+                                Footer text
+                                <input type="text" name="footer_text" maxlength="255" value="{{ site_branding.footer_text|default('', true) if site_branding else '' }}" placeholder="Your website footer message">
+                            </label>
+                        </div>
+                    {% else %}
+                        <div class="website-settings-note" style="margin-top: 20px;">
+                            Advanced colours, themes, fonts and footer customisation require an eligible plan.
+                        </div>
+                    {% endif %}
+
+                    <div class="website-settings-actions">
+                        <button type="submit" class="website-settings-button">Save website branding</button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="website-settings-panel" aria-labelledby="media-heading">
+                <h2 id="media-heading">Website images</h2>
+                <p class="panel-description">Upload your logo, browser favicon and website cover image. Supported formats and size limits are enforced by the server.</p>
+                <div class="website-settings-media-grid">
+                    {% for kind, label, help_text in [
+                        ('logo', 'Logo', 'Your creator brand logo'),
+                        ('favicon', 'Favicon', 'Small icon shown in browser tabs'),
+                        ('cover_image', 'Cover image', 'Main visual for your creator website')
+                    ] %}
+                        {% set image_url = site_branding|attr(kind ~ '_url') if site_branding else none %}
+                        <div class="website-settings-media">
+                            <h3>{{ label }}</h3>
+                            <div class="website-settings-preview">
+                                {% if image_url %}
+                                    <img src="{{ image_url }}" alt="Current {{ label|lower }}" loading="lazy">
+                                {% else %}
+                                    <span class="website-settings-placeholder">No {{ label|lower }} uploaded</span>
+                                {% endif %}
+                            </div>
+                            <p class="website-settings-muted">{{ help_text }}</p>
+                            <form method="POST" action="{{ url_for('studio.website_media_upload', kind=kind) }}" enctype="multipart/form-data">
+                                {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                                <input type="file" name="image" accept="image/jpeg,image/png,image/webp" aria-label="Upload {{ label|lower }}" required>
+                                <button type="submit" class="website-settings-button">{{ 'Replace' if image_url else 'Upload' }} {{ label|lower }}</button>
+                            </form>
+                            {% if image_url %}
+                                <form class="remove-form" method="POST" action="{{ url_for('studio.website_media_remove', kind=kind) }}" onsubmit="return confirm('Remove this {{ label|lower }}?');">
+                                    {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                                    <button type="submit" class="website-settings-button danger">Remove {{ label|lower }}</button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section class="website-settings-panel" aria-labelledby="subdomain-heading">
+                <h2 id="subdomain-heading">Your Kalxa subdomain</h2>
+                <p class="panel-description">Reserve a Kalxa creator address for your website.</p>
+                <div class="website-settings-note"><strong>{{ expected_subdomain }}</strong></div>
+                {% set subdomains = account_domains|selectattr('domain_type', 'equalto', 'subdomain')|list %}
+                {% if subdomains %}
+                    {% for domain in subdomains %}
+                        <div class="website-settings-domain">
+                            <div class="website-settings-domain-header">
+                                <h3>{{ domain.hostname }}</h3>
+                                <span class="website-settings-pill {{ 'good' if domain.is_active else 'pending' }}">{{ 'Live' if domain.is_active else 'Reserved / awaiting setup' }}</span>
+                            </div>
+                            <p>Reservation does not guarantee the address is live. Kalxa must configure wildcard DNS, routing and HTTPS before visitors can use it.</p>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <form method="POST" action="{{ url_for('studio.website_subdomain_create') }}" class="website-settings-actions">
+                        {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                        <button type="submit" class="website-settings-button">Reserve my subdomain</button>
+                    </form>
+                {% endif %}
+            </section>
+
+            <section class="website-settings-panel" aria-labelledby="domains-heading">
+                <h2 id="domains-heading">Custom domains</h2>
+                <p class="panel-description">Connect a domain you own to your Kalxa creator website.</p>
+
+                {% if can_domain %}
+                    <div class="website-settings-note warning">
+                        DNS TXT verification proves domain ownership only. Your domain will not go live until Kalxa configures hosting, DNS routing and a valid TLS certificate.
+                    </div>
+                    <form method="POST" action="{{ url_for('studio.website_domain_add') }}" class="website-settings-actions">
+                        {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                        <label class="website-settings-field">
+                            Domain hostname
+                            <input type="text" name="hostname" maxlength="253" placeholder="www.example.co.za" autocomplete="off" required>
+                            <small>Enter only the hostname, without https:// or a path.</small>
+                        </label>
+                        <div class="website-settings-actions">
+                            <button type="submit" class="website-settings-button">Add custom domain</button>
+                        </div>
+                    </form>
+
+                    {% set custom_domains = account_domains|selectattr('domain_type', 'equalto', 'custom')|list %}
+                    {% if custom_domains %}
+                        <hr class="website-settings-divider">
+                        <h3>Connected domain requests</h3>
+                        {% for domain in custom_domains %}
+                            <div class="website-settings-domain">
+                                <div class="website-settings-domain-header">
+                                    <h3>{{ domain.hostname }}</h3>
+                                    <span class="website-settings-pill {{ 'good' if domain.is_active else 'pending' }}">{{ 'Live' if domain.is_active else 'Not live' }}</span>
+                                </div>
+                                <p>Ownership: <strong>{{ domain.verification_status|default('pending', true)|replace('_', ' ')|title }}</strong></p>
+                                {% if domain.verification_status != 'verified' %}
+                                    <div class="website-settings-dns">
+                                        <div><strong>DNS record type</strong><code>TXT</code></div>
+                                        <div><strong>DNS record name</strong><code>{{ verification_prefix }}.{{ domain.hostname }}</code></div>
+                                        <div><strong>DNS record value</strong><code>{{ domain.verification_token }}</code></div>
+                                    </div>
+                                    <p>Add this TXT record with your DNS provider, wait for propagation, then select Verify ownership.</p>
+                                {% elif not domain.is_active %}
+                                    <div class="website-settings-note">Ownership verified. Kalxa must still configure domain routing and HTTPS before activation.</div>
+                                {% endif %}
+                                <div class="website-settings-domain-actions">
+                                    {% if domain.verification_status != 'verified' %}
+                                        <form method="POST" action="{{ url_for('studio.website_domain_verify', domain_id=domain.id) }}">
+                                            {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                                            <button type="submit" class="website-settings-button">Verify ownership</button>
+                                        </form>
+                                    {% endif %}
+                                    <form method="POST" action="{{ url_for('studio.website_domain_remove', domain_id=domain.id) }}" onsubmit="return confirm('Disconnect this custom domain?');">
+                                        {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                                        <button type="submit" class="website-settings-button danger">Remove domain</button>
+                                    </form>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                {% else %}
+                    <div class="website-settings-note">
+                        Custom domains are available on eligible plans. Your current plan does not include this feature.
+                    </div>
+                {% endif %}
+            </section>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
