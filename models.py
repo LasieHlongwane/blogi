@@ -256,22 +256,201 @@ class ContentPost(db.Model):
     __table_args__ = (db.UniqueConstraint('creator_account_id', 'slug', name='uq_content_post_creator_slug'),)
 
 
+
+# ============================================================
+# KALXA CREATOR
+# CONTENT MEDIA MODEL
+# ============================================================
+#
+# Supports:
+#
+# - Public media
+# - Authenticated exclusive media
+# - Cloudinary images and videos
+# - Story galleries
+# - Video thumbnails
+# - Creator-specific content ownership through ContentPost
+#
+# Cloudinary delivery types:
+#
+# upload         = Public media
+# authenticated  = Protected media
+#
+# IMPORTANT:
+#
+# media_url is nullable because authenticated media
+# should not expose a permanent public URL.
+#
+# ============================================================
 class ContentMedia(db.Model):
-    __tablename__ = 'content_media'
-    id = db.Column(db.Integer, primary_key=True)
-    post_id = db.Column(db.Integer, db.ForeignKey('content_posts.id', ondelete='CASCADE'), nullable=False, index=True)
-    media_type = db.Column(db.String(20), nullable=False)
-    media_url = db.Column(db.Text, nullable=False)
-    public_id = db.Column(db.String(500), index=True)
-    resource_type = db.Column(db.String(30))
-    thumbnail_url = db.Column(db.Text)
-    caption = db.Column(db.String(255))
-    media_order = db.Column(db.Integer, default=0, nullable=False)
-    duration_seconds = db.Column(db.Float)
-    width = db.Column(db.Integer)
-    height = db.Column(db.Integer)
-    created_at = db.Column(db.DateTime(timezone=True), default=utc_now, nullable=False)
-    post = db.relationship('ContentPost', backref=db.backref('media', lazy=True, cascade='all, delete-orphan'))
+
+    __tablename__ = "content_media"
+
+    # ========================================================
+    # PRIMARY KEY
+    # ========================================================
+
+    id = db.Column(
+        db.Integer,
+        primary_key=True,
+    )
+
+    # ========================================================
+    # CONTENT POST
+    # ========================================================
+
+    post_id = db.Column(
+        db.Integer,
+        db.ForeignKey(
+            "content_posts.id",
+            ondelete="CASCADE",
+        ),
+        nullable=False,
+        index=True,
+    )
+
+    # ========================================================
+    # MEDIA TYPE
+    # ========================================================
+    #
+    # cover
+    # video
+    # gallery_image
+    #
+    # ========================================================
+
+    media_type = db.Column(
+        db.String(20),
+        nullable=False,
+    )
+
+    # ========================================================
+    # MEDIA URL
+    # ========================================================
+    #
+    # Public:
+    #   Stores the Cloudinary secure URL.
+    #
+    # Authenticated:
+    #   NULL. Generate access URLs only after authorization.
+    #
+    # ========================================================
+
+    media_url = db.Column(
+        db.Text,
+        nullable=True,
+    )
+
+    # ========================================================
+    # CLOUDINARY PUBLIC ID
+    # ========================================================
+
+    public_id = db.Column(
+        db.String(500),
+        index=True,
+    )
+
+    # ========================================================
+    # RESOURCE TYPE
+    # ========================================================
+    #
+    # image
+    # video
+    #
+    # ========================================================
+
+    resource_type = db.Column(
+        db.String(30),
+    )
+
+    # ========================================================
+    # CLOUDINARY DELIVERY TYPE
+    # ========================================================
+    #
+    # upload:
+    #   Public Cloudinary delivery.
+    #
+    # authenticated:
+    #   Cloudinary authenticated delivery.
+    #
+    # ========================================================
+
+    delivery_type = db.Column(
+        db.String(30),
+        nullable=False,
+        default="upload",
+        server_default="upload",
+        index=True,
+    )
+
+    # ========================================================
+    # THUMBNAIL
+    # ========================================================
+
+    thumbnail_url = db.Column(
+        db.Text,
+    )
+
+    # ========================================================
+    # CAPTION
+    # ========================================================
+
+    caption = db.Column(
+        db.String(255),
+    )
+
+    # ========================================================
+    # MEDIA ORDER
+    # ========================================================
+
+    media_order = db.Column(
+        db.Integer,
+        default=0,
+        nullable=False,
+    )
+
+    # ========================================================
+    # VIDEO DURATION
+    # ========================================================
+
+    duration_seconds = db.Column(
+        db.Float,
+    )
+
+    # ========================================================
+    # IMAGE / VIDEO DIMENSIONS
+    # ========================================================
+
+    width = db.Column(
+        db.Integer,
+    )
+
+    height = db.Column(
+        db.Integer,
+    )
+
+    # ========================================================
+    # CREATED AT
+    # ========================================================
+
+    created_at = db.Column(
+        db.DateTime(timezone=True),
+        default=utc_now,
+        nullable=False,
+    )
+
+    # ========================================================
+    # RELATIONSHIP
+    # ========================================================
+
+    post = db.relationship(
+        "ContentPost",
+        backref=db.backref(
+            "media",
+            lazy=True,
+            cascade="all, delete-orphan",
+        ),
+    )
 
 
 class Comment(db.Model):
