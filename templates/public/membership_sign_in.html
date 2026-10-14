@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}Member sign in | {{ creator_account.username }}{% endblock %}
+{% block content %}
+<main style="max-width:520px;margin:3rem auto;padding:1.5rem">
+  <h1>Member sign in</h1>
+  <p>Enter the email used for your active membership. We'll email you a one-time sign-in link.</p>
+  <form method="post" action="{{ url_for('membership.sign_in', username=creator_account.username) }}">
+    {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+    <label for="member-email">Email address</label>
+    <input id="member-email" name="email" type="email" autocomplete="email" maxlength="255" required style="display:block;width:100%;padding:.8rem;margin:.5rem 0 1rem">
+    <button type="submit">Email me a sign-in link</button>
+  </form>
+  <p><a href="{{ url_for('membership.landing', username=creator_account.username) }}">Become a member or renew</a></p>
+</main>
+{% endblock %}

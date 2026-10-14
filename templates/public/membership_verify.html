@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Confirm member sign in{% endblock %}
+{% block content %}
+<main style="max-width:520px;margin:3rem auto;padding:1.5rem">
+  <h1>Confirm sign in</h1>
+  <p>Continue to verify your one-time email link and open your membership.</p>
+  <form method="post">
+    {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+    <input type="hidden" name="confirm_nonce" value="{{ confirm_nonce }}">
+    <button type="submit">Confirm and sign in</button>
+  </form>
+</main>
+{% endblock %}
