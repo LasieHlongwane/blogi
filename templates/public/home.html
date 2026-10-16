@@ -5,1204 +5,479 @@
 {% endblock %}
 
 {% block content %}
-
 {% include "public/includes/branding_head.html" %}
 
-<div
-    class="creator-site creator-public-home"
-    data-creator-theme="{{ site_brand.theme if site_brand else 'light' }}"
-    data-creator-font="{{ site_brand.font_family if site_brand else 'system' }}"
->
+<div class="creator-site creator-public-home luxury-home"
+     data-creator-theme="{{ site_brand.theme if site_brand else 'light' }}"
+     data-creator-font="{{ site_brand.font_family if site_brand else 'system' }}">
 
 <style>
-
 /* ============================================================
-   GLOBAL CREATOR THEME
+   KALXA BLOGI — REFINED EDITORIAL HOME
+   Scoped to this page; existing branding variables are retained.
 ============================================================ */
-
-.creator-site {
-    background: var(--creator-background, inherit);
-    color: var(--creator-text, inherit);
+.creator-public-home {
+    --lux-ink: #22211e;
+    --lux-muted: #746f67;
+    --lux-cream: #f8f6f1;
+    --lux-paper: #fffefa;
+    --lux-line: rgba(39,35,28,.13);
+    --lux-gold: #9e8155;
+    --lux-shadow: 0 24px 65px rgba(29,25,18,.08);
+    color: var(--lux-ink);
+    background: var(--lux-cream);
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    overflow: clip;
 }
+.creator-public-home *, .creator-public-home *::before, .creator-public-home *::after { box-sizing: border-box; }
+.creator-public-home h1, .creator-public-home h2, .creator-public-home h3,
+.creator-public-home .editorial-serif { font-family: Georgia, 'Times New Roman', serif; font-weight: 400; }
+.creator-public-home img { max-width: 100%; }
+.creator-public-home a { text-decoration: none; }
+.creator-public-home button, .creator-public-home input { font: inherit; }
+.creator-public-home :focus-visible { outline: 3px solid var(--creator-accent, #b9975e); outline-offset: 4px; }
+.creator-public-home .lux-container { width: min(1200px, calc(100% - 64px)); margin-inline: auto; }
+.creator-public-home .eyebrow { display: inline-flex; align-items: center; gap: 12px; color: var(--lux-gold); font-size: 11px; font-weight: 750; letter-spacing: .23em; text-transform: uppercase; }
+.creator-public-home .eyebrow::before { content: ''; width: 23px; height: 1px; background: currentColor; }
+.creator-public-home .lux-button { display: inline-flex; align-items: center; justify-content: center; gap: 17px; min-height: 53px; padding: 14px 25px; font-size: 12px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; transition: transform .2s, background .2s, box-shadow .2s; }
+.creator-public-home .lux-button:hover { transform: translateY(-2px); }
+.creator-public-home .lux-button-dark { background: var(--creator-primary, #24231f); color: #fff; border: 1px solid var(--creator-primary, #24231f); }
+.creator-public-home .lux-button-outline { color: var(--lux-ink); border: 1px solid var(--lux-line); background: transparent; }
+.creator-public-home .lux-button-outline:hover { background: #fff; }
+.creator-public-home .lux-section { padding: 98px 0; }
+.creator-public-home .lux-section-heading { display: flex; justify-content: space-between; align-items: end; gap: 30px; margin-bottom: 36px; }
+.creator-public-home .lux-section-heading h2 { margin: 14px 0 0; font-size: clamp(39px, 5vw, 64px); line-height: 1.06; letter-spacing: -.045em; }
+.creator-public-home .lux-section-heading p { max-width: 310px; margin: 0 0 7px; color: var(--lux-muted); line-height: 1.8; font-size: 14px; }
 
-.creator-site[data-creator-font="serif"] {
-    font-family: Georgia, 'Times New Roman', serif;
+/* Hero */
+.creator-public-home .lux-hero { position: relative; padding: 88px 0 105px; background: var(--lux-paper); border-bottom: 1px solid var(--lux-line); }
+.creator-public-home .lux-hero::before { content: ''; position: absolute; inset: 0 0 auto auto; width: 38%; height: 100%; background: #f0ece4; opacity: .7; pointer-events: none; }
+.creator-public-home .lux-hero-layout { position: relative; display: grid; grid-template-columns: minmax(0,1.03fr) minmax(0,.97fr); gap: clamp(35px, 6vw, 95px); align-items: center; }
+.creator-public-home .lux-hero-copy { padding: 22px 0; }
+.creator-public-home .lux-hero-title { font-size: clamp(62px, 8vw, 116px); letter-spacing: -.075em; line-height: .97; margin: 27px 0 25px; overflow-wrap: anywhere; }
+.creator-public-home .lux-hero-title em { color: var(--lux-gold); font-weight: 400; }
+.creator-public-home .lux-hero-tagline { max-width: 520px; font-size: clamp(18px, 2vw, 23px); line-height: 1.55; color: #47443d; margin: 0 0 20px; }
+.creator-public-home .lux-hero-bio { max-width: 510px; color: var(--lux-muted); font-size: 14px; line-height: 1.95; margin: 0 0 33px; white-space: pre-line; }
+.creator-public-home .lux-hero-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.creator-public-home .lux-hero-media { position: relative; padding: 0 0 24px 24px; }
+.creator-public-home .lux-hero-media::before { content: ''; position: absolute; left: 0; top: 24px; right: 24px; bottom: 0; border: 1px solid var(--lux-gold); opacity: .55; }
+.creator-public-home .lux-media-frame { position: relative; aspect-ratio: 4/4.7; background: #ded7ca; overflow: hidden; box-shadow: var(--lux-shadow); }
+.creator-public-home .lux-media-frame > img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.creator-public-home .lux-hero-monogram { width: 100%; height: 100%; display: grid; place-items: center; font: 150px Georgia, serif; color: #97846b; background: linear-gradient(140deg,#e8e0d3,#cfc3b1); }
+.creator-public-home .lux-media-caption { position: absolute; bottom: 51px; left: -26px; background: var(--lux-paper); padding: 16px 22px; box-shadow: 0 12px 30px rgba(0,0,0,.06); }
+.creator-public-home .lux-media-caption span { display: block; font-size: 10px; letter-spacing: .22em; text-transform: uppercase; color: var(--lux-gold); margin-bottom: 6px; }
+.creator-public-home .lux-media-caption strong { font: 19px Georgia,serif; font-weight: 400; }
+
+/* Intro */
+.creator-public-home .lux-intro { padding: 33px 0; background: #22221f; color: #fff; }
+.creator-public-home .lux-intro-grid { display: grid; grid-template-columns: 1fr 1.2fr; gap: 45px; align-items: center; }
+.creator-public-home .lux-intro-copy h2 { font-size: clamp(30px, 4vw, 50px); line-height: 1.1; margin: 15px 0; }
+.creator-public-home .lux-intro-copy p { max-width: 380px; color: #c5c1b9; font-size: 14px; line-height: 1.8; }
+.creator-public-home .lux-intro-video { width: 100%; max-height: 360px; aspect-ratio: 16/9; background: #373630; display: block; object-fit: cover; }
+.creator-public-home .lux-intro-placeholder { min-height: 240px; display: grid; align-content: center; justify-items: center; gap: 12px; background: #363630; color: #d7d2c9; text-align: center; padding: 30px; }
+.creator-public-home .lux-intro-placeholder span { font-size: 40px; color: #c7aa76; }
+
+/* Categories */
+.creator-public-home .lux-categories { padding: 35px 0; background: var(--lux-paper); border-bottom: 1px solid var(--lux-line); }
+.creator-public-home .lux-category-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.creator-public-home .lux-category-label { font-size: 11px; text-transform: uppercase; letter-spacing: .15em; font-weight: 700; color: var(--lux-muted); margin-right: 12px; }
+.creator-public-home .lux-category-pill { display: inline-flex; align-items: center; min-height: 39px; padding: 9px 17px; border: 1px solid var(--lux-line); color: var(--lux-ink); font-size: 12px; transition: .2s; }
+.creator-public-home .lux-category-pill:hover { background: var(--lux-ink); color: white; }
+
+/* Posts */
+.creator-public-home .lux-content-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 24px; }
+.creator-public-home .lux-card { background: var(--lux-paper); min-width: 0; border: 1px solid var(--lux-line); transition: transform .25s, box-shadow .25s; }
+.creator-public-home .lux-card:hover { transform: translateY(-5px); box-shadow: var(--lux-shadow); }
+.creator-public-home .lux-card-media { position: relative; aspect-ratio: 4/3.35; overflow: hidden; background: #e9e3d8; }
+.creator-public-home .lux-card-media img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .5s; }
+.creator-public-home .lux-card:hover .lux-card-media img { transform: scale(1.045); }
+.creator-public-home .lux-cover-placeholder { display: grid; place-items: center; width: 100%; height: 100%; color: #958269; font: 38px Georgia,serif; font-style: italic; }
+.creator-public-home .lux-badges { position: absolute; left: 15px; top: 15px; right: 15px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 7px; }
+.creator-public-home .lux-badge { padding: 8px 10px; background: rgba(255,254,250,.96); color: #292723; text-transform: uppercase; letter-spacing: .13em; font-size: 9px; font-weight: 800; }
+.creator-public-home .lux-badge-exclusive { background: #26241f; color: #f0dbb4; }
+.creator-public-home .lux-card-body { padding: 27px 26px 29px; }
+.creator-public-home .lux-post-category { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .16em; color: var(--lux-gold); }
+.creator-public-home .lux-card h3 { font-size: clamp(23px,2.2vw,30px); line-height: 1.22; letter-spacing: -.03em; margin: 13px 0; }
+.creator-public-home .lux-card p { color: var(--lux-muted); line-height: 1.8; font-size: 13px; margin: 0 0 24px; }
+.creator-public-home .lux-card-link { display: inline-flex; gap: 15px; align-items: center; color: var(--lux-ink); font-size: 11px; font-weight: 800; letter-spacing: .11em; text-transform: uppercase; padding-bottom: 6px; border-bottom: 1px solid var(--lux-gold); }
+.creator-public-home .lux-empty { padding: 75px 30px; text-align: center; background: var(--lux-paper); border: 1px solid var(--lux-line); }
+.creator-public-home .lux-empty h3 { font-size: 35px; margin: 0 0 12px; }
+.creator-public-home .lux-empty p { color: var(--lux-muted); }
+
+/* Membership */
+.creator-public-home .lux-exclusive { position: relative; background: #24231f; color: #f8f5ef; padding: 105px 0; overflow: hidden; }
+.creator-public-home .lux-exclusive::after { content: '✦'; position: absolute; right: -60px; top: -170px; font-size: 550px; color: rgba(255,255,255,.025); pointer-events: none; }
+.creator-public-home .lux-exclusive-inner { position: relative; z-index: 1; width: min(700px, calc(100% - 40px)); margin: auto; text-align: center; }
+.creator-public-home .lux-exclusive .eyebrow { color: #cbb080; }
+.creator-public-home .lux-exclusive .eyebrow::before { display: none; }
+.creator-public-home .lux-exclusive h2 { font-size: clamp(45px, 7vw, 82px); letter-spacing: -.055em; line-height: 1.04; margin: 22px 0; }
+.creator-public-home .lux-exclusive-description { max-width: 530px; margin: 0 auto 28px; color: #c9c3b9; line-height: 1.85; font-size: 15px; }
+.creator-public-home .lux-membership-pricing { max-width: 510px; margin: 35px auto 0; }
+.creator-public-home .lux-pricing-label { display: block; font-size: 12px; letter-spacing: .07em; margin-bottom: 16px; color: #e8e2d8; }
+.creator-public-home .membership-amount-options { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 9px; }
+.creator-public-home .membership-amount-option { position: relative; display: block; cursor: pointer; }
+.creator-public-home .membership-amount-option input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.creator-public-home .membership-amount-option span { display: grid; place-items: center; min-height: 55px; padding: 12px 6px; border: 1px solid rgba(255,255,255,.24); color: #fff; font-size: 14px; font-weight: 700; transition: .2s; }
+.creator-public-home .membership-amount-option input:checked + span { background: #e8d4ad; color: #24231f; border-color: #e8d4ad; }
+.creator-public-home .membership-amount-option input:focus-visible + span { outline: 3px solid #e8d4ad; outline-offset: 3px; }
+.creator-public-home .membership-custom-field { display: none; margin-top: 17px; text-align: left; }
+.creator-public-home .membership-custom-field.is-visible { display: block; }
+.creator-public-home .membership-custom-field label { display: block; font-size: 12px; margin-bottom: 9px; }
+.creator-public-home .membership-custom-field input { width: 100%; min-height: 52px; padding: 12px 15px; border: 1px solid #aaa; background: #fff; color: #24231f; }
+.creator-public-home .membership-selected-price { margin: 30px 0 24px; }
+.creator-public-home .membership-selected-price strong { font: 60px Georgia,serif; letter-spacing: -.06em; }
+.creator-public-home .membership-selected-price span { color: #c5c0b7; font-size: 13px; margin-left: 8px; }
+.creator-public-home .membership-action { display: flex; justify-content: center; }
+.creator-public-home .exclusive-button { display: inline-flex; justify-content: center; align-items: center; gap: 14px; min-height: 54px; padding: 15px 29px; background: #e8d4ad; color: #25231f; font-size: 12px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; border: none; transition: transform .2s; }
+.creator-public-home .exclusive-button:hover { transform: translateY(-2px); }
+.creator-public-home .exclusive-button.is-disabled { opacity: .45; cursor: not-allowed; }
+.creator-public-home .membership-benefits { display: flex; justify-content: center; flex-wrap: wrap; gap: 13px 25px; margin: 27px 0 20px; font-size: 12px; color: #e4d7bf; }
+.creator-public-home .membership-note { display: block; max-width: 530px; margin: 20px auto 0; color: #b7b0a5; font-size: 11px; line-height: 1.8; }
+.creator-public-home .membership-active-badge { display: inline-block; padding: 13px 20px; background: #dcebdc; color: #215332; font-size: 13px; font-weight: 750; margin: 14px 0 18px; }
+.creator-public-home .membership-unavailable { display: inline-block; padding: 14px 20px; background: rgba(255,255,255,.1); color: #f0e8dd; font-size: 13px; }
+.creator-public-home .lux-active-message { color: #d0c9be; line-height: 1.8; }
+
+/* Newsletter */
+.creator-public-home .lux-newsletter { padding: 100px 0; background: var(--lux-paper); }
+.creator-public-home .lux-newsletter-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+.creator-public-home .lux-newsletter h2 { font-size: clamp(42px, 5.5vw, 70px); line-height: 1.05; letter-spacing: -.05em; margin: 20px 0; }
+.creator-public-home .lux-newsletter p { color: var(--lux-muted); max-width: 440px; line-height: 1.8; }
+.creator-public-home .newsletter-form { padding: 37px; background: var(--lux-cream); border: 1px solid var(--lux-line); }
+.creator-public-home .newsletter-form label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; font-weight: 750; margin-bottom: 13px; }
+.creator-public-home .newsletter-input-row { display: flex; gap: 0; }
+.creator-public-home .newsletter-input-row input { min-width: 0; flex: 1; padding: 16px; border: 1px solid var(--lux-line); border-right: 0; background: #fff; color: var(--lux-ink); font-size: 13px; }
+.creator-public-home .newsletter-input-row button { padding: 14px 22px; background: var(--creator-primary,#25231f); border: 1px solid var(--creator-primary,#25231f); color: #fff; font-size: 12px; font-weight: 750; cursor: pointer; }
+.creator-public-home .newsletter-form small { display: block; margin-top: 15px; font-size: 11px; color: var(--lux-muted); }
+.creator-public-home .newsletter-honeypot { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+
+/* Support */
+.creator-public-home .lux-support { padding: 85px 20px 100px; text-align: center; background: #eee8dd; }
+.creator-public-home .lux-support-mark { font-size: 34px; display: block; margin-bottom: 17px; }
+.creator-public-home .lux-support h2 { font-size: clamp(40px, 5vw, 65px); letter-spacing: -.045em; margin: 17px 0; }
+.creator-public-home .lux-support p { max-width: 540px; margin: 0 auto 27px; color: #68635b; font-size: 14px; line-height: 1.85; }
+.creator-public-home .lux-support .eyebrow::before { display: none; }
+.creator-public-home .coffee-button { display: inline-flex; gap: 17px; align-items: center; justify-content: center; min-height: 53px; padding: 15px 28px; background: #25231f; color: #fff; font-size: 12px; font-weight: 750; text-transform: uppercase; letter-spacing: .08em; }
+.creator-public-home .coffee-unavailable { color: #706a61; font-size: 13px; }
+
+@media (max-width: 980px) {
+    .creator-public-home .lux-hero-layout { gap: 40px; }
+    .creator-public-home .lux-hero-title { font-size: clamp(52px,7vw,80px); }
+    .creator-public-home .lux-content-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    .creator-public-home .lux-newsletter-grid { gap: 35px; }
 }
-
-.creator-site[data-creator-font="mono"] {
-    font-family: Consolas, monospace;
+@media (max-width: 700px) {
+    .creator-public-home .lux-container { width: min(100% - 34px, 1200px); }
+    .creator-public-home .lux-hero { padding: 44px 0 60px; }
+    .creator-public-home .lux-hero::before { width: 100%; height: 32%; top: auto; bottom: 0; }
+    .creator-public-home .lux-hero-layout, .creator-public-home .lux-intro-grid, .creator-public-home .lux-newsletter-grid { grid-template-columns: 1fr; }
+    .creator-public-home .lux-hero-title { font-size: clamp(53px,12vw,77px); }
+    .creator-public-home .lux-hero-media { width: min(100% - 15px,460px); margin: 20px auto 0; }
+    .creator-public-home .lux-media-caption { left: 5px; bottom: 47px; }
+    .creator-public-home .lux-intro { padding: 50px 0; }
+    .creator-public-home .lux-section { padding: 68px 0; }
+    .creator-public-home .lux-section-heading { display: block; }
+    .creator-public-home .lux-section-heading p { margin-top: 14px; }
+    .creator-public-home .lux-content-grid { grid-template-columns: 1fr; }
+    .creator-public-home .lux-card-media { aspect-ratio: 4/3; }
+    .creator-public-home .lux-exclusive { padding: 75px 0; }
+    .creator-public-home .lux-newsletter { padding: 65px 0; }
+    .creator-public-home .newsletter-form { padding: 23px; }
 }
-
-.creator-site[data-creator-font="sans"] {
-    font-family: Arial, Helvetica, sans-serif;
+@media (max-width: 440px) {
+    .creator-public-home .lux-hero-actions { flex-direction: column; }
+    .creator-public-home .lux-hero-actions .lux-button { width: 100%; }
+    .creator-public-home .membership-amount-options { grid-template-columns: repeat(2,minmax(0,1fr)); }
+    .creator-public-home .membership-action .exclusive-button { width: 100%; }
+    .creator-public-home .newsletter-input-row { flex-direction: column; gap: 10px; }
+    .creator-public-home .newsletter-input-row input { border-right: 1px solid var(--lux-line); }
 }
-
-.creator-site[data-creator-font="system"] {
-    font-family: system-ui, -apple-system, sans-serif;
+@media (prefers-reduced-motion: reduce) {
+    .creator-public-home *, .creator-public-home *::before, .creator-public-home *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
-
-.creator-site .primary-button,
-.creator-site .newsletter-form button,
-.creator-site .exclusive-button {
-    background: var(--creator-primary, #17191d);
-    color: #fff;
-}
-
-.creator-site .secondary-button,
-.creator-site .content-card-body a,
-.creator-site .category-pill {
-    border-color: var(--creator-primary, #17191d);
-    color: var(--creator-primary, #17191d);
-}
-
-.creator-site .eyebrow,
-.creator-site .post-category {
-    color: var(
-        --creator-accent,
-        var(--creator-primary, #17191d)
-    );
-}
-
-.creator-site .creator-brand-header {
-    overflow: hidden;
-    margin-bottom: 1.5rem;
-}
-
-.creator-site .creator-brand-identity {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 1rem 1.25rem;
-}
-
-.creator-site .creator-brand-identity h1 {
-    margin: 0;
-    font-size: 1.4rem;
-}
-
-.creator-site .creator-brand-identity p {
-    margin: .25rem 0 0;
-}
-
-.creator-site .creator-brand-footer {
-    padding: 2rem 1.25rem;
-    text-align: center;
-}
-
-.creator-site .creator-brand-footer p {
-    margin: .3rem 0;
-}
-
-/* ============================================================
-   EXCLUSIVE MEMBERSHIP SECTION
-============================================================ */
-
-.creator-site .exclusive-section {
-    padding: 4.5rem 1.25rem;
-    text-align: center;
-}
-
-.creator-site .exclusive-inner {
-    width: 100%;
-    max-width: 680px;
-    margin: 0 auto;
-}
-
-.creator-site .exclusive-label {
-    display: inline-block;
-    margin-bottom: 1rem;
-    font-size: .78rem;
-    font-weight: 800;
-    letter-spacing: .12em;
-    text-transform: uppercase;
-}
-
-.creator-site .exclusive-inner h2 {
-    margin: 0 0 1rem;
-    font-size: clamp(2rem, 5vw, 3rem);
-    line-height: 1.15;
-}
-
-.creator-site .exclusive-description {
-    max-width: 530px;
-    margin: 0 auto 1.8rem;
-    line-height: 1.7;
-}
-
-.creator-site .membership-pricing {
-    max-width: 490px;
-    margin: 2rem auto;
-}
-
-.creator-site .membership-pricing-label {
-    display: block;
-    margin-bottom: 1rem;
-    font-size: .9rem;
-    font-weight: 700;
-}
-
-.creator-site .membership-amount-options {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: .65rem;
-}
-
-.creator-site .membership-amount-option {
-    position: relative;
-    display: block;
-    cursor: pointer;
-}
-
-.creator-site .membership-amount-option input {
-    position: absolute;
-    opacity: 0;
-    width: 1px;
-    height: 1px;
-}
-
-.creator-site .membership-amount-option span {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 52px;
-    padding: .7rem .35rem;
-    border: 1px solid #d7d7d7;
-    border-radius: 12px;
-    background: #fff;
-    color: #17191d;
-    font-weight: 750;
-    transition:
-        background .2s ease,
-        color .2s ease,
-        border-color .2s ease,
-        transform .2s ease;
-}
-
-.creator-site .membership-amount-option:hover span {
-    transform: translateY(-2px);
-    border-color: var(--creator-primary, #17191d);
-}
-
-.creator-site .membership-amount-option input:checked + span {
-    background: var(--creator-primary, #17191d);
-    border-color: var(--creator-primary, #17191d);
-    color: #fff;
-}
-
-.creator-site .membership-amount-option input:focus-visible + span {
-    outline: 3px solid var(--creator-accent, #f4b942);
-    outline-offset: 3px;
-}
-
-.creator-site .membership-custom-field {
-    display: none;
-    margin-top: 1rem;
-    text-align: left;
-}
-
-.creator-site .membership-custom-field.is-visible {
-    display: block;
-}
-
-.creator-site .membership-custom-field label {
-    display: block;
-    margin-bottom: .45rem;
-    font-size: .85rem;
-    font-weight: 700;
-}
-
-.creator-site .membership-custom-field input {
-    width: 100%;
-    min-height: 50px;
-    padding: .8rem 1rem;
-    border: 1px solid #d7d7d7;
-    border-radius: 12px;
-    background: #fff;
-    color: #17191d;
-    font: inherit;
-}
-
-.creator-site .membership-custom-field input:focus {
-    outline: 2px solid var(--creator-accent, #f4b942);
-    outline-offset: 2px;
-}
-
-.creator-site .membership-selected-price {
-    margin: 1.5rem 0;
-}
-
-.creator-site .membership-selected-price strong {
-    font-size: 2.5rem;
-    font-weight: 850;
-}
-
-.creator-site .membership-selected-price span {
-    font-size: .95rem;
-}
-
-.creator-site .membership-action {
-    display: flex;
-    justify-content: center;
-    margin-top: 1.5rem;
-}
-
-.creator-site .membership-action .exclusive-button {
-    display: inline-flex;
-    justify-content: center;
-    align-items: center;
-    gap: .5rem;
-    min-height: 52px;
-    padding: .9rem 2rem;
-    border: 0;
-    border-radius: 12px;
-    text-decoration: none;
-    font: inherit;
-    font-weight: 800;
-    cursor: pointer;
-    transition: opacity .2s ease, transform .2s ease;
-}
-
-.creator-site .membership-action .exclusive-button:hover {
-    opacity: .92;
-    transform: translateY(-2px);
-}
-
-.creator-site .membership-action .exclusive-button:focus-visible {
-    outline: 3px solid var(--creator-accent, #f4b942);
-    outline-offset: 3px;
-}
-
-.creator-site .membership-benefits {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: .75rem 1.2rem;
-    margin: 1.5rem 0;
-    font-size: .83rem;
-}
-
-.creator-site .membership-benefits span {
-    display: inline-flex;
-    align-items: center;
-    gap: .35rem;
-}
-
-.creator-site .membership-note {
-    display: block;
-    max-width: 480px;
-    margin: 1rem auto 0;
-    font-size: .8rem;
-    line-height: 1.6;
-}
-
-.creator-site .membership-active-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: .5rem;
-    margin: 1rem 0;
-    padding: .75rem 1rem;
-    border-radius: 999px;
-    background: #e7f8ec;
-    color: #176332;
-    font-size: .9rem;
-    font-weight: 800;
-}
-
-.creator-site .membership-unavailable {
-    display: inline-block;
-    padding: .9rem 1.2rem;
-    border-radius: 12px;
-    background: #ececec;
-    color: #555;
-    font-size: .9rem;
-}
-
-.creator-site .membership-extra-support {
-    margin-top: 1.2rem;
-    font-size: .85rem;
-}
-
-.creator-site .membership-extra-support a {
-    color: inherit;
-    font-weight: 800;
-    text-decoration: underline;
-}
-
-/* ============================================================
-   RESPONSIVE
-============================================================ */
-
-@media (max-width: 540px) {
-
-    .creator-site .exclusive-section {
-        padding: 3.5rem 1rem;
-    }
-
-    .creator-site .membership-amount-options {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-
-    .creator-site .membership-action .exclusive-button {
-        width: 100%;
-    }
-
-    .creator-site .membership-benefits {
-        flex-direction: column;
-        align-items: center;
-        gap: .65rem;
-    }
-
-}
-
 </style>
 
 {% include "public/includes/branding_header.html" %}
 
 <!-- ============================================================
-     CREATOR HERO
+     HERO / CREATOR IDENTITY
 ============================================================ -->
-
-<section class="creator-hero">
-
-    <div class="creator-profile">
-
-        {% if creator and creator.profile_image_url %}
-
-            <img
-                src="{{ creator.profile_image_url }}"
-                alt="{{ creator.display_name }}"
-                class="profile-image"
-            >
-
-        {% else %}
-
-            <div class="profile-placeholder">♥</div>
-
-        {% endif %}
-
-        <div class="creator-info">
-
-            <span class="eyebrow">CREATOR</span>
-
-            <h1>
-                {{ creator.display_name if creator else 'Your Creator Name' }}
+<section class="lux-hero" aria-labelledby="creator-hero-title">
+    <div class="lux-container lux-hero-layout">
+        <div class="lux-hero-copy">
+            <span class="eyebrow">The creator's journal</span>
+            <h1 class="lux-hero-title" id="creator-hero-title">
+                {{ creator.display_name if creator else 'Your Creator Name' }}<em>.</em>
             </h1>
-
-            <p class="tagline">
-                {{
-                    site_brand.tagline
-                    if site_brand and site_brand.tagline
-                    else (
-                        creator.tagline
-                        if creator and creator.tagline
-                        else 'Stories, moments and experiences worth sharing.'
-                    )
-                }}
+            <p class="lux-hero-tagline">
+                {{ site_brand.tagline if site_brand and site_brand.tagline else (creator.tagline if creator and creator.tagline else 'Stories, moments and experiences worth sharing.') }}
             </p>
-
             {% if creator and creator.bio %}
-
-                <p class="bio">
-                    {{ creator.bio }}
-                </p>
-
+                <p class="lux-hero-bio">{{ creator.bio }}</p>
             {% endif %}
-
-            <div class="hero-actions">
-
-                <a href="#latest" class="primary-button">
-                    Explore my world
-                </a>
-
-                <a href="#newsletter" class="secondary-button">
-                    Subscribe
-                </a>
-
+            <div class="lux-hero-actions">
+                <a href="#latest" class="lux-button lux-button-dark">Explore my stories <span aria-hidden="true">↗</span></a>
+                <a href="#newsletter" class="lux-button lux-button-outline">Stay connected <span aria-hidden="true">→</span></a>
             </div>
-
         </div>
-
-    </div>
-
-    {% if creator and creator.intro_reel_url %}
-
-        <div class="intro-reel">
-
-            <span class="eyebrow">MEET ME</span>
-
-            <video
-                controls
-                playsinline
-                preload="metadata"
-                {% if creator.intro_reel_thumbnail_url %}
-                    poster="{{ creator.intro_reel_thumbnail_url }}"
+        <div class="lux-hero-media">
+            <div class="lux-media-frame">
+                {% if creator and creator.profile_image_url %}
+                    <img src="{{ creator.profile_image_url }}" alt="Portrait of {{ creator.display_name }}" fetchpriority="high">
+                {% else %}
+                    <div class="lux-hero-monogram" aria-label="Creator portrait coming soon">✦</div>
                 {% endif %}
-            >
+            </div>
+            <div class="lux-media-caption"><span>Welcome to my world</span><strong>Made to be remembered.</strong></div>
+        </div>
+    </div>
+</section>
 
+<!-- ============================================================
+     INTRODUCTION REEL
+============================================================ -->
+<section class="lux-intro" aria-labelledby="intro-title">
+    <div class="lux-container lux-intro-grid">
+        <div class="lux-intro-copy">
+            <span class="eyebrow">Beyond the stories</span>
+            <h2 id="intro-title">A little more <em>about me.</em></h2>
+            <p>A glimpse into the person, the passion and the moments behind everything I share.</p>
+        </div>
+        {% if creator and creator.intro_reel_url %}
+            <video class="lux-intro-video" controls playsinline preload="metadata"
+                {% if creator.intro_reel_thumbnail_url %}poster="{{ creator.intro_reel_thumbnail_url }}"{% endif %}>
                 <source src="{{ creator.intro_reel_url }}">
-
                 Your browser does not support video.
-
             </video>
-
-        </div>
-
-    {% else %}
-
-        <div class="intro-placeholder">
-
-            <div class="play-icon">▶</div>
-
-            <strong>Meet Me</strong>
-
-            <span>
-                Introduction reel coming soon.
-            </span>
-
-        </div>
-
-    {% endif %}
-
+        {% else %}
+            <div class="lux-intro-placeholder"><span aria-hidden="true">▷</span><strong>Meet me</strong><small>Introduction reel coming soon.</small></div>
+        {% endif %}
+    </div>
 </section>
 
 <!-- ============================================================
      CATEGORIES
 ============================================================ -->
-
 {% if categories %}
-
-<section class="categories-section">
-
-    <div class="section-heading">
-
-        <span class="eyebrow">EXPLORE</span>
-
-        <h2>My world</h2>
-
-    </div>
-
-    <div class="category-row">
-
+<section class="lux-categories" aria-label="Explore content categories">
+    <div class="lux-container lux-category-row">
+        <span class="lux-category-label">Explore the journal</span>
         {% for category in categories %}
-
-            <a href="#latest" class="category-pill">
-                {{ category.name }}
-            </a>
-
+            <a href="#latest" class="lux-category-pill">{{ category.name }}</a>
         {% endfor %}
-
     </div>
-
 </section>
-
 {% endif %}
 
 <!-- ============================================================
-     LATEST CONTENT
+     LATEST STORIES, REELS AND VLOGS
 ============================================================ -->
-
-<section class="latest-section" id="latest">
-
-    <div class="section-heading">
-
-        <span class="eyebrow">NEW</span>
-
-        <h2>Latest from me</h2>
-
-        <p>
-            Stories, reels and vlogs from my world.
-        </p>
-
-    </div>
-
-    {% if posts %}
-
-        <div class="content-grid">
-
-            {% for post in posts %}
-
-            <article class="content-card">
-
-                <div class="content-cover">
-
-                    {% if post.cover_image_url %}
-
-                        <img
-                            src="{{ post.cover_image_url }}"
-                            alt="{{ post.title }}"
-                            loading="lazy"
-                        >
-
-                    {% else %}
-
-                        <div class="cover-placeholder">
-                            {{ post.content_type|upper }}
-                        </div>
-
-                    {% endif %}
-
-                    <div class="content-badges">
-
-                        <span class="type-badge">
-                            {{ post.content_type }}
-                        </span>
-
-                        {% if post.access_level == 'subscriber' %}
-
-                            <span class="premium-badge">
-                                🔒 Exclusive
-                            </span>
-
+<section class="lux-section" id="latest" aria-labelledby="latest-title">
+    <div class="lux-container">
+        <div class="lux-section-heading">
+            <div><span class="eyebrow">Curated moments</span><h2 id="latest-title">The latest <em>editions.</em></h2></div>
+            <p>Thoughtful stories, real moments and a closer look at everything unfolding in my world.</p>
+        </div>
+        {% if posts %}
+            <div class="lux-content-grid">
+                {% for post in posts %}
+                <article class="lux-card">
+                    <div class="lux-card-media">
+                        {% if post.cover_image_url %}
+                            <img src="{{ post.cover_image_url }}" alt="{{ post.title }}" loading="lazy">
+                        {% else %}
+                            <div class="lux-cover-placeholder">{{ post.content_type|title }}</div>
                         {% endif %}
-
+                        <div class="lux-badges">
+                            <span class="lux-badge">{{ post.content_type }}</span>
+                            {% if post.access_level == 'subscriber' %}<span class="lux-badge lux-badge-exclusive">✦ Exclusive</span>{% endif %}
+                        </div>
                     </div>
-
-                </div>
-
-                <div class="content-card-body">
-
-                    {% if post.category %}
-
-                        <span class="post-category">
-                            {{ post.category.name }}
-                        </span>
-
-                    {% endif %}
-
-                    <h3>
-                        {{ post.title }}
-                    </h3>
-
-                    {% if post.excerpt %}
-
-                        <p>
-                            {{ post.excerpt }}
-                        </p>
-
-                    {% endif %}
-
-                    {% if creator and creator.creator_account_id and public_username %}
-
-                        <a
-                            href="{{ url_for(
-                                'public.creator_content_detail',
-                                username=public_username,
-                                slug=post.slug
-                            ) }}"
-                        >
-                            {% if post.access_level == 'subscriber' and not member_has_access %}
-                                Unlock content
-                            {% else %}
-                                View
-                            {% endif %}
-                            <span>→</span>
+                    <div class="lux-card-body">
+                        {% if post.category %}<span class="lux-post-category">{{ post.category.name }}</span>{% endif %}
+                        <h3>{{ post.title }}</h3>
+                        {% if post.excerpt %}<p>{{ post.excerpt }}</p>{% endif %}
+                        {% if creator and creator.creator_account_id and public_username %}
+                            <a class="lux-card-link" href="{{ url_for('public.creator_content_detail', username=public_username, slug=post.slug) }}">
+                        {% else %}
+                            <a class="lux-card-link" href="{{ url_for('public.content_detail', slug=post.slug) }}">
+                        {% endif %}
+                            {% if post.access_level == 'subscriber' and not member_has_access %}Unlock content{% else %}Read & explore{% endif %}
+                            <span aria-hidden="true">↗</span>
                         </a>
-
-                    {% else %}
-
-                        <a
-                            href="{{ url_for(
-                                'public.content_detail',
-                                slug=post.slug
-                            ) }}"
-                        >
-                            {% if post.access_level == 'subscriber' and not member_has_access %}
-                                Unlock content
-                            {% else %}
-                                View
-                            {% endif %}
-                            <span>→</span>
-                        </a>
-
-                    {% endif %}
-
-                </div>
-
-            </article>
-
-            {% endfor %}
-
-        </div>
-
-    {% else %}
-
-        <div class="empty-content">
-
-            <strong>
-                The story starts here.
-            </strong>
-
-            <p>
-                New stories, reels and vlogs will appear here.
-            </p>
-
-        </div>
-
-    {% endif %}
-
+                    </div>
+                </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="lux-empty"><h3>The story starts here.</h3><p>New stories, reels and vlogs will appear here.</p></div>
+        {% endif %}
+    </div>
 </section>
 
 <!-- ============================================================
      EXCLUSIVE MEMBERSHIPS
 ============================================================ -->
-
-<section class="exclusive-section" id="exclusive">
-
-    <div class="exclusive-inner">
-
-        <span class="exclusive-label">
-            🔒 EXCLUSIVE
-        </span>
-
-        <h2>
-            Come a little closer.
-        </h2>
-
-        <p class="exclusive-description">
-            Watch exclusive vlogs, behind-the-scenes moments
-            and content I only share with my members.
-        </p>
+<section class="lux-exclusive" id="exclusive" aria-labelledby="exclusive-title">
+    <div class="lux-exclusive-inner">
+        <span class="eyebrow">✦ The inner circle</span>
+        <h2 id="exclusive-title">Come a little <em>closer.</em></h2>
+        <p class="lux-exclusive-description">Step beyond the public feed. Discover exclusive vlogs, intimate behind-the-scenes moments and stories reserved for members.</p>
 
         {% if membership_enabled %}
-
             {% if member_has_access %}
-
-                <!-- ACTIVE MEMBER -->
-
-                <div class="membership-active-badge">
-                    ✓ Your exclusive membership is active
-                </div>
-
-                <p>
-                    Thank you for supporting my creative journey.
-                    Your exclusive content is ready to explore.
-                </p>
-
-                <div class="membership-action">
-
-                    <a
-                        href="#latest"
-                        class="exclusive-button"
-                    >
-                        Explore Exclusive Content →
-                    </a>
-
-                </div>
-
-                <small class="membership-note">
-                    Your access remains available while
-                    your membership is active.
-                </small>
-
+                <div class="membership-active-badge">✓ Your exclusive membership is active</div>
+                <p class="lux-active-message">Thank you for supporting my creative journey. Your exclusive content is ready to explore.</p>
+                <div class="membership-action"><a href="#latest" class="exclusive-button">Explore exclusive content <span aria-hidden="true">↗</span></a></div>
+                <small class="membership-note">Your access remains available while your membership is active.</small>
             {% else %}
-
-                <!-- NEW MEMBER / EXPIRED MEMBER -->
-
-                <div
-                    class="membership-pricing"
-                    id="membership-pricing"
-                >
-
-                    <span class="membership-pricing-label">
-                        Choose your monthly contribution
-                    </span>
-
-                    <div
-                        class="membership-amount-options"
-                        role="radiogroup"
-                        aria-label="Monthly membership amount"
-                    >
-
-                        <label class="membership-amount-option">
-
-                            <input
-                                type="radio"
-                                name="membership_amount_choice"
-                                value="30"
-                                checked
-                            >
-
-                            <span>R30</span>
-
-                        </label>
-
-                        <label class="membership-amount-option">
-
-                            <input
-                                type="radio"
-                                name="membership_amount_choice"
-                                value="50"
-                            >
-
-                            <span>R50</span>
-
-                        </label>
-
-                        <label class="membership-amount-option">
-
-                            <input
-                                type="radio"
-                                name="membership_amount_choice"
-                                value="100"
-                            >
-
-                            <span>R100</span>
-
-                        </label>
-
-                        <label class="membership-amount-option">
-
-                            <input
-                                type="radio"
-                                name="membership_amount_choice"
-                                value="custom"
-                            >
-
-                            <span>Custom</span>
-
-                        </label>
-
+                <div class="lux-membership-pricing" id="membership-pricing">
+                    <span class="lux-pricing-label">Choose your monthly contribution</span>
+                    <div class="membership-amount-options" role="radiogroup" aria-label="Monthly membership amount">
+                        <label class="membership-amount-option"><input type="radio" name="membership_amount_choice" value="30" checked><span>R30</span></label>
+                        <label class="membership-amount-option"><input type="radio" name="membership_amount_choice" value="50"><span>R50</span></label>
+                        <label class="membership-amount-option"><input type="radio" name="membership_amount_choice" value="100"><span>R100</span></label>
+                        <label class="membership-amount-option"><input type="radio" name="membership_amount_choice" value="custom"><span>Custom</span></label>
                     </div>
-
-                    <div
-                        class="membership-custom-field"
-                        id="membership-custom-field"
-                    >
-
-                        <label for="membership-custom-amount">
-                            Enter your amount (minimum R30)
-                        </label>
-
-                        <input
-                            type="number"
-                            id="membership-custom-amount"
-                            min="30"
-                            max="100000"
-                            step="0.01"
-                            placeholder="e.g. 150"
-                            inputmode="decimal"
-                        >
-
+                    <div class="membership-custom-field" id="membership-custom-field">
+                        <label for="membership-custom-amount">Enter your amount (minimum R30)</label>
+                        <input type="number" id="membership-custom-amount" min="30" max="100000" step="0.01" placeholder="e.g. 150" inputmode="decimal">
                     </div>
-
-                    <div class="membership-selected-price">
-
-                        <strong id="membership-display-amount">
-                            R30
-                        </strong>
-
-                        <span>/ month</span>
-
-                    </div>
-
+                    <div class="membership-selected-price"><strong id="membership-display-amount">R30</strong><span>/ month</span></div>
                     <div class="membership-action">
-
-                        <a
-                            href="{{ membership_join_url }}"
-                            class="exclusive-button"
-                            id="membership-join-button"
-                            data-base-url="{{ membership_join_url }}"
-                        >
-                            Unlock Exclusive Content →
-                        </a>
-
+                        <a href="{{ membership_join_url }}" class="exclusive-button" id="membership-join-button" data-base-url="{{ membership_join_url }}">Unlock exclusive content <span aria-hidden="true">↗</span></a>
                     </div>
-
-                    <div class="membership-benefits">
-
-                        <span>✓ Exclusive stories</span>
-
-                        <span>✓ Members-only vlogs</span>
-
-                        <span>✓ Behind-the-scenes moments</span>
-
-                    </div>
-
-                    <small class="membership-note">
-                        No account or password required.
-                        Access is provided through your email.
-                        Your membership lasts one month and
-                        renews only when you choose to pay again.
-                    </small>
-
+                    <div class="membership-benefits"><span>✓ Exclusive stories</span><span>✓ Members-only vlogs</span><span>✓ Behind-the-scenes moments</span></div>
+                    <small class="membership-note">No account or password required. Access is provided through your email. Membership lasts one month and renews only when you choose to pay again.</small>
                 </div>
-
             {% endif %}
-
         {% else %}
-
-            <!-- MEMBERSHIPS UNAVAILABLE -->
-
-            <div class="membership-selected-price">
-
-                <strong>R30</strong>
-
-                <span>/ month starting price</span>
-
-            </div>
-
-            <span class="membership-unavailable">
-                Exclusive memberships are not available yet.
-            </span>
-
-            <small class="membership-note">
-                Check back soon for exclusive stories,
-                behind-the-scenes moments and members-only vlogs.
-            </small>
-
+            <div class="membership-selected-price"><strong>R30</strong><span>/ month starting price</span></div>
+            <span class="membership-unavailable">Exclusive memberships are not available yet.</span>
+            <small class="membership-note">Check back soon for exclusive stories, behind-the-scenes moments and members-only vlogs.</small>
         {% endif %}
-
     </div>
-
 </section>
 
 <!-- ============================================================
      NEWSLETTER
 ============================================================ -->
-
-<section class="newsletter-section" id="newsletter">
-
-    <div class="newsletter-copy">
-
-        <span class="eyebrow">
-            STAY CLOSE
-        </span>
-
-        <h2>
-            Never miss a post.
-        </h2>
-
-        <p>
-            Enter your email and get notified when a new
-            story, reel or vlog drops.
-        </p>
-
+<section class="lux-newsletter" id="newsletter" aria-labelledby="newsletter-title">
+    <div class="lux-container lux-newsletter-grid">
+        <div>
+            <span class="eyebrow">Letters from my world</span>
+            <h2 id="newsletter-title">A beautiful story <em>in your inbox.</em></h2>
+            <p>Be first to know when a new story, reel or vlog goes live. A little inspiration, delivered directly to you.</p>
+        </div>
+        {% if creator and creator.creator_account_id and public_username %}
+            <form method="POST" action="{{ url_for('public.creator_newsletter_subscribe', username=public_username) }}" class="newsletter-form">
+        {% else %}
+            <form method="POST" action="{{ url_for('public.newsletter_subscribe') }}" class="newsletter-form">
+        {% endif %}
+            <div class="newsletter-honeypot" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
+            <label for="newsletter-email">Your email address</label>
+            <div class="newsletter-input-row">
+                <input type="email" id="newsletter-email" name="email" maxlength="255" autocomplete="email" placeholder="you@example.com" required>
+                <button type="submit">Subscribe ↗</button>
+            </div>
+            <small>Only meaningful updates. Unsubscribe whenever you want.</small>
+        </form>
     </div>
-
-    {% if creator and creator.creator_account_id and public_username %}
-
-        <form
-            method="POST"
-            action="{{ url_for(
-                'public.creator_newsletter_subscribe',
-                username=public_username
-            ) }}"
-            class="newsletter-form"
-        >
-
-    {% else %}
-
-        <form
-            method="POST"
-            action="{{ url_for('public.newsletter_subscribe') }}"
-            class="newsletter-form"
-        >
-
-    {% endif %}
-
-        <div class="newsletter-honeypot" aria-hidden="true">
-
-            <input
-                type="text"
-                name="website"
-                tabindex="-1"
-                autocomplete="off"
-            >
-
-        </div>
-
-        <label for="newsletter-email">
-            Email address
-        </label>
-
-        <div class="newsletter-input-row">
-
-            <input
-                type="email"
-                id="newsletter-email"
-                name="email"
-                maxlength="255"
-                autocomplete="email"
-                placeholder="you@example.com"
-                required
-            >
-
-            <button type="submit">
-                Subscribe
-            </button>
-
-        </div>
-
-        <small>
-            No spam. Unsubscribe whenever you want.
-        </small>
-
-    </form>
-
 </section>
 
 <!-- ============================================================
-     BUY ME A COFFEE
+     SUPPORT THE CREATOR
 ============================================================ -->
-
-<section class="support-section" id="support">
-
-    <span class="support-icon">
-        ☕
-    </span>
-
-    <span class="eyebrow">
-        SUPPORT THE CREATIVE JOURNEY
-    </span>
-
-    <h2>
-        Enjoying my content?
-    </h2>
-
-    <p>
-        If something I create resonates with you,
-        you can show your appreciation with a contribution.
-    </p>
-
+<section class="lux-support" id="support" aria-labelledby="support-title">
+    <span class="lux-support-mark" aria-hidden="true">☕</span>
+    <span class="eyebrow">A little appreciation</span>
+    <h2 id="support-title">Keep the stories <em>coming.</em></h2>
+    <p>If something I've shared has inspired you, made you smile or stayed with you, your support helps me create more of it.</p>
     {% if creator_account and creator_account.monetization_enabled %}
-
-        <a
-            class="coffee-button"
-            href="{{ url_for(
-                'fan_payments.creator_support',
-                username=creator_account.username
-            ) }}"
-        >
-            ☕ Buy me a coffee
-            <span aria-hidden="true">↗</span>
-        </a>
-
+        <a class="coffee-button" href="{{ url_for('fan_payments.creator_support', username=creator_account.username) }}">Buy me a coffee <span aria-hidden="true">↗</span></a>
     {% else %}
-
-        <span class="coffee-unavailable">
-            Contributions are currently unavailable.
-        </span>
-
+        <span class="coffee-unavailable">Contributions are currently unavailable.</span>
     {% endif %}
-
 </section>
 
 {% include "public/includes/branding_footer.html" %}
-
 </div>
 
 <!-- ============================================================
-     MEMBERSHIP AMOUNT SELECTION
+     MEMBERSHIP AMOUNT SELECTION — ORIGINAL FLOW PRESERVED
 ============================================================ -->
-
 <script>
-
 (function () {
-
     "use strict";
+    const pricing = document.getElementById("membership-pricing");
+    if (!pricing) return;
 
-    const pricing = document.getElementById(
-        "membership-pricing"
-    );
-
-    if (!pricing) {
-        return;
-    }
-
-    const amountChoices = pricing.querySelectorAll(
-        'input[name="membership_amount_choice"]'
-    );
-
-    const customField = document.getElementById(
-        "membership-custom-field"
-    );
-
-    const customInput = document.getElementById(
-        "membership-custom-amount"
-    );
-
-    const displayAmount = document.getElementById(
-        "membership-display-amount"
-    );
-
-    const joinButton = document.getElementById(
-        "membership-join-button"
-    );
-
-    if (
-        !customField ||
-        !customInput ||
-        !displayAmount ||
-        !joinButton
-    ) {
-        return;
-    }
+    const amountChoices = pricing.querySelectorAll('input[name="membership_amount_choice"]');
+    const customField = document.getElementById("membership-custom-field");
+    const customInput = document.getElementById("membership-custom-amount");
+    const displayAmount = document.getElementById("membership-display-amount");
+    const joinButton = document.getElementById("membership-join-button");
+    if (!customField || !customInput || !displayAmount || !joinButton) return;
 
     const minimumAmount = 30;
-
     const maximumAmount = 100000;
 
     function selectedChoice() {
-
-        const selected = pricing.querySelector(
-            'input[name="membership_amount_choice"]:checked'
-        );
-
+        const selected = pricing.querySelector('input[name="membership_amount_choice"]:checked');
         return selected ? selected.value : "30";
-
     }
 
     function selectedAmount() {
-
         const choice = selectedChoice();
-
-        if (choice === "custom") {
-
-            const amount = Number(
-                customInput.value
-            );
-
-            if (
-                !Number.isFinite(amount) ||
-                amount < minimumAmount ||
-                amount > maximumAmount
-            ) {
-                return null;
-            }
-
-            if (
-                !Number.isInteger(
-                    Math.round(amount * 100)
-                ) ||
-                Math.abs(
-                    amount * 100 -
-                    Math.round(amount * 100)
-                ) > 0.000001
-            ) {
-                return null;
-            }
-
-            return amount;
-
-        }
-
-        return Number(choice);
-
+        if (choice !== "custom") return Number(choice);
+        if (customInput.value.trim() === "") return null;
+        const amount = Number(customInput.value);
+        if (!Number.isFinite(amount) || amount < minimumAmount || amount > maximumAmount) return null;
+        if (Math.abs(amount * 100 - Math.round(amount * 100)) > 0.000001) return null;
+        return amount;
     }
 
     function formatAmount(amount) {
-
-        return "R" + amount.toLocaleString(
-            "en-ZA",
-            {
-                minimumFractionDigits: 0,
-                maximumFractionDigits: 2
-            }
-        );
-
+        return "R" + amount.toLocaleString("en-ZA", {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        });
     }
 
     function updateMembershipSelection() {
-
-        const choice = selectedChoice();
-
-        const isCustom = choice === "custom";
-
-        customField.classList.toggle(
-            "is-visible",
-            isCustom
-        );
-
+        const isCustom = selectedChoice() === "custom";
+        customField.classList.toggle("is-visible", isCustom);
         customInput.required = isCustom;
-
         const amount = selectedAmount();
-
         if (amount === null) {
-
             displayAmount.textContent = "R30+";
-
-            joinButton.setAttribute(
-                "aria-disabled",
-                "true"
-            );
-
-            joinButton.classList.add(
-                "is-disabled"
-            );
-
+            joinButton.setAttribute("aria-disabled", "true");
+            joinButton.classList.add("is-disabled");
+            joinButton.removeAttribute("href");
             return;
-
         }
-
-        displayAmount.textContent = formatAmount(
-            amount
-        );
-
-        joinButton.removeAttribute(
-            "aria-disabled"
-        );
-
-        joinButton.classList.remove(
-            "is-disabled"
-        );
-
+        displayAmount.textContent = formatAmount(amount);
+        joinButton.removeAttribute("aria-disabled");
+        joinButton.classList.remove("is-disabled");
         const baseUrl = joinButton.dataset.baseUrl;
-
-        if (!baseUrl) {
-            return;
-        }
-
-        const url = new URL(
-            baseUrl,
-            window.location.origin
-        );
-
-        url.searchParams.set(
-            "amount",
-            amount.toFixed(2)
-        );
-
+        if (!baseUrl) return;
+        const url = new URL(baseUrl, window.location.origin);
+        url.searchParams.set("amount", amount.toFixed(2));
         joinButton.href = url.toString();
-
     }
 
     amountChoices.forEach(function (choice) {
-
-        choice.addEventListener(
-            "change",
-            updateMembershipSelection
-        );
-
+        choice.addEventListener("change", updateMembershipSelection);
     });
-
-    customInput.addEventListener(
-        "input",
-        updateMembershipSelection
-    );
-
-    joinButton.addEventListener(
-        "click",
-        function (event) {
-
-            const amount = selectedAmount();
-
-            if (amount === null) {
-
-                event.preventDefault();
-
-                customInput.focus();
-
-                customInput.reportValidity();
-
-            }
-
+    customInput.addEventListener("input", updateMembershipSelection);
+    joinButton.addEventListener("click", function (event) {
+        const amount = selectedAmount();
+        if (amount === null) {
+            event.preventDefault();
+            customInput.focus();
+            customInput.reportValidity();
         }
-    );
-
+    });
     updateMembershipSelection();
-
 })();
-
 </script>
-
 {% endblock %}
